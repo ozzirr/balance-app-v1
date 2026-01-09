@@ -14,6 +14,17 @@ type Props = {
   onPressRow?: (row: RecurrenceRow) => void;
 };
 
+const categoryPalette = ["#9B7BFF", "#5C9DFF", "#F6C177", "#66D19E", "#C084FC", "#FF8FAB", "#6EE7B7", "#94A3B8"];
+
+function hashLabel(label: string): number {
+  let hash = 0;
+  for (let i = 0; i < label.length; i += 1) {
+    hash = (hash << 5) - hash + label.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
 export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   return (
@@ -25,13 +36,6 @@ export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.E
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.table}>
           <View>
             <View style={styles.headerRow}>
-              <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount, styles.headerAmount]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                Importo
-              </Text>
               <Text
                 style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]}
                 numberOfLines={1}
@@ -47,6 +51,13 @@ export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.E
                 Tipo
               </Text>
               <Text
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount, styles.headerAmount]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                Importo
+              </Text>
+              <Text
                 style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
@@ -60,15 +71,23 @@ export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.E
               >
                 Descrizione
               </Text>
+              <Text
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAction]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                Modifica
+              </Text>
             </View>
             {rows.map((item, index) => {
               const amountColor = item.type === "income" ? tokens.colors.green : tokens.colors.red;
+              const categoryColor =
+                item.type === "income"
+                  ? tokens.colors.green
+                  : item.categoryColor ?? categoryPalette[hashLabel(item.category) % categoryPalette.length];
               return (
                 <React.Fragment key={item.id}>
-                  <PressScale onPress={() => onPressRow?.(item)} style={styles.row}>
-                    <Text style={[styles.cell, styles.cellAmount, { color: amountColor }]}>
-                      {formatEUR(item.amount)}
-                    </Text>
+                  <View style={styles.row}>
                     <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate]}>
                       {formatShortDate(item.date)}
                     </Text>
@@ -78,13 +97,27 @@ export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.E
                         tone={item.type === "income" ? "green" : "red"}
                       />
                     </View>
-                    <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellCategory]} numberOfLines={1}>
-                      {item.category}
+                    <Text style={[styles.cell, styles.cellAmount, { color: amountColor }]}>
+                      {formatEUR(item.amount)}
                     </Text>
-                    <Text style={[styles.cell, { color: tokens.colors.muted }, styles.cellDesc]} numberOfLines={1}>
+                    <View style={[styles.cell, styles.cellCategory]}>
+                      <Chip label={item.category} color={categoryColor} />
+                    </View>
+                    <Text style={[styles.cell, { color: tokens.colors.muted }, styles.cellDesc]}>
                       {item.description}
                     </Text>
-                  </PressScale>
+                    <View style={[styles.cell, styles.cellAction]}>
+                      <PressScale
+                        onPress={() => onPressRow?.(item)}
+                        style={[
+                          styles.actionButton,
+                          { borderColor: tokens.colors.accent, backgroundColor: `${tokens.colors.accent}14` },
+                        ]}
+                      >
+                        <Text style={[styles.actionText, { color: tokens.colors.accent }]}>Modifica</Text>
+                      </PressScale>
+                    </View>
+                  </View>
                   {index < rows.length - 1 ? (
                     <View style={[styles.separator, { backgroundColor: tokens.colors.border }]} />
                   ) : null}
@@ -113,13 +146,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     minWidth: 0,
+    textAlign: "left",
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
     flexWrap: "nowrap",
-    width: 470,
+    width: 650,
   },
   cell: {
     fontSize: 12,
@@ -143,14 +177,19 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     marginRight: 6,
   },
+  cellAction: {
+    width: 90,
+    flexShrink: 0,
+    alignItems: "flex-end",
+  },
   cellDesc: {
-    width: 150,
+    width: 220,
     flexShrink: 1,
     marginRight: 6,
   },
   cellAmount: {
     width: 88,
-    textAlign: "left",
+    textAlign: "center",
     fontWeight: "700",
     flexShrink: 0,
   },
@@ -159,6 +198,17 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
+  },
+  actionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  actionText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   empty: {},
 });

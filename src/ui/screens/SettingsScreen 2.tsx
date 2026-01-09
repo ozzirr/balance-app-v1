@@ -11,6 +11,8 @@ import { createInvestCategory, listInvestCategories } from "@/repositories/inves
 import { createExpenseCategory, listExpenseCategories } from "@/repositories/expenseCategoriesRepo";
 import type { Container, ContainerType, ExpenseCategory, Institution, InvestCategory } from "@/repositories/types";
 
+const defaultExpenseCategoryColor = "#9B7BFF";
+
 export default function SettingsScreen(): JSX.Element {
   const [fileName, setFileName] = useState("mymoney-export.json");
   const [message, setMessage] = useState<string | null>(null);
@@ -123,7 +125,7 @@ export default function SettingsScreen(): JSX.Element {
 
   const addExpenseCategory = async () => {
     if (!expenseCategoryName.trim()) return;
-    await createExpenseCategory(expenseCategoryName.trim());
+    await createExpenseCategory(expenseCategoryName.trim(), defaultExpenseCategoryColor);
     setExpenseCategoryName("");
     await loadRegistry();
   };

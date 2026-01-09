@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Text } from "react-native-paper";
 import {
   VictoryArea,
@@ -25,6 +25,7 @@ type Props = {
 export default function PortfolioLineChartCard({ data }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const [mode, setMode] = useState<Mode>("total");
+  const { width } = useWindowDimensions();
 
   const chartData = useMemo(
     () =>
@@ -71,53 +72,56 @@ export default function PortfolioLineChartCard({ data }: Props): JSX.Element {
         {chartData.length === 0 ? (
           <Text style={[styles.empty, { color: tokens.colors.muted }]}>Nessun dato disponibile.</Text>
         ) : (
-          <VictoryChart
-            height={240}
-            padding={{ left: 50, right: 18, top: 10, bottom: 30 }}
-            containerComponent={
-              <VictoryVoronoiContainer
-                voronoiBlacklist={["area"]}
-                labels={({ datum }) => `${formatMonthLabel(String(datum.x))} • ${formatEUR(datum.y)}`}
-                labelComponent={
-                  <VictoryTooltip
-                    flyoutStyle={{ fill: tokens.colors.surface2, stroke: tokens.colors.border }}
-                    style={{ fill: tokens.colors.text, fontSize: 12 }}
-                    cornerRadius={12}
-                    pointerLength={8}
-                    flyoutPadding={{ top: 8, bottom: 8, left: 12, right: 12 }}
-                  />
-                }
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chartScroll}>
+            <VictoryChart
+              width={Math.max(width - 64, chartData.length * 70)}
+              height={240}
+              padding={{ left: 50, right: 18, top: 10, bottom: 30 }}
+              containerComponent={
+                <VictoryVoronoiContainer
+                  voronoiBlacklist={["area"]}
+                  labels={({ datum }) => `${formatMonthLabel(String(datum.x))} • ${formatEUR(datum.y)}`}
+                  labelComponent={
+                    <VictoryTooltip
+                      flyoutStyle={{ fill: tokens.colors.surface2, stroke: tokens.colors.border }}
+                      style={{ fill: tokens.colors.text, fontSize: 12 }}
+                      cornerRadius={12}
+                      pointerLength={8}
+                      flyoutPadding={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                    />
+                  }
+                />
+              }
+            >
+              <VictoryAxis
+                tickFormat={(tick) => formatMonthLabel(String(tick))}
+                style={{
+                  axis: { stroke: "transparent" },
+                  tickLabels: { fontSize: 11, fill: tokens.colors.muted, padding: 6 },
+                }}
               />
-            }
-          >
-            <VictoryAxis
-              tickFormat={(tick) => formatMonthLabel(String(tick))}
-              style={{
-                axis: { stroke: "transparent" },
-                tickLabels: { fontSize: 11, fill: tokens.colors.muted, padding: 6 },
-              }}
-            />
-            <VictoryAxis
-              dependentAxis
-              tickFormat={(tick) => formatCompact(Number(tick))}
-              style={{
-                axis: { stroke: "transparent" },
-                grid: { stroke: tokens.colors.border },
-                tickLabels: { fontSize: 11, fill: tokens.colors.muted, padding: 6 },
-              }}
-            />
-            <VictoryArea
-              name="area"
-              data={chartData}
-              interpolation="natural"
-              style={{ data: { fill: `${tokens.colors.accent}3B` } }}
-            />
-            <VictoryLine
-              data={chartData}
-              interpolation="natural"
-              style={{ data: { stroke: tokens.colors.accent, strokeWidth: 2.5 } }}
-            />
-          </VictoryChart>
+              <VictoryAxis
+                dependentAxis
+                tickFormat={(tick) => formatCompact(Number(tick))}
+                style={{
+                  axis: { stroke: "transparent" },
+                  grid: { stroke: tokens.colors.border },
+                  tickLabels: { fontSize: 11, fill: tokens.colors.muted, padding: 6 },
+                }}
+              />
+              <VictoryArea
+                name="area"
+                data={chartData}
+                interpolation="natural"
+                style={{ data: { fill: `${tokens.colors.accent}3B` } }}
+              />
+              <VictoryLine
+                data={chartData}
+                interpolation="natural"
+                style={{ data: { stroke: tokens.colors.accent, strokeWidth: 2.5 } }}
+              />
+            </VictoryChart>
+          </ScrollView>
         )}
       </PremiumCard>
     </View>
@@ -147,5 +151,8 @@ const styles = StyleSheet.create({
   },
   empty: {
     fontSize: 13,
+  },
+  chartScroll: {
+    paddingRight: 8,
   },
 });

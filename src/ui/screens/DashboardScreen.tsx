@@ -178,7 +178,10 @@ export default function DashboardScreen(): JSX.Element {
             </View>
 
             <View style={styles.section}>
-              <RecurrencesTableCard rows={dashboard.recurrences} />
+              <RecurrencesTableCard
+                rows={dashboard.recurrences}
+                onPressRow={(row) => navigation.navigate("Entrate/Uscite", { mode: row.type, entryId: row.entryId })}
+              />
             </View>
           </>
         ) : null}

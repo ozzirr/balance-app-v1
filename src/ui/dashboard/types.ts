@@ -45,9 +45,11 @@ export type CategoryRow = {
 
 export type RecurrenceRow = {
   id: string;
+  entryId: number;
   date: string;
   type: "income" | "expense";
   category: string;
+  categoryColor?: string;
   description: string;
   amount: number;
   recurring: boolean;

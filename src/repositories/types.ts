@@ -14,6 +14,7 @@ export type Wallet = {
 export type ExpenseCategory = {
   id: number;
   name: string;
+  color: string;
   active: number;
 };
 

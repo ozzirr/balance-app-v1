@@ -1,19 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Button, List, SegmentedButtons, Switch, Text, TextInput } from "react-native-paper";
 import { useRoute } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { listIncomeEntries, createIncomeEntry, updateIncomeEntry, deleteIncomeEntry } from "@/repositories/incomeEntriesRepo";
 import { listExpenseEntries, createExpenseEntry, updateExpenseEntry, deleteExpenseEntry } from "@/repositories/expenseEntriesRepo";
-import { listExpenseCategories, createExpenseCategory, updateExpenseCategory, deleteExpenseCategory, setExpenseCategoryActive } from "@/repositories/expenseCategoriesRepo";
+import {
+  listExpenseCategories,
+  createExpenseCategory,
+  updateExpenseCategory,
+  deleteExpenseCategory,
+  setExpenseCategoryActive,
+} from "@/repositories/expenseCategoriesRepo";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
 import { isIsoDate, todayIso } from "@/utils/dates";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
+import PressScale from "@/ui/dashboard/components/PressScale";
+import Chip from "@/ui/dashboard/components/Chip";
+import { formatEUR, formatShortDate } from "@/ui/dashboard/formatters";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Mode = "income" | "expense";
+
+type CategoryEdit = {
+  name: string;
+  color: string;
+};
 
 type FormState = {
   id: number | null;
@@ -39,22 +53,45 @@ const emptyForm: FormState = {
   interval: "1",
 };
 
+const presetColors = [
+  "#9B7BFF",
+  "#5C9DFF",
+  "#F6C177",
+  "#66D19E",
+  "#C084FC",
+  "#FF8FAB",
+  "#6EE7B7",
+  "#94A3B8",
+  "#F97316",
+  "#22D3EE",
+];
+
+function nextPresetColor(current: string): string {
+  const index = presetColors.indexOf(current);
+  if (index === -1) return presetColors[0];
+  return presetColors[(index + 1) % presetColors.length];
+}
+
 export default function EntriesScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const route = useRoute();
-  const routeMode = (route.params as { mode?: Mode } | undefined)?.mode;
+  const scrollRef = useRef<ScrollView | null>(null);
+  const routeMode = (route.params as { mode?: Mode; entryId?: number } | undefined)?.mode;
+  const routeEntryId = (route.params as { mode?: Mode; entryId?: number } | undefined)?.entryId;
   const [mode, setMode] = useState<Mode>(routeMode ?? "income");
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [expenseEntries, setExpenseEntries] = useState<ExpenseEntry[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-  const [categoryEdits, setCategoryEdits] = useState<Record<number, string>>({});
+  const [categoryEdits, setCategoryEdits] = useState<Record<number, CategoryEdit>>({});
   const [newCategory, setNewCategory] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState(presetColors[0]);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null);
+  const [showNewEntry, setShowNewEntry] = useState(false);
 
   const load = useCallback(async () => {
     const [income, expense, cats] = await Promise.all([
@@ -65,9 +102,9 @@ export default function EntriesScreen(): JSX.Element {
     setIncomeEntries(income);
     setExpenseEntries(expense);
     setCategories(cats);
-    const edits: Record<number, string> = {};
+    const edits: Record<number, CategoryEdit> = {};
     cats.forEach((cat) => {
-      edits[cat.id] = cat.name;
+      edits[cat.id] = { name: cat.name, color: cat.color };
     });
     setCategoryEdits(edits);
   }, []);
@@ -87,6 +124,18 @@ export default function EntriesScreen(): JSX.Element {
       setMode(routeMode);
     }
   }, [routeMode]);
+
+  useEffect(() => {
+    if (!routeEntryId) return;
+    if (form.id === routeEntryId) return;
+    const entryMode: Mode = routeMode ?? "income";
+    const entriesList = entryMode === "income" ? incomeEntries : expenseEntries;
+    const found = entriesList.find((entry) => entry.id === routeEntryId);
+    if (found) {
+      applyEntryToForm(found, entryMode);
+      setShowNewEntry(true);
+    }
+  }, [routeEntryId, routeMode, incomeEntries, expenseEntries, form.id]);
 
   const applyEntryToForm = (entry: IncomeEntry | ExpenseEntry, entryMode: Mode) => {
     setMode(entryMode);
@@ -183,15 +232,17 @@ export default function EntriesScreen(): JSX.Element {
 
   const addCategory = async () => {
     if (!newCategory.trim()) return;
-    await createExpenseCategory(newCategory.trim());
+    await createExpenseCategory(newCategory.trim(), newCategoryColor);
     setNewCategory("");
+    setNewCategoryColor(presetColors[0]);
     await load();
   };
 
   const saveCategory = async (id: number) => {
-    const name = categoryEdits[id]?.trim();
-    if (!name) return;
-    await updateExpenseCategory(id, name);
+    const edit = categoryEdits[id];
+    const name = edit?.name?.trim();
+    if (!name || !edit?.color) return;
+    await updateExpenseCategory(id, name, edit.color);
     await load();
   };
 
@@ -203,6 +254,11 @@ export default function EntriesScreen(): JSX.Element {
   const entries = mode === "income" ? incomeEntries : expenseEntries;
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
+  const categoryById = useMemo(() => {
+    const map = new Map<number, ExpenseCategory>();
+    categories.forEach((cat) => map.set(cat.id, cat));
+    return map;
+  }, [categories]);
 
   const toIsoDate = (value: Date): string => {
     const y = value.getFullYear();
@@ -213,9 +269,22 @@ export default function EntriesScreen(): JSX.Element {
 
   const datePickerValue = form.startDate && isIsoDate(form.startDate) ? new Date(form.startDate) : new Date();
 
+  const toAnnualAmount = (entry: IncomeEntry | ExpenseEntry): number | null => {
+    if (entry.one_shot === 1 || !entry.recurrence_frequency) return null;
+    const interval = entry.recurrence_interval && entry.recurrence_interval > 0 ? entry.recurrence_interval : 1;
+    const periods =
+      entry.recurrence_frequency === "WEEKLY"
+        ? 52 / interval
+        : entry.recurrence_frequency === "MONTHLY"
+          ? 12 / interval
+          : 1 / interval;
+    return entry.amount * periods;
+  };
+
   return (
     <View style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.container,
           { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom },
@@ -238,141 +307,176 @@ export default function EntriesScreen(): JSX.Element {
         </PremiumCard>
 
         <PremiumCard>
-          <SectionHeader title="Aggiungi nuova" />
-          <View style={styles.form}>
-            <TextInput
-              label="Nome"
-              value={form.name}
-              mode="outlined"
-              outlineColor={tokens.colors.border}
-              activeOutlineColor={tokens.colors.accent}
-              textColor={tokens.colors.text}
-              style={{ backgroundColor: tokens.colors.surface2 }}
-              onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
-            />
-            <TextInput
-              label="Importo"
-              keyboardType="decimal-pad"
-              value={form.amount}
-              mode="outlined"
-              outlineColor={tokens.colors.border}
-              activeOutlineColor={tokens.colors.accent}
-              textColor={tokens.colors.text}
-              style={{ backgroundColor: tokens.colors.surface2 }}
-              onChangeText={(text) => setForm((prev) => ({ ...prev, amount: text }))}
-            />
-            <TextInput
-              label="Data"
-              value={form.startDate}
-              editable={false}
-              mode="outlined"
-              outlineColor={tokens.colors.border}
-              activeOutlineColor={tokens.colors.accent}
-              textColor={tokens.colors.text}
-              style={{ backgroundColor: tokens.colors.surface2 }}
-              onPressIn={() => setShowDatePicker(true)}
-            />
-            {showDatePicker && (
-              <DateTimePicker
-                value={datePickerValue}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(_, selected) => {
-                  if (selected) {
-                    setForm((prev) => ({ ...prev, startDate: toIsoDate(selected) }));
-                  }
-                  setShowDatePicker(false);
-                }}
-              />
-            )}
-            {mode === "expense" && (
-              <PremiumCard style={{ backgroundColor: tokens.colors.surface2 }}>
-                <SectionHeader title="Categoria spesa" />
-                <View style={styles.list}>
-                  {activeCategories.length === 0 && (
-                    <Text style={{ color: tokens.colors.muted }}>Nessuna categoria attiva. Aggiungine una qui sotto.</Text>
-                  )}
-                  {activeCategories.map((cat) => (
-                    <Button
-                      key={cat.id}
-                      mode={form.categoryId === String(cat.id) ? "contained" : "outlined"}
-                      buttonColor={form.categoryId === String(cat.id) ? tokens.colors.accent : undefined}
-                      textColor={form.categoryId === String(cat.id) ? tokens.colors.text : tokens.colors.muted}
-                      onPress={() => setForm((prev) => ({ ...prev, categoryId: String(cat.id) }))}
-                    >
-                      {cat.name}
-                    </Button>
-                  ))}
-                </View>
-              </PremiumCard>
-            )}
-            <View style={styles.row}>
-              <Switch value={form.recurring} onValueChange={(value) => setForm((prev) => ({ ...prev, recurring: value }))} />
-              <Text style={{ color: tokens.colors.text }}>Ricorrente</Text>
-            </View>
-            {form.recurring && (
-              <>
-                <SegmentedButtons
-                  value={form.frequency}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, frequency: value as RecurrenceFrequency }))}
-                  buttons={[
-                    { value: "WEEKLY", label: "Weekly" },
-                    { value: "MONTHLY", label: "Monthly" },
-                    { value: "YEARLY", label: "Yearly" },
-                  ]}
-                  style={{ backgroundColor: tokens.colors.surface2 }}
-                />
+          <SectionHeader
+            title="Aggiungi nuova"
+            trailing={
+              <Button
+                mode="contained"
+                buttonColor={tokens.colors.accent}
+                textColor={tokens.colors.text}
+                onPress={() => setShowNewEntry((prev) => !prev)}
+              >
+                {showNewEntry ? "Chiudi" : "Aggiungi"}
+              </Button>
+            }
+          />
+          {showNewEntry ? (
+            <>
+              <View style={styles.form}>
                 <TextInput
-                  label="Intervallo"
-                  keyboardType="numeric"
-                  value={form.interval}
+                  label="Nome"
+                  value={form.name}
                   mode="outlined"
                   outlineColor={tokens.colors.border}
                   activeOutlineColor={tokens.colors.accent}
                   textColor={tokens.colors.text}
                   style={{ backgroundColor: tokens.colors.surface2 }}
-                  onChangeText={(text) => setForm((prev) => ({ ...prev, interval: text }))}
+                  onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
                 />
-              </>
-            )}
-            {error && <Text style={{ color: tokens.colors.red }}>{error}</Text>}
-          </View>
-          <View style={styles.actionsRow}>
-            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={saveEntry}>
-              Salva
-            </Button>
-            <Button mode="outlined" textColor={tokens.colors.text} onPress={() => setForm(emptyForm)}>
-              Reset
-            </Button>
-            {form.id && (
-              <Button mode="outlined" textColor={tokens.colors.red} onPress={removeEntry}>
-                Elimina
-              </Button>
-            )}
-          </View>
+                <TextInput
+                  label="Importo"
+                  keyboardType="decimal-pad"
+                  value={form.amount}
+                  mode="outlined"
+                  outlineColor={tokens.colors.border}
+                  activeOutlineColor={tokens.colors.accent}
+                  textColor={tokens.colors.text}
+                  style={{ backgroundColor: tokens.colors.surface2 }}
+                  onChangeText={(text) => setForm((prev) => ({ ...prev, amount: text }))}
+                />
+                <TextInput
+                  label="Data"
+                  value={form.startDate}
+                  editable={false}
+                  mode="outlined"
+                  outlineColor={tokens.colors.border}
+                  activeOutlineColor={tokens.colors.accent}
+                  textColor={tokens.colors.text}
+                  style={{ backgroundColor: tokens.colors.surface2 }}
+                  onPressIn={() => setShowDatePicker(true)}
+                />
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={datePickerValue}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={(_, selected) => {
+                      if (selected) {
+                        setForm((prev) => ({ ...prev, startDate: toIsoDate(selected) }));
+                      }
+                      setShowDatePicker(false);
+                    }}
+                  />
+                )}
+                {mode === "expense" && (
+                  <PremiumCard style={{ backgroundColor: tokens.colors.surface2 }}>
+                    <SectionHeader title="Categoria spesa" />
+                    <View style={styles.list}>
+                      {activeCategories.length === 0 && (
+                        <Text style={{ color: tokens.colors.muted }}>
+                          Nessuna categoria attiva. Aggiungine una qui sotto.
+                        </Text>
+                      )}
+                      {activeCategories.map((cat) => (
+                        <Button
+                          key={cat.id}
+                          mode={form.categoryId === String(cat.id) ? "contained" : "outlined"}
+                          buttonColor={form.categoryId === String(cat.id) ? cat.color : undefined}
+                          textColor={form.categoryId === String(cat.id) ? tokens.colors.text : tokens.colors.muted}
+                          onPress={() => setForm((prev) => ({ ...prev, categoryId: String(cat.id) }))}
+                          style={
+                            form.categoryId !== String(cat.id)
+                              ? { borderColor: cat.color }
+                              : undefined
+                          }
+                        >
+                          {cat.name}
+                        </Button>
+                      ))}
+                    </View>
+                  </PremiumCard>
+                )}
+                <View style={styles.row}>
+                  <Switch
+                    value={form.recurring}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, recurring: value }))}
+                  />
+                  <Text style={{ color: tokens.colors.text }}>Ricorrente</Text>
+                </View>
+                {form.recurring && (
+                  <>
+                    <SegmentedButtons
+                      value={form.frequency}
+                      onValueChange={(value) => setForm((prev) => ({ ...prev, frequency: value as RecurrenceFrequency }))}
+                      buttons={[
+                        { value: "WEEKLY", label: "Weekly" },
+                        { value: "MONTHLY", label: "Monthly" },
+                        { value: "YEARLY", label: "Yearly" },
+                      ]}
+                      style={{ backgroundColor: tokens.colors.surface2 }}
+                    />
+                    <TextInput
+                      label="Intervallo"
+                      keyboardType="numeric"
+                      value={form.interval}
+                      mode="outlined"
+                      outlineColor={tokens.colors.border}
+                      activeOutlineColor={tokens.colors.accent}
+                      textColor={tokens.colors.text}
+                      style={{ backgroundColor: tokens.colors.surface2 }}
+                      onChangeText={(text) => setForm((prev) => ({ ...prev, interval: text }))}
+                    />
+                  </>
+                )}
+                {error && <Text style={{ color: tokens.colors.red }}>{error}</Text>}
+              </View>
+              <View style={styles.actionsRow}>
+                <Button mode="contained" buttonColor={tokens.colors.accent} onPress={saveEntry}>
+                  Salva
+                </Button>
+                <Button mode="outlined" textColor={tokens.colors.text} onPress={() => setForm(emptyForm)}>
+                  Reset
+                </Button>
+                {form.id && (
+                  <Button mode="outlined" textColor={tokens.colors.red} onPress={removeEntry}>
+                    Elimina
+                  </Button>
+                )}
+              </View>
+            </>
+          ) : null}
         </PremiumCard>
 
         {mode === "expense" && (
           <PremiumCard>
             <SectionHeader title="Categorie spesa" />
             <View style={styles.form}>
-              <TextInput
-                label="Nuova categoria"
-                value={newCategory}
-                mode="outlined"
-                outlineColor={tokens.colors.border}
-                activeOutlineColor={tokens.colors.accent}
-                textColor={tokens.colors.text}
-                style={{ backgroundColor: tokens.colors.surface2 }}
-                onChangeText={setNewCategory}
-              />
+              <View style={styles.colorLine}>
+                <TextInput
+                  label="Nuova categoria"
+                  value={newCategory}
+                  mode="outlined"
+                  outlineColor={tokens.colors.border}
+                  activeOutlineColor={tokens.colors.accent}
+                  textColor={tokens.colors.text}
+                  style={[styles.colorInput, { backgroundColor: tokens.colors.surface2 }]}
+                  onChangeText={setNewCategory}
+                />
+                <PressScale
+                  onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: newCategoryColor, borderColor: tokens.colors.text },
+                  ]}
+                />
+              </View>
               <Button mode="contained" buttonColor={tokens.colors.accent} onPress={addCategory}>
                 Aggiungi
               </Button>
               {categories.map((cat) => (
                 <List.Accordion
                   key={cat.id}
-                  title={categoryEdits[cat.id] ?? cat.name}
+                  title={categoryEdits[cat.id]?.name ?? cat.name}
                   description={cat.active === 1 ? "Attiva" : "Disattiva"}
                   left={(props) => <List.Icon {...props} icon="tag" />}
                   style={{ marginTop: 8, backgroundColor: tokens.colors.surface2 }}
@@ -382,21 +486,47 @@ export default function EntriesScreen(): JSX.Element {
                   onPress={() => setExpandedCategoryId((prev) => (prev === cat.id ? null : cat.id))}
                 >
                   <View style={styles.form}>
-                    <TextInput
-                      label="Nome categoria"
-                      value={categoryEdits[cat.id] ?? cat.name}
-                      mode="outlined"
-                      outlineColor={tokens.colors.border}
-                      activeOutlineColor={tokens.colors.accent}
-                      textColor={tokens.colors.text}
-                      style={{ backgroundColor: tokens.colors.surface }}
-                      onChangeText={(value) =>
-                        setCategoryEdits((prev) => ({
-                          ...prev,
-                          [cat.id]: value,
-                        }))
-                      }
-                    />
+                    <View style={styles.colorLine}>
+                      <TextInput
+                        label="Nome categoria"
+                        value={categoryEdits[cat.id]?.name ?? cat.name}
+                        mode="outlined"
+                        outlineColor={tokens.colors.border}
+                        activeOutlineColor={tokens.colors.accent}
+                        textColor={tokens.colors.text}
+                        style={[styles.colorInput, { backgroundColor: tokens.colors.surface }]}
+                        onChangeText={(value) =>
+                          setCategoryEdits((prev) => ({
+                            ...prev,
+                            [cat.id]: {
+                              name: value,
+                              color: prev[cat.id]?.color ?? cat.color,
+                            },
+                          }))
+                        }
+                      />
+                      <PressScale
+                        onPress={() =>
+                          setCategoryEdits((prev) => {
+                            const current = prev[cat.id]?.color ?? cat.color;
+                            return {
+                              ...prev,
+                              [cat.id]: {
+                                name: prev[cat.id]?.name ?? cat.name,
+                                color: nextPresetColor(current),
+                              },
+                            };
+                          })
+                        }
+                        style={[
+                          styles.colorSwatch,
+                          {
+                            backgroundColor: categoryEdits[cat.id]?.color ?? cat.color,
+                            borderColor: tokens.colors.text,
+                          },
+                        ]}
+                      />
+                    </View>
                     <View style={styles.actionsRow}>
                       <Button
                         mode="contained"
@@ -439,14 +569,84 @@ export default function EntriesScreen(): JSX.Element {
 
         <PremiumCard>
           <SectionHeader title="Lista" />
-          <View style={styles.list}>
-            {entries.length === 0 && <Text style={{ color: tokens.colors.muted }}>Nessuna voce.</Text>}
-            {entries.map((entry) => (
-              <Button key={`${mode}-${entry.id}`} onPress={() => applyEntryToForm(entry, mode)}>
-                {entry.start_date} • {entry.name} • {entry.amount.toFixed(2)}
-              </Button>
-            ))}
-          </View>
+          {entries.length === 0 ? (
+            <Text style={{ color: tokens.colors.muted }}>Nessuna voce.</Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.table}>
+              <View>
+                <View style={styles.headerRow}>
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]} numberOfLines={1}>
+                    Data
+                  </Text>
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]} numberOfLines={1}>
+                    Importo
+                  </Text>
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]} numberOfLines={1}>
+                    Nome
+                  </Text>
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]} numberOfLines={1}>
+                    Categoria
+                  </Text>
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAnnual]} numberOfLines={1}>
+                    Importo annuo
+                  </Text>
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAction]} numberOfLines={1}>
+                    Modifica
+                  </Text>
+                </View>
+                {entries.map((entry, index) => {
+                  const annualAmount = toAnnualAmount(entry);
+                  const category =
+                    "expense_category_id" in entry
+                      ? categoryById.get(entry.expense_category_id)
+                      : null;
+                  return (
+                    <React.Fragment key={`${mode}-${entry.id}`}>
+                      <View style={styles.row}>
+                        <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate]}>
+                          {formatShortDate(entry.start_date)}
+                        </Text>
+                        <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellAmount]}>
+                          {formatEUR(entry.amount)}
+                        </Text>
+                        <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDesc]} numberOfLines={1}>
+                          {entry.name}
+                        </Text>
+                        <View style={[styles.cell, styles.cellCategory]}>
+                          {"expense_category_id" in entry ? (
+                            <Chip label={category?.name ?? "Senza categoria"} color={category?.color} />
+                          ) : (
+                            <Chip label="Entrata" tone="green" />
+                          )}
+                        </View>
+                        <Text style={[styles.cell, { color: tokens.colors.muted }, styles.cellAnnual]}>
+                          {annualAmount === null ? "—" : formatEUR(annualAmount)}
+                        </Text>
+                        <View style={[styles.cell, styles.cellAction]}>
+                          <PressScale
+                            onPress={() => {
+                              applyEntryToForm(entry, mode);
+                              setShowNewEntry(true);
+                              scrollRef.current?.scrollTo({ y: 0, animated: true });
+                            }}
+                            style={[
+                              styles.actionButton,
+                              { borderColor: tokens.colors.accent, backgroundColor: `${tokens.colors.accent}14` },
+                            ]}
+                          >
+                            <Text style={[styles.actionText, { color: tokens.colors.accent }]}>Modifica</Text>
+                          </PressScale>
+                        </View>
+                      </View>
+                      {index < entries.length - 1 ? (
+                        <View style={[styles.separator, { backgroundColor: tokens.colors.border }]} />
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          )}
         </PremiumCard>
       </ScrollView>
     </View>
@@ -476,5 +676,89 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 8,
+  },
+  table: {
+    gap: 12,
+    paddingBottom: 2,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingBottom: 8,
+    flexWrap: "nowrap",
+    width: 760,
+  },
+  headerCell: {
+    fontSize: 12,
+    fontWeight: "600",
+    minWidth: 0,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    flexWrap: "nowrap",
+    width: 760,
+  },
+  cell: {
+    fontSize: 12,
+    minWidth: 0,
+  },
+  cellDate: {
+    width: 80,
+    flexShrink: 0,
+    marginRight: 6,
+  },
+  cellDesc: {
+    width: 180,
+    flexShrink: 1,
+    marginRight: 6,
+  },
+  cellCategory: {
+    width: 140,
+    flexShrink: 0,
+    marginRight: 6,
+  },
+  cellAmount: {
+    width: 110,
+    flexShrink: 0,
+    marginRight: 6,
+  },
+  cellAnnual: {
+    width: 140,
+    flexShrink: 0,
+  },
+  cellAction: {
+    width: 90,
+    flexShrink: 0,
+    marginLeft: 6,
+  },
+  separator: {
+    height: 1,
+  },
+  actionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  actionText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  colorLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  colorInput: {
+    flex: 1,
+  },
+  colorSwatch: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
   },
 });

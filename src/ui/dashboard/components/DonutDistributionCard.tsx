@@ -121,6 +121,7 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     gap: 10,
+    justifyContent: "center",
   },
   listStacked: {
     paddingTop: 12,

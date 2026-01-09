@@ -6,9 +6,10 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 type Props = {
   label: string;
   tone?: "green" | "red" | "blue" | "muted";
+  color?: string;
 };
 
-export default function Chip({ label, tone = "muted" }: Props): JSX.Element {
+export default function Chip({ label, tone = "muted", color }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const colorMap = {
     green: tokens.colors.green,
@@ -16,7 +17,7 @@ export default function Chip({ label, tone = "muted" }: Props): JSX.Element {
     blue: tokens.colors.blue,
     muted: tokens.colors.muted,
   };
-  const tint = colorMap[tone];
+  const tint = color ?? colorMap[tone];
   return (
     <View style={[styles.chip, { borderColor: tint, backgroundColor: `${tint}1A` }]}>
       <Text style={[styles.text, { color: tint }]}>{label}</Text>

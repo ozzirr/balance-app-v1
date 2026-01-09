@@ -136,24 +136,28 @@ function buildCategories(expense: ExpenseEntry[], categories: ExpenseCategory[])
   const nextMonth = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
   const nextStart = `${nextMonth.y}-${String(nextMonth.m).padStart(2, "0")}-01`;
   const end = addDays(nextStart, -1);
-  const categoryMap = new Map<number, string>();
-  categories.forEach((cat) => categoryMap.set(cat.id, cat.name));
-  const totals = new Map<string, number>();
+  const categoryMap = new Map<number, { label: string; color: string }>();
+  categories.forEach((cat) => categoryMap.set(cat.id, { label: cat.name, color: cat.color }));
+  const totals = new Map<number, number>();
   expense.forEach((entry) => {
     const dates = listOccurrencesInRange(entry, start, end);
     if (dates.length === 0) return;
-    const label = entry.expense_category_id ? categoryMap.get(entry.expense_category_id) ?? "Senza categoria" : "Senza categoria";
-    totals.set(label, (totals.get(label) ?? 0) + dates.length * entry.amount);
+    const categoryId = entry.expense_category_id ?? -1;
+    totals.set(categoryId, (totals.get(categoryId) ?? 0) + dates.length * entry.amount);
   });
   const totalValue = Array.from(totals.values()).reduce((sum, value) => sum + value, 0);
   return Array.from(totals.entries())
-    .map(([label, value], index) => ({
-      id: `${label}-${index}`,
-      label,
-      value,
-      color: palette[index % palette.length],
-      pct: totalValue === 0 ? 0 : value / totalValue,
-    }))
+    .map(([categoryId, value], index) => {
+      const info = categoryMap.get(categoryId);
+      const label = info?.label ?? "Senza categoria";
+      return {
+        id: `${label}-${index}`,
+        label,
+        value,
+        color: info?.color ?? palette[index % palette.length],
+        pct: totalValue === 0 ? 0 : value / totalValue,
+      };
+    })
     .sort((a, b) => b.value - a.value);
 }
 
@@ -162,8 +166,8 @@ function buildRecurrences(
   expenseEntries: ExpenseEntry[],
   categories: ExpenseCategory[]
 ): RecurrenceRow[] {
-  const categoryMap = new Map<number, string>();
-  categories.forEach((cat) => categoryMap.set(cat.id, cat.name));
+  const categoryMap = new Map<number, { label: string; color: string }>();
+  categories.forEach((cat) => categoryMap.set(cat.id, { label: cat.name, color: cat.color }));
   const incomeMap = new Map<number, IncomeEntry>();
   const expenseMap = new Map<number, ExpenseEntry>();
   incomeEntries.forEach((entry) => incomeMap.set(entry.id, entry));
@@ -171,15 +175,18 @@ function buildRecurrences(
   return upcomingOccurrences(incomeEntries, expenseEntries, 8).map((occurrence, index) => {
     const entry = occurrence.type === "income" ? incomeMap.get(occurrence.entryId) : expenseMap.get(occurrence.entryId);
     const recurring = Boolean(entry?.recurrence_frequency && entry.one_shot === 0);
-    const category =
+    const info =
       occurrence.type === "expense"
-        ? categoryMap.get((entry as ExpenseEntry | undefined)?.expense_category_id ?? -1) ?? "Spesa"
-        : "Entrata";
+        ? categoryMap.get((entry as ExpenseEntry | undefined)?.expense_category_id ?? -1)
+        : null;
+    const category = occurrence.type === "expense" ? info?.label ?? "Spesa" : "Entrata";
     return {
       id: `${occurrence.entryId}-${index}`,
+      entryId: occurrence.entryId,
       date: occurrence.date,
       type: occurrence.type,
       category,
+      categoryColor: info?.color,
       description: occurrence.name,
       amount: occurrence.amount,
       recurring,
@@ -250,9 +257,36 @@ export function createMockDashboardData(): DashboardData {
     { id: "c4", label: "Altro", value: 240, pct: 0.15, color: palette[6] },
   ];
   const recurrences: RecurrenceRow[] = [
-    { id: "r1", date: "2025-02-16", type: "income", category: "Entrata", description: "Stipendio", amount: 2100, recurring: true },
-    { id: "r2", date: "2025-02-20", type: "expense", category: "Casa", description: "Affitto", amount: 850, recurring: true },
-    { id: "r3", date: "2025-02-22", type: "expense", category: "Cibo", description: "Spesa", amount: 120, recurring: false },
+    {
+      id: "r1",
+      entryId: 1,
+      date: "2025-02-16",
+      type: "income",
+      category: "Entrata",
+      description: "Stipendio",
+      amount: 2100,
+      recurring: true,
+    },
+    {
+      id: "r2",
+      entryId: 2,
+      date: "2025-02-20",
+      type: "expense",
+      category: "Casa",
+      description: "Affitto",
+      amount: 850,
+      recurring: true,
+    },
+    {
+      id: "r3",
+      entryId: 3,
+      date: "2025-02-22",
+      type: "expense",
+      category: "Cibo",
+      description: "Spesa",
+      amount: 120,
+      recurring: false,
+    },
   ];
   return {
     kpis,

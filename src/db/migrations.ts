@@ -209,4 +209,11 @@ export const migrations: Migration[] = [
       { sql: "UPDATE expense_categories SET active = 1 WHERE active IS NULL" },
     ],
   },
+  {
+    version: 6,
+    statements: [
+      { sql: "ALTER TABLE expense_categories ADD COLUMN color TEXT DEFAULT '#9B7BFF'" },
+      { sql: "UPDATE expense_categories SET color = '#9B7BFF' WHERE color IS NULL OR color = ''" },
+    ],
+  },
 ];
