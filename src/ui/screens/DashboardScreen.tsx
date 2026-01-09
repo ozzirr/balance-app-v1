@@ -70,8 +70,8 @@ export default function DashboardScreen(): JSX.Element {
 
       const chartPointsRaw = pref ? Number(pref.value) : 6;
       const chartPoints = Number.isFinite(chartPointsRaw) ? Math.min(12, Math.max(3, chartPointsRaw)) : 6;
-      const fullName = [prefName?.value?.trim(), prefSurname?.value?.trim()].filter(Boolean).join(" ");
-      setUserName(fullName || null);
+      const firstName = prefName?.value?.trim();
+      setUserName(firstName || null);
 
       const data = buildDashboardData({
         latestLines,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   greeting: {
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: "700",
   },
   emptyTitle: {

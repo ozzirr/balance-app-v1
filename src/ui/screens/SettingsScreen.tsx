@@ -558,6 +558,7 @@ export default function SettingsScreen(): JSX.Element {
 
         <PremiumCard>
           <SectionHeader title="Preferenze" />
+          {message && <Text style={{ color: tokens.colors.muted }}>{message}</Text>}
           <View style={styles.sectionContent}>
             <View style={styles.row}>
               <Switch
@@ -612,7 +613,6 @@ export default function SettingsScreen(): JSX.Element {
         <PremiumCard>
           <SectionHeader title="Dati" />
           <View style={styles.sectionContent}>
-            {message && <Text style={{ color: tokens.colors.muted }}>{message}</Text>}
             <Button
               mode="outlined"
               textColor={tokens.colors.text}

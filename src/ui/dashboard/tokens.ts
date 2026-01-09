@@ -76,7 +76,7 @@ export function createDashboardTokens(isDark: boolean): DashboardTokens {
           border: "rgba(16,24,40,0.08)",
           text: "#101522",
           muted: "#5E6B7A",
-          accent: "#2A7DE1",
+          accent: "#A97CFF",
           green: "#1E9D66",
           red: "#E15A4F",
           yellow: "#E0A12F",

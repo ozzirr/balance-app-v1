@@ -23,8 +23,8 @@ export default function CashflowOverviewCard({ cashflow }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { width } = useWindowDimensions();
   const isCompact = width < 380;
-  const incomeData = cashflow.months.map((month) => ({ x: month.month, y: month.income }));
-  const expenseData = cashflow.months.map((month) => ({ x: month.month, y: month.expense }));
+  const incomeData = cashflow.months.map((month) => ({ x: formatMonthLabel(month.month), y: month.income }));
+  const expenseData = cashflow.months.map((month) => ({ x: formatMonthLabel(month.month), y: month.expense }));
   const savingsColor = cashflow.avgSavings >= 0 ? tokens.colors.green : tokens.colors.red;
   const tooltipFlyout = { fill: tokens.colors.surface2, stroke: tokens.colors.border };
   const tooltipText = { fill: tokens.colors.text, fontSize: 11 };
@@ -58,7 +58,7 @@ export default function CashflowOverviewCard({ cashflow }: Props): JSX.Element {
               padding={{ left: 40, right: 10, top: 10, bottom: 30 }}
               containerComponent={
                 <VictoryVoronoiContainer
-                  labels={({ datum }) => `${formatMonthLabel(String(datum.x))}\n${formatEUR(datum.y)}`}
+                labels={({ datum }) => `${datum.x} • ${formatEUR(datum.y)}`}
                   labelComponent={
                     <VictoryTooltip
                       flyoutStyle={tooltipFlyout}
@@ -71,7 +71,7 @@ export default function CashflowOverviewCard({ cashflow }: Props): JSX.Element {
               }
             >
               <VictoryAxis
-                tickFormat={(tick) => formatMonthLabel(String(tick))}
+                tickFormat={(tick) => String(tick)}
                 style={{
                   axis: { stroke: "transparent" },
                   tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 6 },
@@ -86,9 +86,9 @@ export default function CashflowOverviewCard({ cashflow }: Props): JSX.Element {
                   tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 6 },
                 }}
               />
-              <VictoryGroup offset={12} colorScale={[tokens.colors.green, tokens.colors.red]}>
-                <VictoryBar data={incomeData} cornerRadius={4} />
-                <VictoryBar data={expenseData} cornerRadius={4} />
+              <VictoryGroup offset={12}>
+                <VictoryBar data={incomeData} cornerRadius={4} style={{ data: { fill: tokens.colors.green, opacity: 0.85 } }} />
+                <VictoryBar data={expenseData} cornerRadius={4} style={{ data: { fill: tokens.colors.red, opacity: 0.85 } }} />
               </VictoryGroup>
             </VictoryChart>
           </View>

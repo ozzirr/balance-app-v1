@@ -37,8 +37,8 @@ export default function App(): JSX.Element {
           ...MD3LightTheme,
           colors: {
             ...MD3LightTheme.colors,
-            primary: "#2A7DE1",
-            secondary: "#4C8CFF",
+            primary: "#A97CFF",
+            secondary: "#A97CFF",
           },
         };
   const navTheme = themeMode === "dark" ? DarkTheme : DefaultTheme;

@@ -68,14 +68,18 @@ export default function DonutDistributionCard({ items }: Props): JSX.Element {
               const isActive = index === selected;
               return (
                 <PressScale key={item.id} onPress={() => setSelected(index)} style={styles.row}>
-                  <View style={[styles.dot, { backgroundColor: item.color }]} />
-                  <Text style={[styles.rowLabel, { color: tokens.colors.text }, isActive && styles.rowLabelActive]}>
-                    {item.label}
-                  </Text>
-                  <Text style={[styles.rowPct, { color: tokens.colors.muted }]}>
-                    {formatPct(item.value / (total || 1))}
-                  </Text>
-                  <Text style={[styles.rowValue, { color: tokens.colors.text }]}>{formatEUR(item.value)}</Text>
+                  <View style={styles.rowTitle}>
+                    <View style={[styles.dot, { backgroundColor: item.color }]} />
+                    <Text style={[styles.rowLabel, { color: tokens.colors.text }, isActive && styles.rowLabelActive]}>
+                      {item.label}
+                    </Text>
+                  </View>
+                  <View style={styles.rowMeta}>
+                    <Text style={[styles.rowPct, { color: tokens.colors.muted }]}>
+                      {formatPct(item.value / (total || 1))}
+                    </Text>
+                    <Text style={[styles.rowValue, { color: tokens.colors.text }]}>{formatEUR(item.value)}</Text>
+                  </View>
                 </PressScale>
               );
             })}
@@ -122,6 +126,14 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   row: {
+    gap: 4,
+  },
+  rowTitle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  rowMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -132,7 +144,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   rowLabel: {
-    flex: 1,
     fontSize: 13,
   },
   rowLabelActive: {
@@ -140,7 +151,6 @@ const styles = StyleSheet.create({
   },
   rowPct: {
     fontSize: 12,
-    marginRight: 8,
   },
   rowValue: {
     fontSize: 13,
