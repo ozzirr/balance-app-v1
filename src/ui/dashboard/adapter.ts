@@ -23,7 +23,7 @@ type DashboardInput = {
   expenseCategories: ExpenseCategory[];
 };
 
-const palette = ["#5C9DFF", "#4CC9F0", "#F6C177", "#66D19E", "#8B7BFF", "#FFB4A2", "#6EE7B7", "#94A3B8"];
+const palette = ["#9B7BFF", "#5C9DFF", "#F6C177", "#66D19E", "#C084FC", "#FF8FAB", "#6EE7B7", "#94A3B8"];
 
 function toMonthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
@@ -56,9 +56,13 @@ function buildKpis(latestLines: SnapshotLineDetail[], portfolio: PortfolioPoint[
   const deltaLiquidity = last && prev ? last.liquidity - prev.liquidity : 0;
   const deltaInvest = last && prev ? last.investments - prev.investments : 0;
   const pct = (delta: number, base: number) => (base === 0 ? 0 : delta / base);
-  const liquidityBreakdown = breakdownByWallet(latestLines)
-    .filter((item) => item.label)
-    .map((item) => ({ label: item.label, value: item.value }));
+  const toBreakdown = (lines: SnapshotLineDetail[]) =>
+    breakdownByWallet(lines)
+      .filter((item) => item.label)
+      .map((item) => ({ label: item.label, value: item.value }));
+  const liquidityBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_type !== "INVEST"));
+  const investBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_type === "INVEST"));
+  const netWorthBreakdown = toBreakdown(latestLines);
 
   return [
     {
@@ -77,7 +81,7 @@ function buildKpis(latestLines: SnapshotLineDetail[], portfolio: PortfolioPoint[
       deltaValue: deltaInvest,
       deltaPct: pct(deltaInvest, prev?.investments ?? 0),
       accent: palette[1],
-      breakdown: liquidityBreakdown,
+      breakdown: investBreakdown,
     },
     {
       id: "netWorth",
@@ -86,7 +90,7 @@ function buildKpis(latestLines: SnapshotLineDetail[], portfolio: PortfolioPoint[
       deltaValue: deltaTotal,
       deltaPct: pct(deltaTotal, prev?.total ?? 0),
       accent: palette[3],
-      breakdown: liquidityBreakdown,
+      breakdown: netWorthBreakdown,
     },
   ];
 }

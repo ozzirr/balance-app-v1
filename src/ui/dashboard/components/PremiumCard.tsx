@@ -19,7 +19,8 @@ export default function PremiumCard({ children, style }: Props): JSX.Element {
         style,
       ]}
     >
-      <View pointerEvents="none" style={[styles.highlight, { backgroundColor: "rgba(255,255,255,0.06)" }]} />
+      <View pointerEvents="none" style={[styles.highlight, { backgroundColor: "rgba(255,255,255,0.05)" }]} />
+      <View pointerEvents="none" style={[styles.accentGlow, { backgroundColor: `${tokens.colors.accent}18` }]} />
       {children}
     </View>
   );
@@ -40,5 +41,13 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     backgroundColor: "rgba(255,255,255,0.06)",
     transform: [{ rotate: "-8deg" }],
+  },
+  accentGlow: {
+    position: "absolute",
+    right: -60,
+    bottom: -80,
+    width: 220,
+    height: 220,
+    borderRadius: 140,
   },
 });

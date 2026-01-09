@@ -58,9 +58,18 @@ export default function KPICard({ item }: Props): JSX.Element {
 
   return (
     <PressScale onPress={onToggle} style={styles.pressable}>
-      <PremiumCard style={styles.card}>
+      <PremiumCard
+        style={[
+          styles.card,
+          {
+            borderColor: `${tokens.colors.accent}66`,
+            backgroundColor: tokens.colors.surface2,
+            shadowColor: tokens.colors.accent,
+          },
+        ]}
+      >
         <View style={styles.headerRow}>
-        <Text style={[styles.label, { color: tokens.colors.muted }]}>{item.label}</Text>
+          <Text style={[styles.label, { color: tokens.colors.muted }]}>{item.label}</Text>
           <MaterialCommunityIcons name={icon} size={16} color={item.accent ?? tokens.colors.accent} />
         </View>
         <Text style={[styles.value, { color: tokens.colors.text }]}>{formatEUR(displayValue)}</Text>

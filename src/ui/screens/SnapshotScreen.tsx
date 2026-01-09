@@ -19,6 +19,7 @@ import { totalsByWalletType } from "@/domain/calculations";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type DraftLine = {
   walletId: number;
@@ -27,6 +28,7 @@ type DraftLine = {
 
 export default function SnapshotScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const openNew = (route.params as { openNew?: boolean } | undefined)?.openNew;
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
@@ -209,7 +211,10 @@ export default function SnapshotScreen(): JSX.Element {
   return (
     <View style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.container, { gap: tokens.spacing.md }]}
+        contentContainerStyle={[
+          styles.container,
+          { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom },
+        ]}
         alwaysBounceVertical
         bounces
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}

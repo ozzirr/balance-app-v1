@@ -4,24 +4,28 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ICONS: Record<string, string> = {
-  Dashboard: "view-dashboard",
-  Snapshot: "calendar-text",
-  "Entrate/Uscite": "cash-multiple",
-  Impostazioni: "cog",
+  Dashboard: "view-grid",
+  Snapshot: "calendar-month-outline",
+  "Entrate/Uscite": "swap-vertical",
+  Impostazioni: "cog-outline",
 };
 
 export default function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps): JSX.Element {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <BlurView intensity={35} tint="dark" style={[styles.bar, { borderColor: theme.colors.outline }]}>
+      <BlurView intensity={35} tint="dark" style={[styles.bar, { borderColor: theme.colors.outline, paddingBottom: Math.max(8, insets.bottom) }]}>
         <View style={styles.row}>
-          {state.routes.map((route, index) => {
+          {state.routes
+            .filter((route) => route.name !== "Profilo")
+            .map((route) => {
             const { options } = descriptors[route.key];
             const label = options.tabBarLabel ?? options.title ?? route.name;
-            const isFocused = state.index === index;
+            const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
             const onPress = () => {
               const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
               if (!isFocused && !event.defaultPrevented) {
@@ -62,35 +66,31 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 10,
+    bottom: 0,
     alignItems: "center",
   },
   bar: {
-    borderRadius: 28,
-    borderWidth: 1,
-    padding: 6,
-    marginHorizontal: 20,
-    maxWidth: 360,
+    borderRadius: 0,
+    borderWidth: 0,
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    width: "100%",
     overflow: "hidden",
   },
   row: {
     flexDirection: "row",
-    gap: 2,
+    justifyContent: "space-around",
   },
   item: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 22,
-    minWidth: 56,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    minWidth: 70,
   },
   itemActive: {
-    backgroundColor: "rgba(255,255,255,0.14)",
-    shadowColor: "#5C9DFF",
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    backgroundColor: "transparent",
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });

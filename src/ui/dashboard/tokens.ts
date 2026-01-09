@@ -57,17 +57,17 @@ export function createDashboardTokens(isDark: boolean): DashboardTokens {
   return {
     colors: isDark
       ? {
-          bg: "#0B0F14",
-          surface: "#121821",
-          surface2: "#17202B",
-          border: "rgba(255,255,255,0.08)",
-          text: "#E6EDF7",
-          muted: "#9AA4B2",
-          accent: "#4CC9F0",
+          bg: "#0A0C11",
+          surface: "#141923",
+          surface2: "#1A2230",
+          border: "rgba(255,255,255,0.1)",
+          text: "#EAF0F9",
+          muted: "#9BA6B5",
+          accent: "#A97CFF",
           green: "#66D19E",
           red: "#F08C7A",
           yellow: "#F6C177",
-          blue: "#5C9DFF",
+          blue: "#6BA3FF",
         }
       : {
           bg: "#F5F7FB",

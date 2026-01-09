@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { FAB, Text } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listWallets } from "@/repositories/walletsRepo";
@@ -35,7 +35,7 @@ export default function DashboardScreen(): JSX.Element {
   const [walletsCount, setWalletsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fabOpen, setFabOpen] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
   const [prompted, setPrompted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -45,12 +45,14 @@ export default function DashboardScreen(): JSX.Element {
       const wallets = await listWallets(true);
       setWalletsCount(wallets.length);
 
-      const [snapshots, incomeEntries, expenseEntries, expenseCategories, pref] = await Promise.all([
+      const [snapshots, incomeEntries, expenseEntries, expenseCategories, pref, prefName, prefSurname] = await Promise.all([
         listSnapshots(),
         listIncomeEntries(),
         listExpenseEntries(),
         listExpenseCategories(),
         getPreference("chart_points"),
+        getPreference("profile_name"),
+        getPreference("profile_surname"),
       ]);
 
       const latestSnapshot = await getLatestSnapshot();
@@ -68,6 +70,8 @@ export default function DashboardScreen(): JSX.Element {
 
       const chartPointsRaw = pref ? Number(pref.value) : 6;
       const chartPoints = Number.isFinite(chartPointsRaw) ? Math.min(12, Math.max(3, chartPointsRaw)) : 6;
+      const fullName = [prefName?.value?.trim(), prefSurname?.value?.trim()].filter(Boolean).join(" ");
+      setUserName(fullName || null);
 
       const data = buildDashboardData({
         latestLines,
@@ -125,8 +129,8 @@ export default function DashboardScreen(): JSX.Element {
         contentContainerStyle={[
           styles.container,
           {
-            paddingTop: insets.top + tokens.spacing.sm,
-            paddingBottom: 140 + insets.bottom,
+            paddingTop: insets.top - 40,
+            paddingBottom: 160 + insets.bottom,
           },
         ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
@@ -155,6 +159,9 @@ export default function DashboardScreen(): JSX.Element {
             </View>
 
             <View style={styles.section}>
+              <Text style={[styles.greeting, { color: tokens.colors.text }]}>
+                {userName ? `Ciao ${userName}` : "Ciao"}
+              </Text>
               <PortfolioLineChartCard data={dashboard.portfolioSeries} />
             </View>
 
@@ -177,31 +184,6 @@ export default function DashboardScreen(): JSX.Element {
         ) : null}
       </ScrollView>
 
-      <FAB.Group
-        open={fabOpen}
-        visible
-        icon={fabOpen ? "close" : "plus"}
-        style={[styles.fabGroup, { right: tokens.spacing.md }]}
-        fabStyle={[styles.fab, { backgroundColor: tokens.colors.accent }]}
-        actions={[
-          {
-            icon: "file-plus",
-            label: "Nuovo Snapshot",
-            onPress: () => navigation.navigate("Snapshot", { openNew: true }),
-          },
-          {
-            icon: "cash-plus",
-            label: "Nuova Entrata",
-            onPress: () => navigation.navigate("Entrate/Uscite", { mode: "income" }),
-          },
-          {
-            icon: "cash-minus",
-            label: "Nuova Uscita",
-            onPress: () => navigation.navigate("Entrate/Uscite", { mode: "expense" }),
-          },
-        ]}
-        onStateChange={({ open }) => setFabOpen(open)}
-      />
     </View>
   );
 }
@@ -217,10 +199,10 @@ const styles = StyleSheet.create({
   section: {
     gap: 12,
   },
-  fabGroup: {
-    bottom: 90,
+  greeting: {
+    fontSize: 18,
+    fontWeight: "700",
   },
-  fab: {},
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",

@@ -12,7 +12,6 @@
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/bottom-tabs": "^6.5.11",
     "@react-navigation/native": "^6.1.9",
-    "@shopify/flash-list": "^1.6.4",
     "expo": "~54.0.31",
     "expo-blur": "~15.0.8",
     "expo-clipboard": "~8.0.8",

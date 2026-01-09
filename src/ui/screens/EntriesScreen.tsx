@@ -11,6 +11,7 @@ import { isIsoDate, todayIso } from "@/utils/dates";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Mode = "income" | "expense";
 
@@ -40,6 +41,7 @@ const emptyForm: FormState = {
 
 export default function EntriesScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const routeMode = (route.params as { mode?: Mode } | undefined)?.mode;
   const [mode, setMode] = useState<Mode>(routeMode ?? "income");
@@ -213,7 +215,10 @@ export default function EntriesScreen(): JSX.Element {
   return (
     <View style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.container, { gap: tokens.spacing.md }]}
+        contentContainerStyle={[
+          styles.container,
+          { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom },
+        ]}
         alwaysBounceVertical
         bounces
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}

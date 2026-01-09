@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Button, List, SegmentedButtons, Switch, Text, TextInput } from "react-native-paper";
+import { useNavigation } from "@react-navigation/native";
 import * as FileSystem from "expo-file-system";
 import * as LegacyFileSystem from "expo-file-system/legacy";
 import * as DocumentPicker from "expo-document-picker";
@@ -11,6 +12,7 @@ import { runMigrations } from "@/db/db";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createWallet, deleteWallet, ensureDefaultWallets, listWallets, updateWallet } from "@/repositories/walletsRepo";
 import { getPreference, setPreference } from "@/repositories/preferencesRepo";
 import { withTransaction } from "@/db/db";
@@ -19,6 +21,8 @@ import type { Wallet, Currency } from "@/repositories/types";
 
 export default function SettingsScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
+  const navigation = useNavigation<{ navigate: (name: string) => void }>();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState<string | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [walletEdits, setWalletEdits] = useState<Record<number, { name: string; tag: string; currency: Currency }>>({});
@@ -33,7 +37,6 @@ export default function SettingsScreen(): JSX.Element {
     INVEST: false,
   });
 
-  const [askSnapshot, setAskSnapshot] = useState(true);
   const [prefillSnapshot, setPrefillSnapshot] = useState(true);
   const [chartMonths, setChartMonths] = useState(6);
   const { mode, setMode } = useContext(ThemeContext);
@@ -52,10 +55,8 @@ export default function SettingsScreen(): JSX.Element {
     });
     setWalletEdits(edits);
 
-    const ask = await getPreference("ask_snapshot_on_start");
     const prefill = await getPreference("prefill_snapshot");
     const points = await getPreference("chart_points");
-    setAskSnapshot(ask ? ask.value === "true" : true);
     setPrefillSnapshot(prefill ? prefill.value === "true" : true);
     const parsedPoints = points ? Number(points.value) : 6;
     const safePoints = Number.isFinite(parsedPoints) ? Math.min(12, Math.max(3, parsedPoints)) : 6;
@@ -271,7 +272,10 @@ export default function SettingsScreen(): JSX.Element {
   return (
     <View style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.container, { gap: tokens.spacing.md }]}
+        contentContainerStyle={[
+          styles.container,
+          { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom },
+        ]}
         alwaysBounceVertical
         bounces
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
@@ -568,16 +572,6 @@ export default function SettingsScreen(): JSX.Element {
             </View>
             <View style={styles.row}>
               <Switch
-                value={askSnapshot}
-                onValueChange={(value) => {
-                  setAskSnapshot(value);
-                  updatePreference("ask_snapshot_on_start", String(value));
-                }}
-              />
-              <Text style={{ color: tokens.colors.text }}>Chiedi snapshot all'avvio</Text>
-            </View>
-            <View style={styles.row}>
-              <Switch
                 value={prefillSnapshot}
                 onValueChange={(value) => {
                   setPrefillSnapshot(value);
@@ -619,6 +613,13 @@ export default function SettingsScreen(): JSX.Element {
           <SectionHeader title="Dati" />
           <View style={styles.sectionContent}>
             {message && <Text style={{ color: tokens.colors.muted }}>{message}</Text>}
+            <Button
+              mode="outlined"
+              textColor={tokens.colors.text}
+              onPress={() => navigation.navigate("Profilo")}
+            >
+              Modifica profilo
+            </Button>
             <Button mode="contained" buttonColor={tokens.colors.accent} onPress={exportData}>
               Esporta
             </Button>

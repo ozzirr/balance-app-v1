@@ -38,40 +38,36 @@ export default function PortfolioLineChartCard({ data }: Props): JSX.Element {
   return (
     <View>
       <PremiumCard>
-        <SectionHeader
-          title="Andamento patrimonio"
-          trailing={
-            <View style={styles.toggleRow}>
-              {(["total", "liquidity", "investments"] as Mode[]).map((item) => {
-                const label = item === "total" ? "Totale" : item === "liquidity" ? "Liquidità" : "Investimenti";
-                const active = item === mode;
-                return (
-                  <PressScale
-                    key={item}
-                    style={[
-                      styles.toggle,
-                      { backgroundColor: tokens.colors.surface2 },
-                      active && styles.toggleActive,
-                      active && { borderColor: tokens.colors.accent },
-                    ]}
-                    onPress={() => setMode(item)}
-                  >
-                    <Text
-                      style={[
-                        styles.toggleText,
-                        { color: tokens.colors.muted },
-                        active && styles.toggleTextActive,
-                        active && { color: tokens.colors.text },
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </PressScale>
-                );
-              })}
-            </View>
-          }
-        />
+        <SectionHeader title="Il tuo andamento nel tempo" />
+        <View style={styles.toggleRow}>
+          {(["total", "liquidity", "investments"] as Mode[]).map((item) => {
+            const label = item === "total" ? "Totale" : item === "liquidity" ? "Liquidità" : "Investimenti";
+            const active = item === mode;
+            return (
+              <PressScale
+                key={item}
+                style={[
+                  styles.toggle,
+                  { backgroundColor: tokens.colors.surface2, borderColor: tokens.colors.border },
+                  active && styles.toggleActive,
+                  active && { borderColor: tokens.colors.accent, backgroundColor: `${tokens.colors.accent}33` },
+                ]}
+                onPress={() => setMode(item)}
+              >
+                <Text
+                  style={[
+                    styles.toggleText,
+                    { color: tokens.colors.muted },
+                    active && styles.toggleTextActive,
+                    active && { color: tokens.colors.text },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </PressScale>
+            );
+          })}
+        </View>
         {chartData.length === 0 ? (
           <Text style={[styles.empty, { color: tokens.colors.muted }]}>Nessun dato disponibile.</Text>
         ) : (
@@ -80,13 +76,15 @@ export default function PortfolioLineChartCard({ data }: Props): JSX.Element {
             padding={{ left: 50, right: 18, top: 10, bottom: 30 }}
             containerComponent={
               <VictoryVoronoiContainer
-                labels={({ datum }) => `${formatMonthLabel(String(datum.x))}\n${formatEUR(datum.y)}`}
+                voronoiBlacklist={["area"]}
+                labels={({ datum }) => `${formatMonthLabel(String(datum.x))} • ${formatEUR(datum.y)}`}
                 labelComponent={
                   <VictoryTooltip
                     flyoutStyle={{ fill: tokens.colors.surface2, stroke: tokens.colors.border }}
                     style={{ fill: tokens.colors.text, fontSize: 12 }}
                     cornerRadius={12}
                     pointerLength={8}
+                    flyoutPadding={{ top: 8, bottom: 8, left: 12, right: 12 }}
                   />
                 }
               />
@@ -109,14 +107,15 @@ export default function PortfolioLineChartCard({ data }: Props): JSX.Element {
               }}
             />
             <VictoryArea
+              name="area"
               data={chartData}
               interpolation="natural"
-              style={{ data: { fill: `${tokens.colors.accent}2E` } }}
+              style={{ data: { fill: `${tokens.colors.accent}3B` } }}
             />
             <VictoryLine
               data={chartData}
               interpolation="natural"
-              style={{ data: { stroke: tokens.colors.accent, strokeWidth: 2 } }}
+              style={{ data: { stroke: tokens.colors.accent, strokeWidth: 2.5 } }}
             />
           </VictoryChart>
         )}
@@ -129,14 +128,15 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: "row",
     gap: 6,
+    marginBottom: 8,
   },
   toggle: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
+    borderWidth: 1,
   },
   toggleActive: {
-    backgroundColor: "rgba(76,201,240,0.2)",
     borderWidth: 1,
   },
   toggleText: {
