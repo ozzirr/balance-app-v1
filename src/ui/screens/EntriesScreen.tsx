@@ -196,7 +196,6 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const entries = mode === "income" ? incomeEntries : expenseEntries;
-  const addEntryLabel = mode === "income" ? "Aggiungi una nuova entrata" : "Aggiungi una nuova uscita";
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
   const categoryById = useMemo(() => {
@@ -244,7 +243,7 @@ export default function EntriesScreen(): JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <PremiumCard>
-          <SectionHeader title="Entrate / Uscite" />
+          <SectionHeader title="Seleziona il tipo" />
           <SegmentedButtons
             value={mode}
             onValueChange={(value) => setMode(value as Mode)}
@@ -258,7 +257,7 @@ export default function EntriesScreen(): JSX.Element {
 
         <PremiumCard>
           <SectionHeader
-            title={addEntryLabel}
+            title="Aggiungi una nuova voce"
             trailing={
               <Button
                 mode="contained"
@@ -410,17 +409,17 @@ export default function EntriesScreen(): JSX.Element {
                   <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]} numberOfLines={1}>
                     Data
                   </Text>
-                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]} numberOfLines={1}>
-                    Importo
-                  </Text>
                   <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]} numberOfLines={1}>
                     Nome
                   </Text>
-                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]} numberOfLines={1}>
-                    Categoria
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]} numberOfLines={1}>
+                    Importo
                   </Text>
                   <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAnnual]} numberOfLines={1}>
                     Importo annuo
+                  </Text>
+                  <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]} numberOfLines={1}>
+                    Categoria
                   </Text>
                   <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAction]} numberOfLines={1}>
                     Modifica
@@ -438,11 +437,14 @@ export default function EntriesScreen(): JSX.Element {
                         <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate]}>
                           {formatShortDate(entry.start_date)}
                         </Text>
+                        <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDesc]} numberOfLines={1}>
+                          {entry.name}
+                        </Text>
                         <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellAmount]}>
                           {formatEUR(entry.amount)}
                         </Text>
-                        <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDesc]} numberOfLines={1}>
-                          {entry.name}
+                        <Text style={[styles.cell, { color: tokens.colors.muted }, styles.cellAnnual]}>
+                          {annualAmount === null ? "—" : formatEUR(annualAmount)}
                         </Text>
                         <View style={[styles.cell, styles.cellCategory]}>
                           {"expense_category_id" in entry ? (
@@ -451,9 +453,6 @@ export default function EntriesScreen(): JSX.Element {
                             <Chip label="Entrata" tone="green" />
                           )}
                         </View>
-                        <Text style={[styles.cell, { color: tokens.colors.muted }, styles.cellAnnual]}>
-                          {annualAmount === null ? "—" : formatEUR(annualAmount)}
-                        </Text>
                         <View style={[styles.cell, styles.cellAction]}>
                           <PressScale
                             onPress={() => {

@@ -44,14 +44,14 @@ export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.E
                 Data
               </Text>
               <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellType]}
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                Tipo
+                Nome
               </Text>
               <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount, styles.headerAmount]}
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
@@ -63,13 +63,6 @@ export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.E
                 ellipsizeMode="tail"
               >
                 Categoria
-              </Text>
-              <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                Descrizione
               </Text>
               <Text
                 style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAction]}
@@ -88,35 +81,33 @@ export default function RecurrencesTableCard({ rows, onPressRow }: Props): JSX.E
               return (
                 <React.Fragment key={item.id}>
                   <View style={styles.row}>
-                    <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate]}>
-                      {formatShortDate(item.date)}
-                    </Text>
-                    <View style={[styles.cell, styles.cellType]}>
-                      <Chip
-                        label={item.type === "income" ? "Entrata" : "Uscita"}
-                        tone={item.type === "income" ? "green" : "red"}
-                      />
-                    </View>
-                    <Text style={[styles.cell, styles.cellAmount, { color: amountColor }]}>
-                      {formatEUR(item.amount)}
-                    </Text>
-                    <View style={[styles.cell, styles.cellCategory]}>
-                      <Chip label={item.category} color={categoryColor} />
-                    </View>
-                    <Text style={[styles.cell, { color: tokens.colors.muted }, styles.cellDesc]}>
-                      {item.description}
-                    </Text>
-                    <View style={[styles.cell, styles.cellAction]}>
-                      <PressScale
-                        onPress={() => onPressRow?.(item)}
-                        style={[
-                          styles.actionButton,
-                          { borderColor: tokens.colors.accent, backgroundColor: `${tokens.colors.accent}14` },
-                        ]}
+                      <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate]}>
+                        {formatShortDate(item.date)}
+                      </Text>
+                      <Text
+                        style={[styles.cell, { color: tokens.colors.text }, styles.cellDesc]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
-                        <Text style={[styles.actionText, { color: tokens.colors.accent }]}>Modifica</Text>
-                      </PressScale>
-                    </View>
+                        {item.description}
+                      </Text>
+                      <Text style={[styles.cell, styles.cellAmount, { color: amountColor }]}>
+                        {formatEUR(item.amount)}
+                      </Text>
+                      <View style={[styles.cell, styles.cellCategory]}>
+                        <Chip label={item.category} color={categoryColor} />
+                      </View>
+                      <View style={[styles.cell, styles.cellAction]}>
+                        <PressScale
+                          onPress={() => onPressRow?.(item)}
+                          style={[
+                            styles.actionButton,
+                            { borderColor: tokens.colors.accent, backgroundColor: `${tokens.colors.accent}14` },
+                          ]}
+                        >
+                          <Text style={[styles.actionText, { color: tokens.colors.accent }]}>Modifica</Text>
+                        </PressScale>
+                      </View>
                   </View>
                   {index < rows.length - 1 ? (
                     <View style={[styles.separator, { backgroundColor: tokens.colors.border }]} />
@@ -153,45 +144,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
     flexWrap: "nowrap",
-    width: 650,
+    width: 480,
   },
   cell: {
     fontSize: 12,
     minWidth: 0,
   },
   cellDate: {
-    width: 64,
+    width: 70,
     flexShrink: 0,
     marginRight: 6,
-  },
-  cellType: {
-    width: 100,
-    flexDirection: "row",
-    alignItems: "center",
-    flexShrink: 0,
-    gap: 6,
-    marginRight: 0,
   },
   cellCategory: {
-    width: 140,
+    width: 120,
     flexShrink: 1,
     marginRight: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexWrap: "wrap",
   },
   cellAction: {
-    width: 90,
+    width: 80,
     flexShrink: 0,
-    alignItems: "flex-end",
+    alignItems: "center",
   },
   cellDesc: {
-    width: 220,
+    width: 100,
     flexShrink: 1,
-    marginRight: 6,
+    marginRight: 4,
   },
   cellAmount: {
-    width: 88,
+    width: 58,
     textAlign: "center",
     fontWeight: "700",
     flexShrink: 0,
+    marginRight: 4,
   },
   headerAmount: {
     textAlign: "left",
