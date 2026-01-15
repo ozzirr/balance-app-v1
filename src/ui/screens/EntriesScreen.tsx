@@ -310,9 +310,9 @@ export default function EntriesScreen(): JSX.Element {
               style={styles.fullWidthButton}
               onPress={toggleNewEntryVisibility}
             >
-              Aggiungi nuova voce
+              Aggiungi o modifica voci
             </Button>
-          </View>
+            </View>
           {showNewEntry && (
             <>
               <View style={styles.formSpacing}>
@@ -424,6 +424,7 @@ export default function EntriesScreen(): JSX.Element {
                 )}
                 {error && <Text style={{ color: tokens.colors.red }}>{error}</Text>}
               </View>
+            </View>
               <View style={styles.actionsRow}>
                 <Button mode="contained" buttonColor={tokens.colors.accent} onPress={saveEntry}>
                   Salva
