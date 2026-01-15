@@ -5,7 +5,6 @@ import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 const ICONS: Record<string, string> = {
   Dashboard: "view-grid",
@@ -14,9 +13,11 @@ const ICONS: Record<string, string> = {
   Impostazioni: "cog-outline",
 };
 
+const CARD_RADIUS = 24;
+const BAR_HEIGHT = 48;
+
 export default function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps): JSX.Element {
   const theme = useTheme();
-  const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const isDark = theme.dark;
   const blurTint = isDark ? "dark" : "light";
@@ -25,7 +26,7 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const borderColor = isDark ? theme.colors.outline : "rgba(169, 124, 255, 0.5)";
   const inactiveColor = isDark ? theme.colors.onSurface : "#1E2430";
   return (
-    <View style={[styles.wrap, { bottom: insets.bottom + 12 }]} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: insets.bottom + 8 }]} pointerEvents="box-none">
       <BlurView
         intensity={blurIntensity}
         tint={blurTint}
@@ -34,7 +35,6 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
           {
             borderColor,
             backgroundColor: barBg,
-            paddingBottom: Math.max(10, insets.bottom),
           },
         ]}
       >
@@ -88,10 +88,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bar: {
-    borderRadius: tokens.radius.lg,
+    borderRadius: CARD_RADIUS,
     borderWidth: 1,
-    paddingTop: 2,
-    paddingBottom: 2,
     paddingHorizontal: 18,
     width: "92%",
     maxWidth: 520,
@@ -101,6 +99,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
     elevation: 7,
+    minHeight: BAR_HEIGHT,
+    justifyContent: "center",
   },
   row: {
     flexDirection: "row",
@@ -108,11 +108,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   item: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 4,
+    paddingVertical: 0,
     paddingHorizontal: 6,
     minWidth: 70,
+    minHeight: BAR_HEIGHT,
   },
   itemActive: {
     backgroundColor: "transparent",

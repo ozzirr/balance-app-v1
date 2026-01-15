@@ -785,10 +785,15 @@ export default function SettingsScreen(): JSX.Element {
             <Button mode="contained" buttonColor={tokens.colors.accent} onPress={exportData}>
               Esporta
             </Button>
-            <Button mode="outlined" textColor={tokens.colors.text} onPress={importData}>
+            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={importData}>
               Importa
             </Button>
-            <Button mode="outlined" textColor={tokens.colors.text} onPress={pasteFromClipboard}>
+            <Button
+              mode="outlined"
+              textColor={tokens.colors.accent}
+              onPress={pasteFromClipboard}
+              style={{ borderColor: tokens.colors.accent }}
+            >
               Incolla JSON dagli appunti
             </Button>
             <Button mode="contained" buttonColor={tokens.colors.accent} onPress={loadSampleDataHandler}>

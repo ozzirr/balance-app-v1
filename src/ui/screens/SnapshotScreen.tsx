@@ -27,6 +27,22 @@ type DraftLine = {
   amount: string;
 };
 
+const MONTH_LABELS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+
+const monthKeyFromDate = (dateString: string) => {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return `${date.getFullYear()}-${String(date.getMonth()).padStart(2, "0")}`;
+};
+
+const monthLabelFromKey = (key: string) => {
+  const [year, month] = key.split("-");
+  const labelMonth = MONTH_LABELS[Number(month)];
+  return `${labelMonth.slice(0, 3)} '${year.slice(-2)}`;
+};
+
 export default function SnapshotScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
@@ -45,6 +61,7 @@ export default function SnapshotScreen(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [snap, walletList] = await Promise.all([
@@ -210,6 +227,39 @@ export default function SnapshotScreen(): JSX.Element {
     return [...liquidity, ...invest];
   }, [wallets]);
 
+  const monthGroups = useMemo(() => {
+    const map = new Map<string, Snapshot[]>();
+    const sorted = [...snapshots].sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0));
+    sorted.forEach((snapshot) => {
+      const key = monthKeyFromDate(snapshot.date);
+      if (!key) return;
+      const collection = map.get(key) ?? [];
+      collection.push(snapshot);
+      map.set(key, collection);
+    });
+    return Array.from(map.entries()).map(([key, list]) => ({
+      key,
+      label: monthLabelFromKey(key),
+      snapshots: list,
+    }));
+  }, [snapshots]);
+
+  useEffect(() => {
+    if (!activeMonthKey && monthGroups.length > 0) {
+      setActiveMonthKey(monthGroups[0].key);
+    }
+  }, [activeMonthKey, monthGroups]);
+
+  const activeMonth = monthGroups.find((group) => group.key === activeMonthKey) ?? monthGroups[0];
+
+  useEffect(() => {
+    if (!activeMonth) return;
+    const firstId = activeMonth.snapshots[0]?.id ?? null;
+    if (firstId && firstId !== selectedSnapshotId) {
+      setSelectedSnapshotId(firstId);
+    }
+  }, [activeMonth, selectedSnapshotId]);
+
   return (
     <View style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
       <ScrollView
@@ -300,26 +350,54 @@ export default function SnapshotScreen(): JSX.Element {
           </PremiumCard>
         )}
 
-        <PremiumCard>
-          <SectionHeader title="Lista snapshot" />
-          <View style={styles.list}>
-            {snapshots.length === 0 && <Text style={{ color: tokens.colors.muted }}>Nessuno snapshot.</Text>}
-            {snapshots.map((snapshot) => (
-              <Button
-                key={snapshot.id}
-                onPress={() => {
-                  setSelectedSnapshotId(snapshot.id);
-                  void openEditSnapshot(snapshot.id);
-                }}
-                mode={snapshot.id === selectedSnapshotId ? "contained" : "outlined"}
-                buttonColor={snapshot.id === selectedSnapshotId ? tokens.colors.accent : undefined}
-                textColor={snapshot.id === selectedSnapshotId ? tokens.colors.text : tokens.colors.muted}
-              >
-                {snapshot.date}
-              </Button>
-            ))}
-          </View>
-        </PremiumCard>
+        {monthGroups.length === 0 ? (
+          <PremiumCard>
+            <SectionHeader title="Snapshot" />
+            <Text style={{ color: tokens.colors.muted, padding: 16 }}>Nessuno snapshot.</Text>
+          </PremiumCard>
+        ) : (
+          <>
+            <PremiumCard>
+              <SectionHeader title="Filtra snapshot per mese" />
+              <View style={styles.monthRow}>
+                {monthGroups.map((group) => (
+                  <Button
+                    key={group.key}
+                    mode={group.key === activeMonthKey ? "contained" : "outlined"}
+                    buttonColor={group.key === activeMonthKey ? tokens.colors.accent : undefined}
+                    contentStyle={styles.monthButtonContent}
+                    style={styles.monthButton}
+                    textColor={group.key === activeMonthKey ? tokens.colors.text : tokens.colors.muted}
+                    onPress={() => {
+                      setActiveMonthKey(group.key);
+                    }}
+                  >
+                    {group.label}
+                  </Button>
+                ))}
+              </View>
+            </PremiumCard>
+            <PremiumCard>
+              <SectionHeader title={`Snapshot ${activeMonth?.label ?? ""}`} />
+              <View style={styles.list}>
+                {activeMonth?.snapshots.map((snapshot) => (
+                  <Button
+                    key={snapshot.id}
+                    onPress={() => {
+                      setSelectedSnapshotId(snapshot.id);
+                      void openEditSnapshot(snapshot.id);
+                    }}
+                    mode={snapshot.id === selectedSnapshotId ? "contained" : "outlined"}
+                    buttonColor={snapshot.id === selectedSnapshotId ? tokens.colors.accent : undefined}
+                    textColor={snapshot.id === selectedSnapshotId ? tokens.colors.text : tokens.colors.muted}
+                  >
+                    {snapshot.date}
+                  </Button>
+                ))}
+              </View>
+            </PremiumCard>
+          </>
+        )}
 
         <PremiumCard>
           <SectionHeader title="Dettaglio" />
@@ -374,5 +452,18 @@ const styles = StyleSheet.create({
   totals: {
     marginTop: 8,
     gap: 4,
+  },
+  monthRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  monthButton: {
+    borderRadius: 999,
+  },
+  monthButtonContent: {
+    paddingVertical: 6,
   },
 });
