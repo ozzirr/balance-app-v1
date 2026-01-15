@@ -18,18 +18,22 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const insets = useSafeAreaInsets();
   const isDark = theme.dark;
   const blurTint = isDark ? "dark" : "light";
-  const blurIntensity = isDark ? 40 : 55;
-  const barBg = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
-  const borderColor = isDark ? theme.colors.outline : "rgba(169, 124, 255, 0.5)";
+  const blurIntensity = isDark ? 40 : 60;
+  const barBg = isDark ? "rgba(10, 11, 18, 0.92)" : "rgba(255, 255, 255, 0.92)";
+  const borderColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(30, 40, 60, 0.12)";
   const inactiveColor = isDark ? theme.colors.onSurface : "#1E2430";
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: insets.bottom + 12 }]} pointerEvents="box-none">
       <BlurView
         intensity={blurIntensity}
         tint={blurTint}
         style={[
           styles.bar,
-          { borderColor, paddingBottom: Math.max(8, insets.bottom), backgroundColor: barBg },
+          {
+            borderColor,
+            backgroundColor: barBg,
+            paddingBottom: Math.max(12, insets.bottom + 6),
+          },
         ]}
       >
         <View style={styles.row}>
@@ -79,16 +83,21 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
     alignItems: "center",
   },
   bar: {
-    borderRadius: 0,
-    borderWidth: 0,
-    paddingTop: 8,
-    paddingHorizontal: 16,
-    width: "100%",
+    borderRadius: 40,
+    borderWidth: 1,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    width: "92%",
+    maxWidth: 520,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.16,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 24,
+    elevation: 12,
   },
   row: {
     flexDirection: "row",
