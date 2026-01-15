@@ -20,9 +20,9 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const insets = useSafeAreaInsets();
   const isDark = theme.dark;
   const blurTint = isDark ? "dark" : "light";
-  const blurIntensity = 45;
-  const barBg = isDark ? "rgba(15, 18, 30, 0.9)" : "rgba(255, 255, 255, 0.95)";
-  const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(169, 124, 255, 0.4)";
+  const blurIntensity = 35;
+  const barBg = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
+  const borderColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
   const inactiveColor = isDark ? theme.colors.onSurface : "#4B4B60";
 
   const tabRoutes = state.routes.filter((route) => route.name !== "Profilo");

@@ -282,7 +282,6 @@ export default function SnapshotScreen(): JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <PremiumCard>
-          <SectionHeader title="Snapshot" />
           <View style={styles.actionsRow}>
             <Button
               mode="contained"

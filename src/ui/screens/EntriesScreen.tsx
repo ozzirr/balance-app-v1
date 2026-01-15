@@ -3,7 +3,6 @@ import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-na
 import { Button, SegmentedButtons, Switch, Text, TextInput } from "react-native-paper";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { listIncomeEntries, createIncomeEntry, updateIncomeEntry, deleteIncomeEntry } from "@/repositories/incomeEntriesRepo";
 import { listExpenseEntries, createExpenseEntry, updateExpenseEntry, deleteExpenseEntry } from "@/repositories/expenseEntriesRepo";
 import { listExpenseCategories } from "@/repositories/expenseCategoriesRepo";
@@ -294,7 +293,6 @@ export default function EntriesScreen(): JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <PremiumCard>
-          <SectionHeader title="Seleziona il tipo" />
           <SegmentedButtons
             value={entryType}
             onValueChange={(value) => setEntryType(value as EntryType)}
@@ -304,27 +302,21 @@ export default function EntriesScreen(): JSX.Element {
             ]}
             style={{ backgroundColor: tokens.colors.surface2 }}
           />
-        </PremiumCard>
-
-        <PremiumCard>
-          <SectionHeader
-            title="Aggiungi una nuova voce"
-            trailing={
-              <Button
-                mode="contained"
-                buttonColor={tokens.colors.accent}
-                style={styles.addButton}
-                contentStyle={styles.addButtonContent}
-                labelStyle={styles.addButtonLabel}
-                onPress={toggleNewEntryVisibility}
-              >
-                <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
-              </Button>
-            }
-          />
-          {showNewEntry ? (
+          <View style={styles.actionsRow}>
+            <Button
+              mode="contained"
+              buttonColor={tokens.colors.accent}
+              contentStyle={styles.fullWidthButtonContent}
+              style={styles.fullWidthButton}
+              onPress={toggleNewEntryVisibility}
+            >
+              Aggiungi nuova voce
+            </Button>
+          </View>
+          {showNewEntry && (
             <>
-              <View style={styles.form}>
+              <View style={styles.formSpacing}>
+                <View style={styles.form}>
                 <TextInput
                   label="Nome"
                   value={form.name}
@@ -446,7 +438,7 @@ export default function EntriesScreen(): JSX.Element {
                 )}
               </View>
             </>
-          ) : null}
+          )}
         </PremiumCard>
 
         <PremiumCard>
@@ -546,6 +538,9 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
   },
+  formSpacing: {
+    marginTop: 16,
+  },
   form: {
     gap: 12,
   },
@@ -573,6 +568,12 @@ const styles = StyleSheet.create({
   },
   addButtonLabel: {
     marginVertical: 0,
+  },
+  fullWidthButton: {
+    flex: 1,
+  },
+  fullWidthButtonContent: {
+    height: 44,
   },
   list: {
     gap: 8,
