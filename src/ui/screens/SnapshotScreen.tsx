@@ -254,9 +254,14 @@ export default function SnapshotScreen(): JSX.Element {
 
   useEffect(() => {
     if (!activeMonth) return;
-    const firstId = activeMonth.snapshots[0]?.id ?? null;
-    if (firstId && firstId !== selectedSnapshotId) {
-      setSelectedSnapshotId(firstId);
+    const contains = selectedSnapshotId
+      ? activeMonth.snapshots.some((snapshot) => snapshot.id === selectedSnapshotId)
+      : false;
+    if (contains) return;
+    const nextId = activeMonth.snapshots[0]?.id ?? null;
+    if (nextId) {
+      setSelectedSnapshotId(nextId);
+      void openEditSnapshot(nextId);
     }
   }, [activeMonth, selectedSnapshotId]);
 

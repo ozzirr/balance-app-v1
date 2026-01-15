@@ -14,7 +14,7 @@ const ICONS: Record<string, string> = {
 };
 
 const CARD_RADIUS = 24;
-const BAR_HEIGHT = 48;
+const BAR_HEIGHT = 56;
 
 export default function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps): JSX.Element {
   const theme = useTheme();
@@ -26,18 +26,17 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const borderColor = isDark ? theme.colors.outline : "rgba(169, 124, 255, 0.5)";
   const inactiveColor = isDark ? theme.colors.onSurface : "#1E2430";
   return (
-    <View style={[styles.wrap, { bottom: insets.bottom + 8 }]} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">
       <BlurView
         intensity={blurIntensity}
         tint={blurTint}
         style={[
           styles.bar,
-          {
-            borderColor,
-            backgroundColor: barBg,
-          },
-        ]}
-      >
+          borderColor,
+          backgroundColor: barBg,
+        },
+      ]}
+    >
         <View style={styles.row}>
           {state.routes
             .filter((route) => route.name !== "Profilo")
@@ -101,6 +100,7 @@ const styles = StyleSheet.create({
     elevation: 7,
     minHeight: BAR_HEIGHT,
     justifyContent: "center",
+    paddingVertical: 4,
   },
   row: {
     flexDirection: "row",

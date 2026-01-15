@@ -782,11 +782,11 @@ export default function SettingsScreen(): JSX.Element {
         <PremiumCard>
           <SectionHeader title="Dati" />
           <View style={styles.sectionContent}>
-            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={exportData}>
-              Esporta
-            </Button>
             <Button mode="contained" buttonColor={tokens.colors.accent} onPress={importData}>
               Importa
+            </Button>
+            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={exportData}>
+              Esporta
             </Button>
             <Button
               mode="outlined"
@@ -796,7 +796,12 @@ export default function SettingsScreen(): JSX.Element {
             >
               Incolla JSON dagli appunti
             </Button>
-            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={loadSampleDataHandler}>
+            <Button
+              mode="outlined"
+              textColor={tokens.colors.accent}
+              style={{ borderColor: tokens.colors.accent }}
+              onPress={loadSampleDataHandler}
+            >
               Carica dati di test
             </Button>
             <Button mode="outlined" textColor={tokens.colors.red} onPress={resetData}>
