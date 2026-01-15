@@ -13,64 +13,72 @@ const ICONS: Record<string, string> = {
   Impostazioni: "cog-outline",
 };
 
-const CARD_RADIUS = 24;
-const BAR_HEIGHT = 56;
+const BAR_HEIGHT = 72;
 
 export default function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps): JSX.Element {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const isDark = theme.dark;
   const blurTint = isDark ? "dark" : "light";
-  const blurIntensity = 35;
-  const barBg = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
-  const borderColor = isDark ? theme.colors.outline : "rgba(169, 124, 255, 0.5)";
-  const inactiveColor = isDark ? theme.colors.onSurface : "#1E2430";
+  const blurIntensity = 45;
+  const barBg = isDark ? "rgba(15, 18, 30, 0.9)" : "rgba(255, 255, 255, 0.95)";
+  const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(169, 124, 255, 0.4)";
+  const inactiveColor = isDark ? theme.colors.onSurface : "#4B4B60";
+
+  const tabRoutes = state.routes.filter((route) => route.name !== "Profilo");
+
   return (
-    <View style={[styles.wrap, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">
+    <View style={styles.container} pointerEvents="box-none">
       <BlurView
         intensity={blurIntensity}
         tint={blurTint}
         style={[
-          styles.bar,
+          styles.blur,
           {
-            borderColor,
             backgroundColor: barBg,
+            borderColor,
+            paddingBottom: insets.bottom + 8,
+            minHeight: BAR_HEIGHT + insets.bottom,
           },
         ]}
       >
-        <View style={styles.row}>
-          {state.routes
-            .filter((route) => route.name !== "Profilo")
-            .map((route) => {
+        <View style={styles.inner}>
+          {tabRoutes.map((route) => {
             const { options } = descriptors[route.key];
             const label = options.tabBarLabel ?? options.title ?? route.name;
             const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
             const onPress = () => {
-              const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+              const event = navigation.emit({
+                type: "tabPress",
+                target: route.key,
+                canPreventDefault: true,
+              });
               if (!isFocused && !event.defaultPrevented) {
                 navigation.navigate(route.name);
               }
             };
-
             const icon = ICONS[route.name] ?? "circle-outline";
 
             return (
-            <Pressable
-              key={route.key}
-              onPress={onPress}
-              style={[styles.item, isFocused && styles.itemActive]}
-            >
-              <MaterialCommunityIcons
-                  name={icon}
-                size={isFocused ? 24 : 22}
-                color={isFocused ? theme.colors.primary : inactiveColor}
-              />
-              <Text
-                variant="labelSmall"
-                style={{ color: isFocused ? theme.colors.primary : inactiveColor }}
-                numberOfLines={1}
-                ellipsizeMode="tail"
+              <Pressable
+                key={route.key}
+                onPress={onPress}
+                style={styles.tabItem}
               >
+                <MaterialCommunityIcons
+                  name={icon}
+                  size={isFocused ? 28 : 24}
+                  color={isFocused ? theme.colors.primary : inactiveColor}
+                />
+                <Text
+                  variant="labelSmall"
+                  style={[
+                    styles.label,
+                    { color: isFocused ? theme.colors.primary : inactiveColor },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   {String(label)}
                 </Text>
               </Pressable>
@@ -83,45 +91,33 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
 }
 
 const styles = StyleSheet.create({
-  wrap: {
+  container: {
     position: "absolute",
     left: 0,
     right: 0,
-    alignItems: "center",
+    bottom: 0,
   },
-  bar: {
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    paddingHorizontal: 18,
-    width: "92%",
-    maxWidth: 520,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 7,
+  blur: {
+    width: "100%",
     minHeight: BAR_HEIGHT,
+    overflow: "hidden",
+    paddingHorizontal: 16,
     justifyContent: "center",
-    paddingVertical: 4,
+    borderTopWidth: 1,
   },
-  row: {
+  inner: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     alignItems: "center",
+    height: BAR_HEIGHT,
   },
-  item: {
+  tabItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 0,
-    paddingHorizontal: 6,
-    minWidth: 70,
-    minHeight: BAR_HEIGHT,
+    paddingVertical: 4,
   },
-  itemActive: {
-    backgroundColor: "transparent",
-    shadowOpacity: 0,
-    elevation: 0,
+  label: {
+    marginTop: 2,
   },
 });

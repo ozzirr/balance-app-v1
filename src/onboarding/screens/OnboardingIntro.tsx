@@ -1,41 +1,40 @@
 import React, { useRef, useState } from "react";
 import { Alert, FlatList, SafeAreaView, StyleSheet, useWindowDimensions, View } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-import OnboardingDots from "@/onboarding/components/OnboardingDots";
 import OnboardingSlide from "@/onboarding/components/OnboardingSlide";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { OnboardingStackParamList } from "@/onboarding/OnboardingNavigator";
 import { setOnboardingCompleted } from "@/onboarding/onboardingStorage";
-import { useOnboardingDraft } from "@/onboarding/state/OnboardingContext";
 import type { SlideData } from "@/onboarding/types";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const slides: SlideData[] = [
   {
     title: "Benvenuto in OpenMoney",
-    subtitle: "La tua finanza personale, chiara e in un unico posto.",
-    bullets: [
-      "Entrate, uscite e ricorrenze sotto controllo",
-      "Grafici smart per l’andamento nel tempo",
-      "Setup in meno di 2 minuti",
-    ],
+    subtitle: "Tutte le tue finanze personali in un unico posto e sotto controllo.",
+    bullets: ["Entrate e uscite organizzate", "Andamento chiaro nel tempo"],
+    image: require("../../../assets/onboarding/onboarding-1.png"),
   },
   {
-    title: "Open source. Trasparente",
-    subtitle: "Il codice è pubblico. Quello che fa l’app è verificabile.",
-    bullets: ["Nessuna scatola nera", "Community-driven", "Più fiducia sui dati sensibili"],
+    title: "Open source e trasparente",
+    subtitle: "Sai sempre cosa fa l’app e come funziona.",
+    bullets: ["Codice pubblico", "Nessuna scatola nera"],
+    image: require("../../../assets/onboarding/onboarding-2.png"),
   },
   {
-    title: "Offline-first. Privacy",
-    subtitle: "Niente account. Niente cloud. Niente tracking.",
-    bullets: ["I dati restano sul dispositivo", "Funziona senza internet", "Meno rischi"],
+    title: "Offline-first e privata",
+    subtitle: "I tuoi dati restano solo sul tuo telefono.",
+    bullets: ["Nessun account", "Nessun cloud", "Nessun tracciamento"],
+    image: require("../../../assets/onboarding/onboarding-3.png"),
   },
   {
-    title: "Facciamo il primo setup",
-    subtitle: "Aggiungi l’essenziale. Poi rifinisci quando vuoi.",
-    bullets: ["1 wallet di liquidità", "1 entrata ricorrente", "2–3 uscite"],
+    title: "Iniziamo subito",
+    subtitle: "Pochi passaggi per partire.",
+    bullets: [],
+    image: require("../../../assets/onboarding/onboarding-4.png"),
   },
 ];
 
@@ -50,8 +49,8 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
     useNavigation<NativeStackNavigationProp<OnboardingStackParamList, "OnboardingIntro">>();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList<SlideData>>(null);
-  const { width } = useWindowDimensions();
-  const { resetDraft } = useOnboardingDraft();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const handleSkip = () => {
     Alert.alert("Saltare la configurazione?", "Puoi farla in seguito dal profilo.", [
@@ -77,13 +76,7 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
       navigation.navigate("OnboardingWallets");
       return;
     }
-    scrollToIndex(activeIndex + 1);
-  };
-
-  const handleRestart = () => {
-    resetDraft();
-    scrollToIndex(0);
-    setActiveIndex(0);
+    requestAnimationFrame(() => scrollToIndex(activeIndex + 1));
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ index?: number }> }) => {
@@ -92,30 +85,29 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
     }
   }).current;
 
+  const CTA_HEIGHT = 140;
+  const availableHeight = Math.max(height - insets.top - insets.bottom - CTA_HEIGHT, 320);
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.bg }]}>
-      <FlatList
-        ref={flatListRef}
-        data={slides}
-        keyExtractor={(item) => item.title}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        style={styles.slider}
-        contentContainerStyle={styles.sliderContainer}
-        renderItem={({ item }) => (
-          <View style={{ width }}>
-            <OnboardingSlide slide={item} />
-          </View>
-        )}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+      <View style={styles.sliderWrapper}>
+        <FlatList
+          ref={flatListRef}
+          data={slides}
+          keyExtractor={(item) => item.title}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.slider}
+          contentContainerStyle={styles.sliderContainer}
+          renderItem={({ item, index }) => (
+            <View style={[styles.slidePage, { width }]}>
+              <OnboardingSlide slide={item} isActive={activeIndex === index} availableHeight={availableHeight} />
+            </View>
+          )}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
         />
-      <View style={styles.dotsArea}>
-        <OnboardingDots count={slides.length} activeIndex={activeIndex} />
-        <Button mode="text" textColor={tokens.colors.accent} onPress={handleRestart}>
-          Ricomincia
-        </Button>
       </View>
       <View style={styles.footer}>
         <Button mode="contained" buttonColor={tokens.colors.accent} onPress={handlePrimaryPress}>
@@ -132,20 +124,22 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    paddingTop: 32,
-    justifyContent: "space-between",
+  },
+  sliderWrapper: {
+    flex: 1,
   },
   slider: {
-    flexGrow: 0,
+    flex: 1,
   },
   sliderContainer: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    alignItems: "stretch",
     paddingHorizontal: 24,
-    paddingBottom: 16,
   },
-  dotsArea: {
-    paddingHorizontal: 24,
-    alignItems: "center",
-    gap: 8,
+  slidePage: {
+    flex: 1,
+    justifyContent: "flex-start",
   },
   footer: {
     paddingHorizontal: 24,

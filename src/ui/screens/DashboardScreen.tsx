@@ -9,7 +9,7 @@ import { getLatestSnapshot, listSnapshotLines, listSnapshots } from "@/repositor
 import { listIncomeEntries } from "@/repositories/incomeEntriesRepo";
 import { listExpenseEntries } from "@/repositories/expenseEntriesRepo";
 import { listExpenseCategories } from "@/repositories/expenseCategoriesRepo";
-import { getPreference } from "@/repositories/preferencesRepo";
+import { getPreference, setPreference } from "@/repositories/preferencesRepo";
 import type { SnapshotLineDetail } from "@/repositories/types";
 import { todayIso } from "@/utils/dates";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
@@ -33,22 +33,31 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const SectionAccordion = ({
-  title,
-  children,
-}: {
+const SECTION_STATE_KEY = "dashboard.section.states";
+const DEFAULT_SECTION_STATES: Record<string, boolean> = {
+  andamento: true,
+  distribuzione: false,
+  cashflow: false,
+  categories: false,
+  prossimi: false,
+};
+
+type SectionAccordionProps = {
   title: string;
+  open: boolean;
+  onToggle: () => void;
   children: React.ReactNode;
-}): JSX.Element => {
+};
+
+const SectionAccordion = ({ title, open, onToggle, children }: SectionAccordionProps): JSX.Element => {
   const { tokens } = useDashboardTheme();
-  const [open, setOpen] = useState(false);
-  const toggle = () => {
+  const handleToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setOpen((prev) => !prev);
+    onToggle();
   };
   return (
     <View style={styles.section}>
-      <PremiumCard>
+      <PremiumCard style={styles.cardWrapper}>
         <PressScale
           style={[
             styles.cardHeader,
@@ -57,7 +66,7 @@ const SectionAccordion = ({
               backgroundColor: tokens.colors.surface2,
             },
           ]}
-          onPress={toggle}
+          onPress={handleToggle}
         >
           <Text style={[styles.accordionTitle, { color: tokens.colors.text }]}>{title}</Text>
           <Text style={[styles.accordionIcon, { color: tokens.colors.muted }]}>{open ? "−" : "+"}</Text>
@@ -80,6 +89,8 @@ export default function DashboardScreen(): JSX.Element {
   const [prompted, setPrompted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [profileName, setProfileName] = useState("");
+  const [sectionStates, setSectionStates] = useState<Record<string, boolean>>(DEFAULT_SECTION_STATES);
+  const [sectionsLoaded, setSectionsLoaded] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -136,6 +147,42 @@ export default function DashboardScreen(): JSX.Element {
       setDashboard(createMockDashboardData());
     }
   }, [navigation, prompted]);
+
+  useEffect(() => {
+    let canceled = false;
+    getPreference(SECTION_STATE_KEY).then((pref) => {
+      if (canceled) return;
+      if (pref?.value) {
+        try {
+          const parsed = JSON.parse(pref.value);
+          if (parsed && typeof parsed === "object") {
+            setSectionStates((prev) => ({
+              ...prev,
+              ...parsed,
+            }));
+          }
+        } catch {
+          // ignore invalid value
+        }
+      }
+      setSectionsLoaded(true);
+    });
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sectionsLoaded) return;
+    setPreference(SECTION_STATE_KEY, JSON.stringify(sectionStates)).catch(() => {});
+  }, [sectionStates, sectionsLoaded]);
+
+  const handleToggleSection = useCallback((key: string) => {
+    setSectionStates((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -200,23 +247,43 @@ export default function DashboardScreen(): JSX.Element {
               <KPIStrip items={dashboard.kpis} />
             </View>
 
-            <SectionAccordion title="Andamento nel tempo">
+            <SectionAccordion
+              title="Andamento nel tempo"
+              open={sectionStates.andamento}
+              onToggle={() => handleToggleSection("andamento")}
+            >
               <PortfolioLineChartCard data={dashboard.portfolioSeries} hideHeader noCard />
             </SectionAccordion>
 
-            <SectionAccordion title="Distribuzione patrimonio">
+            <SectionAccordion
+              title="Distribuzione patrimonio"
+              open={sectionStates.distribuzione}
+              onToggle={() => handleToggleSection("distribuzione")}
+            >
               <DonutDistributionCard items={dashboard.distributions} hideHeader noCard />
             </SectionAccordion>
 
-            <SectionAccordion title="Cash Flow. Panoramica">
+            <SectionAccordion
+              title="Cash Flow. Panoramica"
+              open={sectionStates.cashflow}
+              onToggle={() => handleToggleSection("cashflow")}
+            >
               <CashflowOverviewCard cashflow={dashboard.cashflow} hideHeader noCard />
             </SectionAccordion>
 
-            <SectionAccordion title="Spese per categoria">
+            <SectionAccordion
+              title="Spese per categoria"
+              open={sectionStates.categories}
+              onToggle={() => handleToggleSection("categories")}
+            >
               <CategoriesBreakdownCard items={dashboard.categories} hideHeader noCard />
             </SectionAccordion>
 
-            <SectionAccordion title="Prossimi movimenti">
+            <SectionAccordion
+              title="Prossimi movimenti"
+              open={sectionStates.prossimi}
+              onToggle={() => handleToggleSection("prossimi")}
+            >
               <RecurrencesTableCard
                 rows={dashboard.recurrences}
                 hideHeader
@@ -259,9 +326,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderRadius: 14,
+    paddingVertical: 14,
   },
   accordionTitle: {
     fontSize: 16,
@@ -270,8 +335,11 @@ const styles = StyleSheet.create({
   accordionIcon: {
     fontSize: 24,
   },
+  cardWrapper: {
+    padding: 0,
+  },
   accordionContent: {
-    marginTop: 12,
+    marginTop: 8,
     gap: 16,
     paddingHorizontal: 16,
     paddingBottom: 16,
