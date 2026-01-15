@@ -274,8 +274,11 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const sortedEntries = useMemo(() => {
-    const getAnnualForSort = (entry: IncomeEntry | ExpenseEntry) => toAnnualAmount(entry) ?? 0;
-    return [...entries].sort((a, b) => getAnnualForSort(b) - getAnnualForSort(a));
+    return [...entries].sort((a, b) => {
+      if (a.start_date < b.start_date) return -1;
+      if (a.start_date > b.start_date) return 1;
+      return 0;
+    });
   }, [entries]);
 
   return (

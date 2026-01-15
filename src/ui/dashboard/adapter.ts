@@ -74,6 +74,7 @@ function buildKpis(latestLines: SnapshotLineDetail[], portfolio: PortfolioPoint[
   const toBreakdown = (lines: SnapshotLineDetail[]) =>
     breakdownByWallet(lines)
       .filter((item) => item.label)
+      .sort((a, b) => b.value - a.value)
       .map((item) => ({ label: item.label, value: item.value }));
   const liquidityBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_type !== "INVEST"));
   const investBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_type === "INVEST"));

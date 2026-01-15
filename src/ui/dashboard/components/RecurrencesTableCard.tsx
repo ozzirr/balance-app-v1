@@ -44,39 +44,32 @@ export default function RecurrencesTableCard({
           <View>
             <View style={styles.headerRow}>
               <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate, styles.cellCenter]}
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
                 Data
               </Text>
               <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount, styles.cellCenter]}
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
                 Importo
               </Text>
               <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory, styles.cellCenter]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                Categoria
-              </Text>
-              <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc, styles.cellCenter]}
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
                 Nome
               </Text>
               <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAction, styles.cellCenter]}
+                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                Mod
+                Categoria
               </Text>
             </View>
             {rows.map((item, index) => {
@@ -88,22 +81,22 @@ export default function RecurrencesTableCard({
               return (
                 <React.Fragment key={item.id}>
                   <View style={styles.row}>
-                    <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate, styles.cellCenter]}>
+                    <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate]}>
                       {formatShortDate(item.date)}
                     </Text>
-                    <Text style={[styles.cell, styles.cellAmount, { color: amountColor }, styles.cellCenter]}>
+                    <Text style={[styles.cell, styles.cellAmount, { color: amountColor }]}>
                       {formatEUR(item.amount)}
                     </Text>
-                    <View style={[styles.cell, styles.cellCategory, styles.cellCenter]}>
-                      <Chip label={item.category} color={categoryColor} />
-                    </View>
                     <Text
-                      style={[styles.cell, { color: tokens.colors.text }, styles.cellDesc, styles.cellCenter]}
+                      style={[styles.cell, { color: tokens.colors.text }, styles.cellDesc]}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
                       {item.description}
                     </Text>
+                    <View style={[styles.cell, styles.cellCategory]}>
+                      <Chip label={item.category} color={categoryColor} />
+                    </View>
                     <View style={[styles.cell, styles.cellAction]}>
                       <PressScale
                         onPress={() => onPressRow?.(item)}
@@ -145,6 +138,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingBottom: 8,
     flexWrap: "nowrap",
+    gap: 12,
   },
   headerCell: {
     fontSize: 12,
@@ -158,11 +152,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     flexWrap: "nowrap",
     width: 480,
+    gap: 12,
   },
   cell: {
     fontSize: 12,
     minWidth: 0,
-    textAlign: "center",
+    textAlign: "left",
   },
   cellCenter: {
     textAlign: "center",
@@ -178,7 +173,6 @@ const styles = StyleSheet.create({
     marginRight: 6,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 4,
     flexWrap: "wrap",
   },

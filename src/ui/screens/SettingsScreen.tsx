@@ -1,30 +1,20 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { Button, List, SegmentedButtons, Switch, Text, TextInput } from "react-native-paper";
-import * as FileSystem from "expo-file-system";
-import * as LegacyFileSystem from "expo-file-system/legacy";
-import * as DocumentPicker from "expo-document-picker";
-import * as Sharing from "expo-sharing";
-import * as Clipboard from "expo-clipboard";
-import { exportToFile, exportToJson, importFromFile, importFromJson } from "@/importExport";
-import { runMigrations } from "@/db/db";
-import { loadSampleData as seedSampleData } from "@/seed/sampleData";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Button, List, SegmentedButtons, Text, TextInput } from "react-native-paper";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { createWallet, deleteWallet, ensureDefaultWallets, listWallets, updateWallet } from "@/repositories/walletsRepo";
+import { createWallet, deleteWallet, listWallets, updateWallet } from "@/repositories/walletsRepo";
 import {
   listExpenseCategories,
   createExpenseCategory,
   updateExpenseCategory,
   deleteExpenseCategory,
 } from "@/repositories/expenseCategoriesRepo";
-import { getPreference, setPreference } from "@/repositories/preferencesRepo";
-import { withTransaction } from "@/db/db";
-import { ThemeContext } from "@/ui/theme";
+import { getPreference } from "@/repositories/preferencesRepo";
 import type { Wallet, Currency, ExpenseCategory } from "@/repositories/types";
 
 type CategoryEdit = {
@@ -55,7 +45,6 @@ export default function SettingsScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const [message, setMessage] = useState<string | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [walletEdits, setWalletEdits] = useState<Record<number, { name: string; tag: string; currency: Currency }>>({});
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -74,10 +63,6 @@ export default function SettingsScreen(): JSX.Element {
     INVEST: false,
   });
   const [expandedWalletId, setExpandedWalletId] = useState<number | null>(null);
-
-  const [prefillSnapshot, setPrefillSnapshot] = useState(true);
-  const [chartMonths, setChartMonths] = useState(6);
-  const { mode, setMode } = useContext(ThemeContext);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -118,165 +103,6 @@ export default function SettingsScreen(): JSX.Element {
     setRefreshing(false);
   }, [load]);
 
-  const exportData = async () => {
-    setMessage(null);
-    const fileName = "openMoney-export.json";
-    try {
-      const payload = await exportToJson();
-      const json = JSON.stringify(payload, null, 2);
-      if (Platform.OS === "android" && FileSystem.StorageAccessFramework?.requestDirectoryPermissionsAsync) {
-        const permission = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (!permission.granted || !permission.directoryUri) {
-          setMessage("Permesso necessario per salvare il file.");
-          return;
-        }
-        const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-          permission.directoryUri,
-          fileName,
-          "application/json"
-        );
-        if (FileSystem.StorageAccessFramework.writeAsStringAsync) {
-          await FileSystem.StorageAccessFramework.writeAsStringAsync(fileUri, json);
-        } else {
-          await LegacyFileSystem.writeAsStringAsync(fileUri, json);
-        }
-        setMessage("Export completato.");
-        return;
-      }
-      const cacheDir = FileSystem.cacheDirectory ?? LegacyFileSystem.cacheDirectory;
-      const docDir = FileSystem.documentDirectory ?? LegacyFileSystem.documentDirectory;
-      let baseDir = cacheDir ?? docDir ?? FileSystem.temporaryDirectory ?? LegacyFileSystem.temporaryDirectory;
-      if (!baseDir && FileSystem.getInfoAsync) {
-        if (docDir) {
-          const info = await FileSystem.getInfoAsync(docDir);
-          if (info.exists) baseDir = docDir;
-        }
-        if (!baseDir && cacheDir) {
-          const info = await FileSystem.getInfoAsync(cacheDir);
-          if (info.exists) baseDir = cacheDir;
-        }
-      }
-      if (!baseDir) {
-        setMessage("Impossibile salvare il file su questo dispositivo.");
-        return;
-      }
-      const path = `${baseDir}${fileName}`;
-      await LegacyFileSystem.writeAsStringAsync(path, json);
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(path, { mimeType: "application/json", dialogTitle: "Esporta dati" });
-        setMessage("Export completato.");
-        return;
-      }
-      setMessage(`Export completato: ${path}`);
-    } catch (error) {
-      setMessage((error as Error).message);
-    }
-  };
-
-  const confirmWipeAndReplace = async (): Promise<boolean> =>
-    new Promise((resolve) => {
-      Alert.alert(
-        "Conferma import",
-        "L'import sostituirà tutti i dati esistenti. Vuoi continuare?",
-        [
-          { text: "Annulla", style: "cancel", onPress: () => resolve(false) },
-          { text: "Continua", style: "destructive", onPress: () => resolve(true) },
-        ],
-        { cancelable: true }
-      );
-    });
-
-  const importData = async () => {
-    setMessage(null);
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "application/json",
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled || !result.assets?.length) return;
-      const confirmed = await confirmWipeAndReplace();
-      if (!confirmed) return;
-      await importFromFile(result.assets[0].uri);
-      setMessage("Import completato.");
-      await load();
-    } catch (error) {
-      setMessage((error as Error).message);
-    }
-  };
-
-  const pasteFromClipboard = async () => {
-    setMessage(null);
-    try {
-      const text = (await Clipboard.getStringAsync())?.trim();
-      if (!text) {
-        setMessage("Appunti vuoti.");
-        return;
-      }
-      const confirmed = await confirmWipeAndReplace();
-      if (!confirmed) return;
-      let payload: unknown;
-      try {
-        payload = JSON.parse(text);
-      } catch {
-        setMessage("JSON non valido.");
-        return;
-      }
-      await runMigrations();
-      await importFromJson(payload);
-      setMessage("Import completato dagli appunti.");
-      await load();
-    } catch (error) {
-      const message = (error as Error).message;
-      setMessage(message.includes("Could not open database") ? "Database non disponibile. Riprova tra poco." : message);
-    }
-  };
-
-  const confirmReset = async (): Promise<boolean> =>
-    new Promise((resolve) => {
-      Alert.alert(
-        "Conferma reset",
-        "Questa azione cancellerà tutti i dati. Vuoi continuare?",
-        [
-          { text: "Annulla", style: "cancel", onPress: () => resolve(false) },
-          { text: "Reset", style: "destructive", onPress: () => resolve(true) },
-        ],
-        { cancelable: true }
-      );
-    });
-
-  const resetData = async () => {
-    setMessage(null);
-    const confirmed = await confirmReset();
-    if (!confirmed) return;
-    await withTransaction(async (db) => {
-      const tables = [
-        "snapshot_lines",
-        "snapshots",
-        "income_entries",
-        "expense_entries",
-        "wallets",
-        "expense_categories",
-      ];
-      for (const table of tables) {
-        await db.runAsync(`DELETE FROM ${table}`);
-      }
-    });
-    await ensureDefaultWallets();
-    await load();
-    setMessage("Reset completato.");
-  };
-
-  const loadSampleDataHandler = useCallback(async () => {
-    setMessage(null);
-    try {
-      await seedSampleData();
-      await load();
-      setMessage("Dati di esempio caricati.");
-    } catch (error) {
-      setMessage((error as Error).message);
-    }
-  }, [load]);
-
   const addWallet = async (type: "LIQUIDITY" | "INVEST") => {
     if (!newWalletDraft.name.trim()) return;
     await createWallet(
@@ -310,11 +136,6 @@ export default function SettingsScreen(): JSX.Element {
   const removeCategory = async (id: number) => {
     await deleteExpenseCategory(id);
     await load();
-  };
-
-  const updatePreference = async (key: string, value: string) => {
-    await setPreference(key, value);
-    setMessage("Preferenze salvate.");
   };
 
   const liquidityWallets = useMemo(
@@ -725,90 +546,7 @@ export default function SettingsScreen(): JSX.Element {
           </View>
         </PremiumCard>
 
-        <PremiumCard>
-          <SectionHeader title="Preferenze" />
-          {message && <Text style={{ color: tokens.colors.muted }}>{message}</Text>}
-          <View style={styles.sectionContent}>
-            <View style={styles.row}>
-              <Switch
-                value={mode === "dark"}
-                onValueChange={(value) => {
-                  const next = value ? "dark" : "light";
-                  setMode(next);
-                  updatePreference("theme", next);
-                }}
-              />
-              <Text style={{ color: tokens.colors.text }}>Tema scuro</Text>
-            </View>
-            <View style={styles.row}>
-              <Switch
-                value={prefillSnapshot}
-                onValueChange={(value) => {
-                  setPrefillSnapshot(value);
-                  updatePreference("prefill_snapshot", String(value));
-                }}
-              />
-              <Text style={{ color: tokens.colors.text }}>Precompila snapshot</Text>
-            </View>
-            <View style={[styles.row, { gap: 12, marginTop: 8 }]}>
-              <Text style={{ color: tokens.colors.text }}>Mesi nel grafico</Text>
-              <Button
-                mode="outlined"
-                textColor={tokens.colors.text}
-                onPress={() => {
-                  const next = Math.max(3, chartMonths - 1);
-                  setChartMonths(next);
-                  updatePreference("chart_points", String(next));
-                }}
-              >
-                -
-              </Button>
-              <Text style={{ color: tokens.colors.text }}>{chartMonths}</Text>
-              <Button
-                mode="outlined"
-                textColor={tokens.colors.text}
-                onPress={() => {
-                  const next = Math.min(12, chartMonths + 1);
-                  setChartMonths(next);
-                  updatePreference("chart_points", String(next));
-                }}
-              >
-                +
-              </Button>
-            </View>
-          </View>
-        </PremiumCard>
 
-        <PremiumCard>
-          <SectionHeader title="Dati" />
-          <View style={styles.sectionContent}>
-            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={importData}>
-              Importa
-            </Button>
-            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={exportData}>
-              Esporta
-            </Button>
-            <Button
-              mode="outlined"
-              textColor={tokens.colors.accent}
-              onPress={pasteFromClipboard}
-              style={{ borderColor: tokens.colors.accent }}
-            >
-              Incolla JSON dagli appunti
-            </Button>
-            <Button
-              mode="outlined"
-              textColor={tokens.colors.accent}
-              style={{ borderColor: tokens.colors.accent }}
-              onPress={loadSampleDataHandler}
-            >
-              Carica dati di test
-            </Button>
-            <Button mode="outlined" textColor={tokens.colors.red} onPress={resetData}>
-              Reset
-            </Button>
-          </View>
-        </PremiumCard>
       </ScrollView>
     </View>
   );

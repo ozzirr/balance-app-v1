@@ -222,6 +222,7 @@ export default function SnapshotScreen(): JSX.Element {
   };
 
   const totals = useMemo(() => totalsByWalletType(lines), [lines]);
+  const sortedLines = useMemo(() => [...lines].sort((a, b) => b.amount - a.amount), [lines]);
   const orderedWallets = useMemo(() => {
     const liquidity = wallets.filter((wallet) => wallet.type === "LIQUIDITY");
     const invest = wallets.filter((wallet) => wallet.type === "INVEST");
@@ -423,7 +424,7 @@ export default function SnapshotScreen(): JSX.Element {
           <SectionHeader title="Dettaglio" />
           <View style={styles.list}>
             {lines.length === 0 && <Text style={{ color: tokens.colors.muted }}>Nessuna linea.</Text>}
-            {lines.map((line) => (
+            {sortedLines.map((line) => (
               <Text key={line.id} style={{ color: tokens.colors.text }}>
                 {line.wallet_name ?? "Sconosciuto"} • {line.amount.toFixed(2)}
               </Text>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -18,6 +18,10 @@ import AppBackground from "@/ui/components/AppBackground";
 import AppBootScreen from "@/ui/components/AppBootScreen";
 import { DashboardThemeProvider } from "@/ui/dashboard/theme";
 import ProfileButton from "@/components/header/ProfileButton";
+import OnboardingNavigator from "@/onboarding/OnboardingNavigator";
+import { OnboardingFlowProvider } from "@/onboarding/flowContext";
+import { getOnboardingCompleted } from "@/onboarding/onboardingStorage";
+import { StatusBar } from "expo-status-bar";
 
 enableScreens(false);
 
@@ -25,6 +29,27 @@ const Tab = createBottomTabNavigator();
 
 export default function App(): JSX.Element {
   const { ready, error, themeMode, setThemeMode, retry } = useAppBootstrap();
+  const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
+  const [manualOnboarding, setManualOnboarding] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    getOnboardingCompleted().then((value) => {
+      if (mounted) setOnboardingCompletedState(value);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleOnboardingComplete = useCallback(() => {
+    setManualOnboarding(false);
+    setOnboardingCompletedState(true);
+  }, []);
+
+  const requestManualOnboarding = useCallback(() => {
+    setManualOnboarding(true);
+  }, []);
 
   const paperTheme =
     themeMode === "dark"
@@ -55,39 +80,57 @@ export default function App(): JSX.Element {
       <PaperProvider theme={paperTheme}>
         <DashboardThemeProvider isDark={paperTheme.dark}>
           <AppBackground>
+            <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
             {!ready ? (
               <AppBootScreen status="loading" />
             ) : error ? (
               <AppBootScreen status="error" error={error} onRetry={retry} />
             ) : (
-              <NavigationContainer theme={navTheme}>
-                <Tab.Navigator
-                  screenOptions={({ route }) => ({
-                    headerTitleAlign: "center",
-                    headerTransparent: true,
-                    headerBackground: () => (
-                      <BlurView
-                        intensity={35}
-                        tint={headerBlurTint}
-                        style={[
-                          StyleSheet.absoluteFill,
-                          { borderBottomWidth: 1, borderBottomColor: headerBorder, backgroundColor: headerOverlay },
-                        ]}
+              <OnboardingFlowProvider value={{ requestReplay: requestManualOnboarding }}>
+                <NavigationContainer theme={navTheme}>
+                  {(!onboardingCompleted || manualOnboarding) ? (
+                    <OnboardingNavigator
+                      onComplete={handleOnboardingComplete}
+                      shouldSeedOnComplete={!manualOnboarding}
+                    />
+                  ) : (
+                    <Tab.Navigator
+                      screenOptions={({ route }) => ({
+                        headerTitleAlign: "center",
+                        headerTransparent: true,
+                        headerBackground: () => (
+                          <BlurView
+                            intensity={35}
+                            tint={headerBlurTint}
+                            style={[
+                              StyleSheet.absoluteFill,
+                              {
+                                borderBottomWidth: 1,
+                                borderBottomColor: headerBorder,
+                                backgroundColor: headerOverlay,
+                              },
+                            ]}
+                          />
+                        ),
+                        headerRight: () => (route.name === "Profilo" ? null : <ProfileButton />),
+                        tabBarStyle: { display: "none" },
+                      })}
+                      tabBar={(props) => <GlassTabBar {...props} />}
+                    >
+                      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+                      <Tab.Screen name="Snapshot" component={SnapshotScreen} />
+                      <Tab.Screen name="Entrate/Uscite" component={EntriesScreen} />
+                      <Tab.Screen name="Impostazioni" component={SettingsScreen} />
+                      <Tab.Screen
+                        name="Profilo"
+                        component={ProfileScreen}
+                        options={{ tabBarButton: () => null }}
                       />
-                    ),
-                    headerRight: () => (route.name === "Profilo" ? null : <ProfileButton />),
-                    tabBarStyle: { display: "none" },
-                  })}
-                  tabBar={(props) => <GlassTabBar {...props} />}
-                >
-                <Tab.Screen name="Dashboard" component={DashboardScreen} />
-                <Tab.Screen name="Snapshot" component={SnapshotScreen} />
-                <Tab.Screen name="Entrate/Uscite" component={EntriesScreen} />
-                <Tab.Screen name="Impostazioni" component={SettingsScreen} />
-                <Tab.Screen name="Profilo" component={ProfileScreen} options={{ tabBarButton: () => null }} />
-              </Tab.Navigator>
-            </NavigationContainer>
-          )}
+                    </Tab.Navigator>
+                  )}
+                </NavigationContainer>
+              </OnboardingFlowProvider>
+            )}
           </AppBackground>
         </DashboardThemeProvider>
       </PaperProvider>

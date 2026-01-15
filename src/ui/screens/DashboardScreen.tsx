@@ -51,7 +51,7 @@ const SectionAccordion = ({
       <PremiumCard>
         <PressScale
           style={[
-            styles.accordionHeader,
+            styles.cardHeader,
             {
               borderColor: tokens.colors.border,
               backgroundColor: tokens.colors.surface2,
@@ -193,17 +193,14 @@ export default function DashboardScreen(): JSX.Element {
 
         {dashboard ? (
           <>
-            <View style={styles.section}>
+            <View style={styles.greetingBlock}>
               <Text style={[styles.greetingText, { color: tokens.colors.text }]}>
-                {profileName ? `Ciao, ${profileName}` : "Ciao"}
+                {profileName ? `Ciao ${profileName}` : "Ciao"}
               </Text>
-            </View>
-
-            <View style={styles.section}>
               <KPIStrip items={dashboard.kpis} />
             </View>
 
-            <SectionAccordion title="Il tuo andamento nel tempo">
+            <SectionAccordion title="Andamento nel tempo">
               <PortfolioLineChartCard data={dashboard.portfolioSeries} hideHeader noCard />
             </SectionAccordion>
 
@@ -247,20 +244,24 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 16,
-    gap: 24,
+    gap: 10,
   },
   section: {
-    gap: 12,
-    marginTop: 5,
+    gap: 10,
+    marginTop: 3,
   },
-  accordionHeader: {
+  greetingBlock: {
+    gap: 10,
+  },
+
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 14,
-    borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderWidth: 1,
+    borderRadius: 14,
   },
   accordionTitle: {
     fontSize: 16,
@@ -272,6 +273,8 @@ const styles = StyleSheet.create({
   accordionContent: {
     marginTop: 12,
     gap: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   greetingText: {
     fontSize: 34,

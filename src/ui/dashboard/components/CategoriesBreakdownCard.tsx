@@ -10,6 +10,7 @@ import type { CategoryRow } from "@/ui/dashboard/types";
 type Props = {
   items: CategoryRow[];
   hideHeader?: boolean;
+  noCard?: boolean;
 };
 
 function AnimatedBar({
@@ -39,10 +40,10 @@ function AnimatedBar({
   );
 }
 
-export default function CategoriesBreakdownCard({ items, hideHeader = false }: Props): JSX.Element {
+export default function CategoriesBreakdownCard({ items, hideHeader = false, noCard = false }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
-  return (
-    <PremiumCard>
+  const content = (
+    <>
       {!hideHeader && <SectionHeader title="Spese per categoria" />}
       {items.length === 0 ? (
         <Text style={[styles.empty, { color: tokens.colors.muted }]}>Nessun dato disponibile.</Text>
@@ -61,8 +62,13 @@ export default function CategoriesBreakdownCard({ items, hideHeader = false }: P
           ))}
         </View>
       )}
-    </PremiumCard>
+    </>
   );
+
+  if (noCard) {
+    return <>{content}</>;
+  }
+  return <PremiumCard>{content}</PremiumCard>;
 }
 
 const styles = StyleSheet.create({
