@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Alert, FlatList, SafeAreaView, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Alert, FlatList, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -9,7 +9,7 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { OnboardingStackParamList } from "@/onboarding/OnboardingNavigator";
 import { setOnboardingCompleted } from "@/onboarding/onboardingStorage";
 import type { SlideData } from "@/onboarding/types";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const slides: SlideData[] = [
   {
@@ -25,7 +25,7 @@ const slides: SlideData[] = [
     image: require("../../../assets/onboarding/onboarding-2.png"),
   },
   {
-    title: "Offline-first e privata",
+    title: "Offline-first e davvero privata",
     subtitle: "I tuoi dati restano solo sul tuo telefono.",
     bullets: ["Nessun account", "Nessun cloud", "Nessun tracciamento"],
     image: require("../../../assets/onboarding/onboarding-3.png"),
@@ -47,10 +47,11 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
   const { tokens } = useDashboardTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<OnboardingStackParamList, "OnboardingIntro">>();
+
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList<SlideData>>(null);
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [contentHeight, setContentHeight] = useState(0);
 
   const handleSkip = () => {
     Alert.alert("Saltare la configurazione?", "Puoi farla in seguito dal profilo.", [
@@ -58,9 +59,7 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
       {
         text: "Salta",
         onPress: async () => {
-          if (shouldSeedOnComplete) {
-            await setOnboardingCompleted(true);
-          }
+          if (shouldSeedOnComplete) await setOnboardingCompleted(true);
           onComplete();
         },
       },
@@ -79,36 +78,46 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
     requestAnimationFrame(() => scrollToIndex(activeIndex + 1));
   };
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ index?: number }> }) => {
-    if (viewableItems.length > 0 && viewableItems[0].index !== undefined) {
-      setActiveIndex(viewableItems[0].index);
-    }
-  }).current;
-
-  const CTA_HEIGHT = 140;
-  const availableHeight = Math.max(height - insets.top - insets.bottom - CTA_HEIGHT, 320);
+  const handleMomentumScrollEnd = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const newIndex = Math.round(offsetX / width);
+    setActiveIndex(newIndex);
+  };
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: tokens.colors.bg }]}>
-      <View style={styles.sliderWrapper}>
+    <SafeAreaView edges={["top", "bottom"]} style={[styles.root, { backgroundColor: tokens.colors.bg }]}>
+      <View
+        style={styles.contentZone}
+        onLayout={(event) => {
+          const h = event.nativeEvent.layout.height;
+          if (h > 0 && h !== contentHeight) setContentHeight(h);
+        }}
+      >
         <FlatList
           ref={flatListRef}
           data={slides}
-          keyExtractor={(item) => item.title}
+          keyExtractor={(item, i) => `${item.title}-${i}`}
           horizontal
           pagingEnabled
+          bounces={false}
           showsHorizontalScrollIndicator={false}
           style={styles.slider}
           contentContainerStyle={styles.sliderContainer}
           renderItem={({ item, index }) => (
             <View style={[styles.slidePage, { width }]}>
-              <OnboardingSlide slide={item} isActive={activeIndex === index} availableHeight={availableHeight} />
+              <OnboardingSlide
+                slide={item}
+                isActive={activeIndex === index}
+                availableHeight={contentHeight > 0 ? contentHeight : undefined}
+              />
             </View>
           )}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+          getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
         />
       </View>
+
+      {/* Niente insets.bottom qui. SafeAreaView edges=bottom lo gestisce già */}
       <View style={styles.footer}>
         <Button mode="contained" buttonColor={tokens.colors.accent} onPress={handlePrimaryPress}>
           {activeIndex >= slides.length - 1 ? "Inizia" : "Continua"}
@@ -122,28 +131,25 @@ export default function OnboardingIntro({ onComplete, shouldSeedOnComplete }: Pr
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
+  root: { flex: 1 },
+
+  // FIX. Prima mancava del tutto
+  contentZone: { flex: 1 },
+
+  slider: { flex: 1 },
+  sliderContainer: { flexGrow: 1 },
+
+  slidePage: { flex: 1 },
+
+  dotsWrapper: {
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 6,
   },
-  sliderWrapper: {
-    flex: 1,
-  },
-  slider: {
-    flex: 1,
-  },
-  sliderContainer: {
-    flexGrow: 1,
-    justifyContent: "flex-start",
-    alignItems: "stretch",
-    paddingHorizontal: 24,
-  },
-  slidePage: {
-    flex: 1,
-    justifyContent: "flex-start",
-  },
+
   footer: {
     paddingHorizontal: 24,
-    paddingBottom: 28,
+    paddingBottom: 16,
     gap: 12,
   },
 });

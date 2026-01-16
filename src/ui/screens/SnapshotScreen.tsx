@@ -221,6 +221,10 @@ export default function SnapshotScreen(): JSX.Element {
     await loadLines(id);
   };
 
+  const selectedSnapshot = useMemo(
+    () => snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? null,
+    [snapshots, selectedSnapshotId]
+  );
   const totals = useMemo(() => totalsByWalletType(lines), [lines]);
   const sortedLines = useMemo(() => [...lines].sort((a, b) => b.amount - a.amount), [lines]);
   const orderedWallets = useMemo(() => {
@@ -266,9 +270,9 @@ export default function SnapshotScreen(): JSX.Element {
     const nextId = activeMonth.snapshots[0]?.id ?? null;
     if (nextId) {
       setSelectedSnapshotId(nextId);
-      void openEditSnapshot(nextId);
+      void loadLines(nextId);
     }
-  }, [activeMonth, selectedSnapshotId]);
+  }, [activeMonth, selectedSnapshotId, loadLines]);
 
   return (
     <View style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
@@ -330,19 +334,38 @@ export default function SnapshotScreen(): JSX.Element {
                     ? `${wallet.tag || "Tipo investimento"} - ${wallet.name} - ${wallet.currency}`
                     : `${wallet.name} - ${wallet.currency}`
                   : `Wallet #${line.walletId}`;
+                const toggleSign = () => {
+                  const current = line.amount.trim();
+                  const toggled = current.startsWith("-")
+                    ? current.slice(1)
+                    : current === ""
+                    ? "-"
+                    : `-${current}`;
+                  updateDraftLine(index, { amount: toggled });
+                };
                 return (
                   <PremiumCard key={`${line.walletId}-${index}`} style={{ backgroundColor: tokens.colors.surface2 }}>
                     <SectionHeader title={walletTitle} />
-                    <TextInput
-                      keyboardType="decimal-pad"
-                      value={line.amount}
-                      mode="outlined"
-                      outlineColor={tokens.colors.border}
-                      activeOutlineColor={tokens.colors.accent}
-                      textColor={tokens.colors.text}
-                      style={{ backgroundColor: tokens.colors.surface }}
-                      onChangeText={(value) => updateDraftLine(index, { amount: value })}
-                    />
+                    <View style={styles.lineInputRow}>
+                      <TextInput
+                        keyboardType="numbers-and-punctuation"
+                        value={line.amount}
+                        mode="outlined"
+                        outlineColor={tokens.colors.border}
+                        activeOutlineColor={tokens.colors.accent}
+                        textColor={tokens.colors.text}
+                        style={{ backgroundColor: tokens.colors.surface, flex: 1 }}
+                        onChangeText={(value) => updateDraftLine(index, { amount: value })}
+                      />
+                      <Button
+                        mode="outlined"
+                        textColor={tokens.colors.accent}
+                        style={styles.toggleButton}
+                        onPress={toggleSign}
+                      >
+                        +/-
+                      </Button>
+                    </View>
                   </PremiumCard>
                 );
               })}
@@ -399,22 +422,22 @@ export default function SnapshotScreen(): JSX.Element {
             </PremiumCard>
             <PremiumCard>
               <SectionHeader title={`Snapshot ${activeMonth?.label ?? ""}`} />
-              <View style={styles.list}>
-                {activeMonth?.snapshots.map((snapshot) => (
-                  <Button
-                    key={snapshot.id}
-                    onPress={() => {
-                      setSelectedSnapshotId(snapshot.id);
-                      void openEditSnapshot(snapshot.id);
-                    }}
-                    mode={snapshot.id === selectedSnapshotId ? "contained" : "outlined"}
-                    buttonColor={snapshot.id === selectedSnapshotId ? tokens.colors.accent : undefined}
-                    textColor={snapshot.id === selectedSnapshotId ? tokens.colors.text : tokens.colors.muted}
-                  >
-                    {snapshot.date}
-                  </Button>
-                ))}
-              </View>
+            <View style={styles.list}>
+              {activeMonth?.snapshots.map((snapshot) => (
+                <Button
+                  key={snapshot.id}
+                  onPress={() => {
+                    setSelectedSnapshotId(snapshot.id);
+                    void loadLines(snapshot.id);
+                  }}
+                  mode={snapshot.id === selectedSnapshotId ? "contained" : "outlined"}
+                  buttonColor={snapshot.id === selectedSnapshotId ? tokens.colors.accent : undefined}
+                  textColor={snapshot.id === selectedSnapshotId ? tokens.colors.text : tokens.colors.muted}
+                >
+                  {snapshot.date}
+                </Button>
+              ))}
+            </View>
             </PremiumCard>
           </>
         )}
@@ -433,6 +456,18 @@ export default function SnapshotScreen(): JSX.Element {
                 <Text style={{ color: tokens.colors.muted }}>Liquidità: {totals.liquidity.toFixed(2)}</Text>
                 <Text style={{ color: tokens.colors.muted }}>Investimenti: {totals.investments.toFixed(2)}</Text>
                 <Text style={{ color: tokens.colors.text }}>Patrimonio: {totals.netWorth.toFixed(2)}</Text>
+              </View>
+            )}
+            {selectedSnapshotId && (
+              <View style={styles.editButtonRow}>
+                <Button
+                  mode="outlined"
+                  textColor={tokens.colors.accent}
+                  style={{ borderColor: tokens.colors.accent }}
+                  onPress={() => openEditSnapshot(selectedSnapshotId)}
+                >
+                  Modifica snapshot
+                </Button>
               </View>
             )}
           </View>
@@ -488,5 +523,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 44,
     justifyContent: "center",
+  },
+  lineInputRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  toggleButton: {
+    minWidth: 70,
+    height: 48,
+  },
+  editButtonRow: {
+    marginTop: 12,
+    alignItems: "flex-start",
   },
 });

@@ -10,7 +10,7 @@ const ICONS: Record<string, string> = {
   Dashboard: "view-grid",
   Snapshot: "calendar-month-outline",
   "Entrate/Uscite": "swap-vertical",
-  Impostazioni: "cog-outline",
+  Wallets: "wallet-outline",
 };
 
 const BAR_HEIGHT = 72;

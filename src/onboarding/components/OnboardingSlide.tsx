@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Image, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, Easing, Image, StyleSheet, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "react-native-paper";
 import type { SlideData } from "@/onboarding/types";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
@@ -7,16 +8,13 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 type Props = {
   slide: SlideData;
   isActive: boolean;
-  availableHeight: number;
+  availableHeight?: number;
 };
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 export default function OnboardingSlide({ slide, isActive, availableHeight }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
-  const textAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
-  const translateY = useRef(new Animated.Value(isActive ? 0 : 16)).current;
-  const scale = useRef(new Animated.Value(isActive ? 1 : 0.98)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -40,155 +38,139 @@ export default function OnboardingSlide({ slide, isActive, availableHeight }: Pr
     return () => floatLoop.stop();
   }, [floatAnim]);
 
-  useEffect(() => {
-    if (isActive) {
-      textAnim.setValue(0);
-      translateY.setValue(16);
-      scale.setValue(0.98);
+  const h = typeof availableHeight === "number" && availableHeight > 0 ? availableHeight : 520;
 
-      Animated.parallel([
-        Animated.timing(textAnim, {
-          toValue: 1,
-          duration: 360,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 360,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1,
-          duration: 360,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [isActive, scale, textAnim, translateY]);
-
-  const animatedStyle = {
-    transform: [
-      { translateY },
-      { scale },
-    ],
-  };
-
-  const animatedTextStyle = {
-    opacity: textAnim,
-    transform: [
-      {
-        translateY: textAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [12, 0],
-        }),
-      },
-    ],
-  };
-
-  const imageMaxHeight = Math.min(Math.max(availableHeight * 0.42, 180), 280);
+  // Immagine non troppo alta, e wrapper con height fissa per evitare “stretch”
+  const imageMaxHeight = Math.min(Math.max(h * 0.30, 160), 280);
 
   return (
-    <Animated.View style={[styles.animatedContainer, animatedStyle]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { minHeight: availableHeight }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.contentWrapper}>
-          <Animated.View style={[styles.contentBlock, animatedTextStyle]}>
-            <Text style={[styles.title, { color: tokens.colors.text }]}>{slide.title}</Text>
-            <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>{slide.subtitle}</Text>
-            {slide.bullets.length > 0 && (
-              <View style={styles.bullets}>
-                {slide.bullets.map((bullet) => (
-                  <View key={bullet} style={styles.bulletRow}>
-                    <View style={[styles.bulletIcon, { backgroundColor: tokens.colors.accent }]} />
-                    <Text style={[styles.bulletText, { color: tokens.colors.muted }]} numberOfLines={1}>
-                      {bullet}
-                    </Text>
-                  </View>
-                ))}
+    <View style={styles.root}>
+      <View style={[styles.imageWrapper, { height: imageMaxHeight }]}>
+        <AnimatedImage
+          source={slide.image}
+          style={[
+            styles.image,
+            {
+              transform: [{ translateY: floatAnim }],
+              opacity: isActive ? 1 : 0.95,
+            },
+          ]}
+        />
+      </View>
+
+      <View style={styles.textGroup}>
+        <Text style={[styles.title, styles.titleGlow]}>{slide.title}</Text>
+        <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>{slide.subtitle}</Text>
+
+        {slide.bullets.length > 0 && (
+          <View style={styles.bullets}>
+            {slide.bullets.map((bullet) => (
+              <View key={bullet} style={styles.bulletRow}>
+                <MaterialCommunityIcons
+                  name={getBulletIconName(bullet)}
+                  size={20}
+                  color={tokens.colors.accent}
+                  style={styles.icon}
+                />
+                <Text style={[styles.bulletText, { color: tokens.colors.muted }]} numberOfLines={2}>
+                  {bullet}
+                </Text>
               </View>
-            )}
-            <View style={styles.imageWrapper}>
-              <AnimatedImage
-                source={slide.image}
-                style={[styles.image, { maxHeight: imageMaxHeight, transform: [{ translateY: floatAnim }] }]}
-              />
-            </View>
-          </Animated.View>
-        </View>
-      </ScrollView>
-    </Animated.View>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  animatedContainer: {
+  root: {
     flex: 1,
     width: "100%",
+    paddingHorizontal: 24,
+    paddingTop: 18,
+
+    // ANCORA IN BASSO
+    justifyContent: "flex-end",
+
+    // distanza dai dots/CTA (che stanno fuori dalla slide)
+    paddingBottom: 26,
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 0,
-    paddingTop: 16,
-    paddingBottom: 16,
-  },
-  contentWrapper: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 0,
-    paddingVertical: 16,
-  },
-  contentBlock: {
-    width: "100%",
-    alignItems: "flex-start",
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
-    textAlign: "left",
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    lineHeight: 22,
-    textAlign: "left",
-    marginBottom: 12,
-  },
-  bullets: {
-    width: "100%",
-  },
-  bulletRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  bulletIcon: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    opacity: 0.85,
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    textAlign: "left",
-  },
+
   imageWrapper: {
     width: "100%",
     alignItems: "center",
-    marginTop: 18,
+    justifyContent: "center",
+    marginBottom: 10,
+    flexGrow: 0,
+    flexShrink: 0,
   },
+
   image: {
     width: "100%",
+    height: "100%",
     resizeMode: "contain",
   },
+
+  textGroup: {
+    width: "100%",
+    gap: 8,
+  },
+
+  title: {
+    fontSize: 38,
+    lineHeight: 42,
+    fontWeight: "800",
+    textAlign: "center",
+    color: "#C9D7FF",
+  },
+
+  subtitle: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+
+  bullets: {
+    marginTop: 10,
+    width: "100%",
+    gap: 8,
+  },
+
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  icon: { marginRight: 6 },
+
+  bulletText: {
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 24,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+
+  titleGlow: {
+    textShadowColor: "rgba(167, 139, 250, 0.7)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 12,
+  },
 });
+
+function getBulletIconName(bullet: string): keyof typeof MaterialCommunityIcons.glyphMap {
+  const normalized = bullet.toLowerCase();
+  if (normalized.includes("wallet") || normalized.includes("entrate") || normalized.includes("uscite")) return "wallet";
+  if (normalized.includes("andamento") || normalized.includes("grafici") || normalized.includes("performance")) return "chart-line";
+  if (normalized.includes("codice") || normalized.includes("source") || normalized.includes("open")) return "code-tags";
+  if (normalized.includes("scatola") || normalized.includes("nascosto") || normalized.includes("black") || normalized.includes("nera")) return "eye-off";
+  if (normalized.includes("cloud") || normalized.includes("tracciamento")) return "cloud-off-outline";
+  if (normalized.includes("privacy") || normalized.includes("account")) return "shield-check";
+  if (normalized.includes("categorie") || normalized.includes("spese")) return "format-list-bulleted";
+  return "circle-medium";
+}

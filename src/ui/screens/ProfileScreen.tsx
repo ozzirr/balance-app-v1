@@ -34,8 +34,7 @@ export default function ProfileScreen(): JSX.Element {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [form, setForm] = useState<ProfileState>(emptyProfile);
-  const [profileMessage, setProfileMessage] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isProfileDirty, setProfileDirty] = useState(false);
   const [prefillSnapshot, setPrefillSnapshot] = useState(true);
   const [chartMonths, setChartMonths] = useState(6);
   const { mode, setMode } = useContext(ThemeContext);
@@ -57,11 +56,11 @@ export default function ProfileScreen(): JSX.Element {
     const parsedPoints = points ? Number(points.value) : 6;
     const safePoints = Number.isFinite(parsedPoints) ? Math.min(12, Math.max(3, parsedPoints)) : 6;
     setChartMonths(safePoints);
+    setProfileDirty(false);
   }, []);
 
   const updatePreference = async (key: string, value: string) => {
     await setPreference(key, value);
-    setStatusMessage("Preferenze salvate.");
   };
 
   const confirmWipeAndReplace = async (): Promise<boolean> =>
@@ -78,7 +77,6 @@ export default function ProfileScreen(): JSX.Element {
     });
 
   const importData = async () => {
-    setStatusMessage(null);
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "application/json",
@@ -88,14 +86,12 @@ export default function ProfileScreen(): JSX.Element {
       const confirmed = await confirmWipeAndReplace();
       if (!confirmed) return;
       await importFromFile(result.assets[0].uri);
-      setStatusMessage("Import completato.");
     } catch (error) {
-      setStatusMessage((error as Error).message);
+      console.warn(error);
     }
   };
 
   const exportData = async () => {
-    setStatusMessage(null);
     const fileName = "openMoney-export.json";
     try {
       const payload = await exportToJson();
@@ -103,7 +99,6 @@ export default function ProfileScreen(): JSX.Element {
       if (Platform.OS === "android" && FileSystem.StorageAccessFramework?.requestDirectoryPermissionsAsync) {
         const permission = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
         if (!permission.granted || !permission.directoryUri) {
-        setStatusMessage("Permesso necessario per salvare il file.");
           return;
         }
         const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
@@ -116,7 +111,6 @@ export default function ProfileScreen(): JSX.Element {
         } else {
           await LegacyFileSystem.writeAsStringAsync(fileUri, json);
         }
-        setStatusMessage("Export completato.");
         return;
       }
       const cacheDir = FileSystem.cacheDirectory ?? LegacyFileSystem.cacheDirectory;
@@ -133,45 +127,35 @@ export default function ProfileScreen(): JSX.Element {
         }
       }
       if (!baseDir) {
-        setStatusMessage("Impossibile salvare il file su questo dispositivo.");
         return;
       }
       const path = `${baseDir}${fileName}`;
       await LegacyFileSystem.writeAsStringAsync(path, json);
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(path, { mimeType: "application/json", dialogTitle: "Esporta dati" });
-        setStatusMessage("Export completato.");
         return;
       }
-      setStatusMessage(`Export completato: ${path}`);
     } catch (error) {
-      setStatusMessage((error as Error).message);
+      console.warn(error);
     }
   };
 
   const pasteFromClipboard = async () => {
-    setStatusMessage(null);
     try {
       const copy = (await Clipboard.getStringAsync())?.trim();
-      if (!copy) {
-      setStatusMessage("Appunti vuoti.");
-        return;
-      }
+      if (!copy) return;
       const confirmed = await confirmWipeAndReplace();
       if (!confirmed) return;
       let payload: unknown;
       try {
         payload = JSON.parse(copy);
       } catch {
-        setStatusMessage("JSON non valido.");
         return;
       }
       await runMigrations();
       await importFromJson(payload);
-      setStatusMessage("Import completato dagli appunti.");
     } catch (error) {
-      const message = (error as Error).message;
-      setStatusMessage(message.includes("Could not open database") ? "Database non disponibile. Riprova tra poco." : message);
+      console.warn(error);
     }
   };
 
@@ -189,7 +173,6 @@ export default function ProfileScreen(): JSX.Element {
     });
 
   const resetData = async () => {
-    setStatusMessage(null);
     const confirmed = await confirmReset();
     if (!confirmed) return;
     await withTransaction(async (db) => {
@@ -206,16 +189,13 @@ export default function ProfileScreen(): JSX.Element {
       }
     });
     await ensureDefaultWallets();
-    setStatusMessage("Reset completato.");
   };
 
   const loadSampleDataHandler = useCallback(async () => {
-    setStatusMessage(null);
     try {
       await seedSampleData();
-      setStatusMessage("Dati di esempio caricati.");
     } catch (error) {
-      setStatusMessage((error as Error).message);
+      console.warn(error);
     }
   }, []);
 
@@ -230,16 +210,14 @@ export default function ProfileScreen(): JSX.Element {
   };
 
   const save = async () => {
-    setProfileMessage(null);
-    if (!form.name.trim() || !form.email.trim()) {
-      setProfileMessage("Nome ed email sono obbligatori.");
+    if (!form.name.trim()) {
       return;
     }
     await Promise.all([
       setPreference("profile_name", form.name.trim()),
       setPreference("profile_email", form.email.trim()),
     ]);
-    setProfileMessage("Profilo salvato.");
+    setProfileDirty(false);
   };
 
   const inputProps = {
@@ -266,7 +244,10 @@ export default function ProfileScreen(): JSX.Element {
               label="Nome"
               value={form.name}
               {...inputProps}
-              onChangeText={(value) => setForm((prev) => ({ ...prev, name: value }))}
+              onChangeText={(value) => {
+                setForm((prev) => ({ ...prev, name: value }));
+                setProfileDirty(true);
+              }}
             />
             <TextInput
               label="Email"
@@ -274,20 +255,26 @@ export default function ProfileScreen(): JSX.Element {
               autoCapitalize="none"
               value={form.email}
               {...inputProps}
-              onChangeText={(value) => setForm((prev) => ({ ...prev, email: value }))}
+              onChangeText={(value) => {
+                setForm((prev) => ({ ...prev, email: value }));
+                setProfileDirty(true);
+              }}
             />
-            {profileMessage ? <Text style={{ color: tokens.colors.muted }}>{profileMessage}</Text> : null}
           </View>
           <View style={styles.actions}>
-            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={save}>
-              Salva profilo
+            <Button
+              mode="contained"
+              buttonColor={tokens.colors.accent}
+              onPress={save}
+              disabled={!isProfileDirty || !form.name.trim()}
+            >
+              Salva
             </Button>
           </View>
         </PremiumCard>
 
         <PremiumCard>
           <SectionHeader title="Preferenze" />
-          {statusMessage ? <Text style={{ color: tokens.colors.muted }}>{statusMessage}</Text> : null}
           <View style={styles.sectionContent}>
             <View style={styles.row}>
               <Switch
@@ -342,11 +329,16 @@ export default function ProfileScreen(): JSX.Element {
         <PremiumCard>
           <SectionHeader title="Dati" />
           <View style={styles.sectionContent}>
-            <Button mode="contained" buttonColor={tokens.colors.accent} onPress={importData}>
-              Importa
-            </Button>
             <Button mode="contained" buttonColor={tokens.colors.accent} onPress={exportData}>
               Esporta
+            </Button>
+            <Button
+              mode="outlined"
+              textColor={tokens.colors.accent}
+              style={{ borderColor: tokens.colors.accent }}
+              onPress={importData}
+            >
+              Importa
             </Button>
             <Button
               mode="outlined"

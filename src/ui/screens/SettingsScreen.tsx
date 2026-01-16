@@ -167,7 +167,6 @@ export default function SettingsScreen(): JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <PremiumCard>
-          <SectionHeader title="Wallet" />
           <View style={styles.sectionContent}>
             <SegmentedButtons
               value={tab}
@@ -187,7 +186,7 @@ export default function SettingsScreen(): JSX.Element {
                     buttonColor={tokens.colors.accent}
                     onPress={() => setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: true }))}
                   >
-                    Aggiungi wallet
+                    Aggiungi nuovo wallet
                   </Button>
                 )}
                 {showAddWallet.LIQUIDITY && (

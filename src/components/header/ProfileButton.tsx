@@ -40,7 +40,7 @@ export default function ProfileButton(): JSX.Element {
       {avatarUri ? (
         <Image source={{ uri: avatarUri }} style={styles.avatar} />
       ) : (
-        <MaterialCommunityIcons name="account" size={20} color={tokens.colors.text} />
+        <MaterialCommunityIcons name="cog-outline" size={20} color={tokens.colors.text} />
       )}
     </Pressable>
   );
