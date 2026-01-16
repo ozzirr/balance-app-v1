@@ -10,7 +10,7 @@ const ICONS: Record<string, string> = {
   Dashboard: "view-grid",
   Snapshot: "calendar-month-outline",
   "Entrate/Uscite": "swap-vertical",
-  Wallets: "wallet-outline",
+  Wallet: "wallet-outline",
 };
 
 const BAR_HEIGHT = 72;
@@ -25,7 +25,7 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const borderColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
   const inactiveColor = isDark ? theme.colors.onSurface : "#4B4B60";
 
-  const tabRoutes = state.routes.filter((route) => route.name !== "Profilo");
+  const tabRoutes = state.routes.filter((route) => route.name !== "Impostazioni");
 
   return (
     <View style={styles.container} pointerEvents="box-none">

@@ -10,8 +10,8 @@ import { useAppBootstrap } from "@/app/useAppBootstrap";
 import DashboardScreen from "@/ui/screens/DashboardScreen";
 import EntriesScreen from "@/ui/screens/EntriesScreen";
 import SnapshotScreen from "@/ui/screens/SnapshotScreen";
+import WalletScreen from "@/ui/screens/WalletScreen";
 import SettingsScreen from "@/ui/screens/SettingsScreen";
-import ProfileScreen from "@/ui/screens/ProfileScreen";
 import { ThemeContext } from "@/ui/theme";
 import GlassTabBar from "@/ui/components/GlassTabBar";
 import AppBackground from "@/ui/components/AppBackground";
@@ -112,7 +112,7 @@ export default function App(): JSX.Element {
                             ]}
                           />
                         ),
-                        headerRight: () => (route.name === "Profilo" ? null : <ProfileButton />),
+                        headerRight: () => <ProfileButton isSettingsScreen={route.name === "Impostazioni"} />,
                         tabBarStyle: { display: "none" },
                       })}
                       tabBar={(props) => <GlassTabBar {...props} />}
@@ -120,10 +120,10 @@ export default function App(): JSX.Element {
                       <Tab.Screen name="Dashboard" component={DashboardScreen} />
                       <Tab.Screen name="Snapshot" component={SnapshotScreen} />
                       <Tab.Screen name="Entrate/Uscite" component={EntriesScreen} />
-                  <Tab.Screen name="Wallets" component={SettingsScreen} />
+                      <Tab.Screen name="Wallet" component={WalletScreen} />
                       <Tab.Screen
-                        name="Profilo"
-                        component={ProfileScreen}
+                        name="Impostazioni"
+                        component={SettingsScreen}
                         options={{ tabBarButton: () => null }}
                       />
                     </Tab.Navigator>

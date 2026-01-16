@@ -7,7 +7,9 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 const BUTTON_SIZE = 36;
 
-export default function ProfileButton(): JSX.Element {
+type Props = { isSettingsScreen?: boolean };
+
+export default function ProfileButton({ isSettingsScreen }: Props): JSX.Element {
   const navigation = useNavigation();
   const { tokens } = useDashboardTheme();
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -20,7 +22,11 @@ export default function ProfileButton(): JSX.Element {
 
   const handlePress = () => {
     const targetNav = navigation.getParent() ?? navigation;
-    targetNav.navigate("Profilo");
+    if (isSettingsScreen) {
+      targetNav.navigate("Dashboard");
+    } else {
+      targetNav.navigate("Impostazioni");
+    }
   };
 
   return (

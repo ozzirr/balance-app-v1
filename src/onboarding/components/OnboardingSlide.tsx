@@ -41,7 +41,7 @@ export default function OnboardingSlide({ slide, isActive, availableHeight }: Pr
   const h = typeof availableHeight === "number" && availableHeight > 0 ? availableHeight : 520;
 
   // Immagine non troppo alta, e wrapper con height fissa per evitare “stretch”
-  const imageMaxHeight = Math.min(Math.max(h * 0.30, 160), 280);
+  const imageMaxHeight = Math.min(Math.max(h * 0.45, 220), 340);
 
   return (
     <View style={styles.root}>
@@ -58,29 +58,29 @@ export default function OnboardingSlide({ slide, isActive, availableHeight }: Pr
         />
       </View>
 
-      <View style={styles.textGroup}>
-        <Text style={[styles.title, styles.titleGlow]}>{slide.title}</Text>
-        <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>{slide.subtitle}</Text>
+        <View style={styles.textGroup}>
+          <Text style={[styles.title, styles.titleGlow]}>{slide.title}</Text>
+          <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>{slide.subtitle}</Text>
 
-        {slide.bullets.length > 0 && (
-          <View style={styles.bullets}>
-            {slide.bullets.map((bullet) => (
-              <View key={bullet} style={styles.bulletRow}>
+          {slide.bullets.length > 0 && (
+            <View style={styles.bullets}>
+              {slide.bullets.map((bullet) => (
+                <View key={bullet} style={styles.bulletRow}>
                 <MaterialCommunityIcons
                   name={getBulletIconName(bullet)}
                   size={20}
                   color={tokens.colors.accent}
                   style={styles.icon}
                 />
-                <Text style={[styles.bulletText, { color: tokens.colors.muted }]} numberOfLines={2}>
-                  {bullet}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+                  <Text style={[styles.bulletText, { color: tokens.colors.muted }]} numberOfLines={2}>
+                    {bullet}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
-    </View>
   );
 }
 
@@ -89,13 +89,9 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     paddingHorizontal: 24,
-    paddingTop: 18,
-
-    // ANCORA IN BASSO
-    justifyContent: "flex-end",
-
-    // distanza dai dots/CTA (che stanno fuori dalla slide)
-    paddingBottom: 26,
+    paddingTop: 30,
+    justifyContent: "flex-start",
+    paddingBottom: 30,
   },
 
   imageWrapper: {
@@ -142,11 +138,11 @@ const styles = StyleSheet.create({
   bulletRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    justifyContent: "flex-start",
+    gap: 4,
   },
 
-  icon: { marginRight: 6 },
+  icon: { marginRight: 4 },
 
   bulletText: {
     flex: 1,
