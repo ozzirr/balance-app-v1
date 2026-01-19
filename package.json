@@ -4,11 +4,16 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:lan": "expo start --lan --clear",
+    "start:tunnel": "expo start --tunnel --clear",
+    "start:localhost": "expo start --localhost --clear",
+    "start:port": "EXPO_PACKAGER_PORT=8082 expo start --lan --clear --port 8082",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/bottom-tabs": "^6.5.11",

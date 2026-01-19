@@ -38,6 +38,9 @@ export default function PortfolioLineChartCard({ data, hideHeader = false, noCar
     [data, mode]
   );
 
+  const highestValue = chartData.reduce((max, point) => Math.max(max, point.y), 0);
+  const domainMax = highestValue > 0 ? highestValue * 1.08 : 1;
+
   const visibleWidth = Math.max(width - 64, 0);
   const chartWidth = Math.max(visibleWidth, chartData.length * 70);
   const chartOffset = Math.max(chartWidth - visibleWidth, 0);
@@ -85,8 +88,9 @@ export default function PortfolioLineChartCard({ data, hideHeader = false, noCar
         >
           <VictoryChart
             width={chartWidth}
-            height={240}
-            padding={{ left: 50, right: 42, top: 10, bottom: 30 }}
+            height={260}
+            padding={{ left: 50, right: 42, top: 18, bottom: 30 }}
+            domain={{ y: [0, domainMax] }}
             containerComponent={
               <VictoryVoronoiContainer
                 voronoiBlacklist={["area"]}

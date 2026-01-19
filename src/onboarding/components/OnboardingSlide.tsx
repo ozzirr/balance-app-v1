@@ -59,7 +59,7 @@ export default function OnboardingSlide({ slide, isActive, availableHeight }: Pr
       </View>
 
         <View style={styles.textGroup}>
-          <Text style={[styles.title, styles.titleGlow]}>{slide.title}</Text>
+          <Text style={[styles.title, { color: tokens.colors.text }]}>{slide.title}</Text>
           <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>{slide.subtitle}</Text>
 
           {slide.bullets.length > 0 && (
@@ -72,7 +72,7 @@ export default function OnboardingSlide({ slide, isActive, availableHeight }: Pr
                   color={tokens.colors.accent}
                   style={styles.icon}
                 />
-                  <Text style={[styles.bulletText, { color: tokens.colors.muted }]} numberOfLines={2}>
+                  <Text style={[styles.bulletText, { color: tokens.colors.text }]} numberOfLines={2}>
                     {bullet}
                   </Text>
                 </View>
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
     fontWeight: "800",
     textAlign: "center",
-    color: "#C9D7FF",
+    color: "#FFFFFF",
   },
 
   subtitle: {
@@ -127,6 +127,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     fontWeight: "500",
     textAlign: "center",
+    color: "rgba(255, 255, 255, 0.8)",
   },
 
   bullets: {
@@ -150,13 +151,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: "center",
     fontWeight: "600",
+    color: "#FFFFFF",
   },
 
-  titleGlow: {
-    textShadowColor: "rgba(167, 139, 250, 0.7)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 12,
-  },
 });
 
 function getBulletIconName(bullet: string): keyof typeof MaterialCommunityIcons.glyphMap {

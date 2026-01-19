@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Button, Text, TextInput } from "react-native-paper";
@@ -13,7 +13,7 @@ import {
 } from "@/repositories/snapshotsRepo";
 import { listWallets } from "@/repositories/walletsRepo";
 import { getPreference } from "@/repositories/preferencesRepo";
-import type { Snapshot, SnapshotLineDetail, Wallet } from "@/repositories/types";
+import type { Snapshot, SnapshotLineDetail, Wallet, Currency } from "@/repositories/types";
 import { isIsoDate, todayIso } from "@/utils/dates";
 import { totalsByWalletType } from "@/domain/calculations";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
@@ -28,6 +28,28 @@ type DraftLine = {
 };
 
 const MONTH_LABELS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+const currencySymbols: Record<Currency, string> = {
+  EUR: "€",
+  USD: "$",
+  GBP: "£",
+};
+
+const currencySymbol = (currency?: Currency | null): string => {
+  if (!currency) {
+    return "";
+  }
+  return currencySymbols[currency] ?? currency;
+};
+
+const amountFormatter = new Intl.NumberFormat("it-IT", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const formatAmount = (value: number): string => amountFormatter.format(value);
+
+const normalizeInputAmount = (value: string): string =>
+  value.replace(/\./g, "").replace(",", ".").trim();
 
 const monthKeyFromDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -63,6 +85,8 @@ export default function SnapshotScreen(): JSX.Element {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
+  const [focusedLineId, setFocusedLineId] = useState<number | null>(null);
+  const inputRefs = useRef<Record<number, React.ComponentRef<typeof TextInput> | null>>({});
 
   const load = useCallback(async () => {
     const [snap, walletList] = await Promise.all([
@@ -110,6 +134,11 @@ export default function SnapshotScreen(): JSX.Element {
   }, [openNew]);
 
   const openNewSnapshot = async () => {
+    if (showForm) {
+      setShowForm(false);
+      setEditingSnapshotId(null);
+      return;
+    }
     setError(null);
     setEditingSnapshotId(null);
     const latest = snapshots[0];
@@ -118,18 +147,18 @@ export default function SnapshotScreen(): JSX.Element {
       const latestLines = await listSnapshotLines(latest.id);
       const latestMap = new Map<number, string>();
       latestLines.forEach((line) => {
-        latestMap.set(line.wallet_id, line.amount.toString());
+        latestMap.set(line.wallet_id, formatAmount(line.amount));
       });
       initialLines = orderedWallets.map((wallet) => ({
         walletId: wallet.id,
-        amount: latestMap.get(wallet.id) ?? "0",
+        amount: latestMap.get(wallet.id) ?? formatAmount(0),
       }));
     }
 
     if (initialLines.length === 0) {
       initialLines = orderedWallets.map((wallet) => ({
         walletId: wallet.id,
-        amount: "0",
+        amount: formatAmount(0),
       }));
     }
 
@@ -147,7 +176,7 @@ export default function SnapshotScreen(): JSX.Element {
     const snapshotLines = await listSnapshotLines(snapshotId);
     const lineMap = new Map<number, string>();
     snapshotLines.forEach((line) => {
-      lineMap.set(line.wallet_id, line.amount.toString());
+      lineMap.set(line.wallet_id, formatAmount(line.amount));
     });
     const initialLines = orderedWallets.map((wallet) => ({
       walletId: wallet.id,
@@ -193,7 +222,7 @@ export default function SnapshotScreen(): JSX.Element {
     const cleaned = draftLines
       .map((line) => ({
         wallet_id: line.walletId,
-        amount: Number(line.amount.replace(",", ".").trim()),
+        amount: Number(normalizeInputAmount(line.amount)),
       }))
       .filter((line) => Number.isFinite(line.amount));
 
@@ -232,6 +261,17 @@ export default function SnapshotScreen(): JSX.Element {
     const invest = wallets.filter((wallet) => wallet.type === "INVEST");
     return [...liquidity, ...invest];
   }, [wallets]);
+  const walletById = useMemo(() => {
+    const map = new Map<number, Wallet>();
+    wallets.forEach((wallet) => map.set(wallet.id, wallet));
+    return map;
+  }, [wallets]);
+  const totalsCurrency = useMemo<Currency | null>(() => {
+    const firstLine = sortedLines[0];
+    const wallet = firstLine ? walletById.get(firstLine.wallet_id) : null;
+    return wallet?.currency ?? null;
+  }, [sortedLines, walletById]);
+  const totalsCurrencySymbol = currencySymbol(totalsCurrency);
 
   const monthGroups = useMemo(() => {
     const map = new Map<string, Snapshot[]>();
@@ -277,6 +317,7 @@ export default function SnapshotScreen(): JSX.Element {
   return (
     <View style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.container,
           { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
@@ -336,35 +377,43 @@ export default function SnapshotScreen(): JSX.Element {
                   : `Wallet #${line.walletId}`;
                 const toggleSign = () => {
                   const current = line.amount.trim();
-                  const toggled = current.startsWith("-")
-                    ? current.slice(1)
-                    : current === ""
-                    ? "-"
-                    : `-${current}`;
+                  const toggled = current.startsWith("-") ? current.slice(1) : current === "" ? "-" : `-${current}`;
                   updateDraftLine(index, { amount: toggled });
+                  setFocusedLineId(line.walletId);
+                  inputRefs.current[line.walletId]?.focus();
+                };
+                const onAmountChange = (value: string) => {
+                  updateDraftLine(index, { amount: value });
                 };
                 return (
                   <PremiumCard key={`${line.walletId}-${index}`} style={{ backgroundColor: tokens.colors.surface2 }}>
                     <SectionHeader title={walletTitle} />
                     <View style={styles.lineInputRow}>
                       <TextInput
-                        keyboardType="numbers-and-punctuation"
+                        ref={(ref) => {
+                          inputRefs.current[line.walletId] = ref;
+                        }}
+                        keyboardType="decimal-pad"
                         value={line.amount}
                         mode="outlined"
                         outlineColor={tokens.colors.border}
                         activeOutlineColor={tokens.colors.accent}
                         textColor={tokens.colors.text}
                         style={{ backgroundColor: tokens.colors.surface, flex: 1 }}
-                        onChangeText={(value) => updateDraftLine(index, { amount: value })}
+                        onChangeText={onAmountChange}
+                        onFocus={() => setFocusedLineId(line.walletId)}
+                        onBlur={() => setFocusedLineId((prev) => (prev === line.walletId ? null : prev))}
+                        right={
+                          focusedLineId === line.walletId ? (
+                            <TextInput.Icon
+                              icon="minus"
+                              onPress={toggleSign}
+                              forceTextInputFocus
+                              color={tokens.colors.accent}
+                            />
+                          ) : undefined
+                        }
                       />
-                      <Button
-                        mode="outlined"
-                        textColor={tokens.colors.accent}
-                        style={styles.toggleButton}
-                        onPress={toggleSign}
-                      >
-                        +/-
-                      </Button>
                     </View>
                   </PremiumCard>
                 );
@@ -390,7 +439,7 @@ export default function SnapshotScreen(): JSX.Element {
         ) : (
           <>
             <PremiumCard>
-              <SectionHeader title="Filtra snapshot per mese" />
+              <SectionHeader title="Filtra per mese" />
               <View style={styles.monthRow}>
                 {visibleMonthGroups.map((group) => (
                   <Button
@@ -446,16 +495,34 @@ export default function SnapshotScreen(): JSX.Element {
           <SectionHeader title="Dettaglio" />
           <View style={styles.list}>
             {lines.length === 0 && <Text style={{ color: tokens.colors.muted }}>Nessuna linea.</Text>}
-            {sortedLines.map((line) => (
-              <Text key={line.id} style={{ color: tokens.colors.text }}>
-                {line.wallet_name ?? "Sconosciuto"} • {line.amount.toFixed(2)}
-              </Text>
-            ))}
+            {sortedLines.map((line) => {
+              const walletLabel =
+                line.wallet_type === "INVEST" && line.wallet_tag
+                  ? `${line.wallet_tag} • ${line.wallet_name ?? "Sconosciuto"}`
+                  : line.wallet_name ?? "Sconosciuto";
+              const wallet = walletById.get(line.wallet_id);
+              const currencySuffix = wallet ? currencySymbol(wallet.currency) : "";
+              return (
+                <Text key={line.id} style={{ color: tokens.colors.text }}>
+                  {walletLabel} • {formatAmount(line.amount)}
+                  {currencySuffix ? ` ${currencySuffix}` : ""}
+                </Text>
+              );
+            })}
             {lines.length > 0 && (
               <View style={styles.totals}>
-                <Text style={{ color: tokens.colors.muted }}>Liquidità: {totals.liquidity.toFixed(2)}</Text>
-                <Text style={{ color: tokens.colors.muted }}>Investimenti: {totals.investments.toFixed(2)}</Text>
-                <Text style={{ color: tokens.colors.text }}>Patrimonio: {totals.netWorth.toFixed(2)}</Text>
+                <Text style={{ color: tokens.colors.muted }}>
+                  Liquidità: {formatAmount(totals.liquidity)}
+                  {totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}
+                </Text>
+                <Text style={{ color: tokens.colors.muted }}>
+                  Investimenti: {formatAmount(totals.investments)}
+                  {totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}
+                </Text>
+                <Text style={{ color: tokens.colors.text }}>
+                  Patrimonio: {formatAmount(totals.netWorth)}
+                  {totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}
+                </Text>
               </View>
             )}
             {selectedSnapshotId && (
@@ -528,10 +595,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
-  },
-  toggleButton: {
-    minWidth: 70,
-    height: 48,
   },
   editButtonRow: {
     marginTop: 12,

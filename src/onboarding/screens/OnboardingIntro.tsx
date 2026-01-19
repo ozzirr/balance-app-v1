@@ -14,25 +14,35 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const slides: SlideData[] = [
   {
     title: "Benvenuto in OpenMoney",
-    subtitle: "Tutte le tue finanze personali in un unico posto e sotto controllo.",
-    bullets: ["Entrate e uscite organizzate", "Andamento chiaro nel tempo"],
+    subtitle: "La tua finanza personale. In un unico posto. Gratis, per sempre.",
+    bullets: [
+      "Pieno controllo delle tue entrate e uscite ricorrenti",
+      "Grafici e report dettagliati del tuo patrimonio e non solo...",
+    ],
     image: require("../../../assets/onboarding/onboarding-1.png"),
   },
   {
-    title: "Open source e trasparente",
-    subtitle: "Sai sempre cosa fa l’app e come funziona.",
-    bullets: ["Codice pubblico", "Nessuna scatola nera"],
+    title: "Open Source e trasparente",
+    subtitle: "Repository pubblica su GitHub, puoi verificare il codice quando vuoi.",
+    bullets: [
+      "Codice pubblico",
+      "Nessuna logica nascosta",
+    ],
     image: require("../../../assets/onboarding/onboarding-2.png"),
   },
   {
-    title: "Offline-first e davvero privata",
-    subtitle: "I tuoi dati restano solo sul tuo telefono.",
-    bullets: ["Nessun account", "Nessun cloud", "Nessun tracciamento"],
+    title: "Privacy by Design",
+    subtitle: "Offline-first, funziona senza connessione. \nI tuoi dati restano sul tuo dispositivo.",
+    bullets: [
+      "Nessun account",
+      "Nessun cloud",
+      "Nessun tracciamento",
+    ],
     image: require("../../../assets/onboarding/onboarding-3.png"),
   },
   {
     title: "Iniziamo subito",
-    subtitle: "Pochi passaggi per partire.",
+    subtitle: "Pochi passaggi per configurare OpenMoney.",
     bullets: [],
     image: require("../../../assets/onboarding/onboarding-4.png"),
   },

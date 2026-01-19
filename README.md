@@ -45,5 +45,8 @@ Questo crea `node_modules/` e prepara il progetto Expo; i file generati (android
 3. `git add` + `git commit` con messaggi chiari.
 4. `git push` e apri PR/richiesta di fusione.
 
+## Expo Go stuck on Downloading
+Se Expo Go rimane bloccata su **Downloading…** anche dopo aver scansionato il QR, segui la lista di controllo di `docs/expo-go-downloading-fix.md`, che copre dalla verifica di rete e permessi alle modalità LAN/tunnel, porte alternative, cancellazione delle cache e l’esecuzione dello script `scripts/expo-preflight.sh`.
+
 ## Supporto
 Per dubbi su configurazione o deploy, scrivi sul canale team o apri issue in GitHub con log d’errore e passi per riprodurre.

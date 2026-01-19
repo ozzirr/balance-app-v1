@@ -1,3 +1,4 @@
+/// <reference types="react" />
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Switch, Text, TextInput } from "react-native-paper";
@@ -7,6 +8,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as Sharing from "expo-sharing";
 import * as Clipboard from "expo-clipboard";
 import { exportToJson, importFromFile, importFromJson } from "@/importExport";
+import type { ExportPayload } from "@/importExport/types";
 import { runMigrations, withTransaction } from "@/db/db";
 import { loadSampleData as seedSampleData } from "@/seed/sampleData";
 import { ensureDefaultWallets } from "@/repositories/walletsRepo";
@@ -18,23 +20,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { ThemeContext } from "@/ui/theme";
 import { useOnboardingFlow } from "@/onboarding/flowContext";
-
-type ProfileState = {
-  name: string;
-  email: string;
-};
-
-const emptyProfile: ProfileState = {
-  name: "",
-  email: "",
-};
+import type { StorageAccessFrameworkIO } from "expo-file-system";
 
 export default function SettingsScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const [form, setForm] = useState<ProfileState>(emptyProfile);
-  const [isProfileDirty, setProfileDirty] = useState(false);
+  const [profileName, setProfileName] = useState("");
   const [prefillSnapshot, setPrefillSnapshot] = useState(true);
   const [chartMonths, setChartMonths] = useState(6);
   const { mode, setMode } = useContext(ThemeContext);
@@ -42,21 +34,16 @@ export default function SettingsScreen(): JSX.Element {
   const { requestReplay } = useOnboardingFlow();
 
   const load = useCallback(async () => {
-    const [name, email, prefill, points] = await Promise.all([
+    const [name, prefill, points] = await Promise.all([
       getPreference("profile_name"),
-      getPreference("profile_email"),
       getPreference("prefill_snapshot"),
       getPreference("chart_points"),
     ]);
-    setForm({
-      name: name?.value ?? "",
-      email: email?.value ?? "",
-    });
+    setProfileName(name?.value ?? "");
     setPrefillSnapshot(prefill ? prefill.value === "true" : true);
     const parsedPoints = points ? Number(points.value) : 6;
     const safePoints = Number.isFinite(parsedPoints) ? Math.min(12, Math.max(3, parsedPoints)) : 6;
     setChartMonths(safePoints);
-    setProfileDirty(false);
   }, []);
 
   const updatePreference = async (key: string, value: string) => {
@@ -94,28 +81,38 @@ export default function SettingsScreen(): JSX.Element {
   const exportData = async () => {
     const fileName = "openMoney-export.json";
     try {
-      const payload = await exportToJson();
+      const payload = (await exportToJson()) as ExportPayload;
       const json = JSON.stringify(payload, null, 2);
-      if (Platform.OS === "android" && FileSystem.StorageAccessFramework?.requestDirectoryPermissionsAsync) {
-        const permission = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      const storageAccess =
+        (FileSystem as typeof FileSystem & { StorageAccessFramework?: StorageAccessFrameworkIO }).StorageAccessFramework;
+      if (Platform.OS === "android" && storageAccess?.requestDirectoryPermissionsAsync) {
+        const permission = await storageAccess.requestDirectoryPermissionsAsync();
         if (!permission.granted || !permission.directoryUri) {
           return;
         }
-        const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        const fileUri = await storageAccess.createFileAsync(
           permission.directoryUri,
           fileName,
           "application/json"
         );
-        if (FileSystem.StorageAccessFramework.writeAsStringAsync) {
-          await FileSystem.StorageAccessFramework.writeAsStringAsync(fileUri, json);
+        if (storageAccess.writeAsStringAsync) {
+          await storageAccess.writeAsStringAsync(fileUri, json);
         } else {
           await LegacyFileSystem.writeAsStringAsync(fileUri, json);
         }
         return;
       }
-      const cacheDir = FileSystem.cacheDirectory ?? LegacyFileSystem.cacheDirectory;
-      const docDir = FileSystem.documentDirectory ?? LegacyFileSystem.documentDirectory;
-      let baseDir = cacheDir ?? docDir ?? FileSystem.temporaryDirectory ?? LegacyFileSystem.temporaryDirectory;
+      const cacheDir =
+        (FileSystem as typeof FileSystem & { cacheDirectory?: string }).cacheDirectory ??
+        LegacyFileSystem.cacheDirectory;
+      const docDir =
+        (FileSystem as typeof FileSystem & { documentDirectory?: string }).documentDirectory ??
+        LegacyFileSystem.documentDirectory;
+      let baseDir =
+        cacheDir ??
+        docDir ??
+        (FileSystem as typeof FileSystem & { temporaryDirectory?: string }).temporaryDirectory ??
+        LegacyFileSystem.temporaryDirectory;
       if (!baseDir && FileSystem.getInfoAsync) {
         if (docDir) {
           const info = await FileSystem.getInfoAsync(docDir);
@@ -209,17 +206,6 @@ export default function SettingsScreen(): JSX.Element {
     setRefreshing(false);
   };
 
-  const save = async () => {
-    if (!form.name.trim()) {
-      return;
-    }
-    await Promise.all([
-      setPreference("profile_name", form.name.trim()),
-      setPreference("profile_email", form.email.trim()),
-    ]);
-    setProfileDirty(false);
-  };
-
   const inputProps = {
     mode: "outlined" as const,
     outlineColor: tokens.colors.border,
@@ -238,38 +224,17 @@ export default function SettingsScreen(): JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <PremiumCard>
-          <SectionHeader title="Profilo utente" />
+          <SectionHeader title="Profilo" />
           <View style={styles.form}>
             <TextInput
               label="Nome"
-              value={form.name}
+              value={profileName}
               {...inputProps}
               onChangeText={(value) => {
-                setForm((prev) => ({ ...prev, name: value }));
-                setProfileDirty(true);
+                setProfileName(value);
+                void updatePreference("profile_name", value.trim());
               }}
             />
-            <TextInput
-              label="Email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={form.email}
-              {...inputProps}
-              onChangeText={(value) => {
-                setForm((prev) => ({ ...prev, email: value }));
-                setProfileDirty(true);
-              }}
-            />
-          </View>
-          <View style={styles.actions}>
-            <Button
-              mode="contained"
-              buttonColor={tokens.colors.accent}
-              onPress={save}
-              disabled={!isProfileDirty || !form.name.trim()}
-            >
-              Salva
-            </Button>
           </View>
         </PremiumCard>
 
@@ -386,9 +351,6 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 12,
-  },
-  actions: {
-    marginTop: 12,
   },
   sectionContent: {
     gap: 12,

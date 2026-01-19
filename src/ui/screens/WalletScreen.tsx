@@ -186,7 +186,7 @@ export default function WalletScreen(): JSX.Element {
                     buttonColor={tokens.colors.accent}
                     onPress={() => setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: true }))}
                   >
-                    Aggiungi nuovo wallet
+                    Aggiungi wallet
                   </Button>
                 )}
                 {showAddWallet.LIQUIDITY && (
@@ -442,7 +442,7 @@ export default function WalletScreen(): JSX.Element {
         </PremiumCard>
 
         <PremiumCard>
-          <SectionHeader title="Categorie spesa" />
+          <SectionHeader title="Categorie di spesa" />
           <View style={styles.sectionContent}>
             <View style={styles.colorLine}>
               <TextInput
