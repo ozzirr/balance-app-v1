@@ -1,5 +1,5 @@
 /// <reference types="react" />
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Switch, Text, TextInput } from "react-native-paper";
 import * as FileSystem from "expo-file-system";
@@ -21,6 +21,29 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { ThemeContext } from "@/ui/theme";
 import { useOnboardingFlow } from "@/onboarding/flowContext";
 import type { StorageAccessFrameworkIO } from "expo-file-system";
+import SecuritySettingsSection from "@/security/SecuritySettingsSection";
+import { getSecurityConfig, setBiometryEnabled } from "@/security/securityStorage";
+import { isBiometryAvailable } from "@/security/securityBiometry";
+import { handleSecurityToggle as handleSecurityToggleFlow } from "@/security/securityFlowsEnableOnly";
+import { openSetOrChangePinFlow } from "@/security/securityFlowsPinOnly";
+import { useNavigation, type NavigationProp, type ParamListBase } from "@react-navigation/native";
+import { disableSecurityFlow } from "@/security/securityFlowsDisableOnly";
+import { handleBiometryToggle as handleBiometryToggleFlow } from "@/security/securityFlowsBiometryOnly";
+import type { SecurityModalStackParamList } from "@/security/securityFlowsTypes";
+
+function findSecurityModalNavigation(
+  navigation: NavigationProp<ParamListBase>
+): NavigationProp<SecurityModalStackParamList> | undefined {
+  let current: NavigationProp<ParamListBase> | undefined = navigation;
+  while (current) {
+    const state = current.getState?.();
+    if (state?.routeNames?.includes("SetPinModal") && state.routeNames.includes("VerifyPinModal")) {
+      return current as NavigationProp<SecurityModalStackParamList>;
+    }
+    current = current.getParent?.();
+  }
+  return undefined;
+}
 
 export default function SettingsScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
@@ -29,6 +52,15 @@ export default function SettingsScreen(): JSX.Element {
   const [profileName, setProfileName] = useState("");
   const [prefillSnapshot, setPrefillSnapshot] = useState(true);
   const [chartMonths, setChartMonths] = useState(6);
+  const [securityEnabled, setSecurityEnabledState] = useState(false);
+  const [biometryEnabled, setBiometryEnabledState] = useState(false);
+  const [pinHashExists, setPinHashExists] = useState(false);
+  const [biometryAvailable, setBiometryAvailable] = useState(false);
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const securityModalNavigation = useMemo(
+    () => findSecurityModalNavigation(navigation),
+    [navigation]
+  );
   const { mode, setMode } = useContext(ThemeContext);
   const [refreshing, setRefreshing] = useState(false);
   const { requestReplay } = useOnboardingFlow();
@@ -200,6 +232,60 @@ export default function SettingsScreen(): JSX.Element {
     load();
   }, [load]);
 
+  const refreshSecurityState = useCallback(async () => {
+    const config = await getSecurityConfig();
+    const available = await isBiometryAvailable();
+    if (!available && config.biometryEnabled) {
+      await setBiometryEnabled(false);
+    }
+    setSecurityEnabledState(config.securityEnabled);
+    setBiometryEnabledState(available ? config.biometryEnabled : false);
+    setPinHashExists(Boolean(config.pinHash));
+    setBiometryAvailable(available);
+  }, []);
+
+  useEffect(() => {
+    refreshSecurityState();
+  }, [refreshSecurityState]);
+
+  const handleSecurityToggle = useCallback(
+    async (next: boolean) => {
+      if (!securityModalNavigation) {
+        return;
+      }
+      await handleSecurityToggleFlow(
+        next,
+        securityModalNavigation as NavigationProp<Pick<SecurityModalStackParamList, "SetPinModal">>
+      );
+      await refreshSecurityState();
+    },
+    [refreshSecurityState, securityModalNavigation]
+  );
+
+  const handleBiometryToggle = useCallback(
+    async (next: boolean) => {
+      await handleBiometryToggleFlow(next, securityEnabled);
+      await refreshSecurityState();
+    },
+    [refreshSecurityState, securityEnabled]
+  );
+
+  const handleChangeOrSetPin = useCallback(() => {
+    if (!securityModalNavigation) {
+      return;
+    }
+    void openSetOrChangePinFlow(securityModalNavigation);
+  }, [securityModalNavigation]);
+
+  const handleDisableCode = useCallback(() => {
+    if (!securityModalNavigation) {
+      return;
+    }
+    void disableSecurityFlow(
+      securityModalNavigation as NavigationProp<Pick<SecurityModalStackParamList, "VerifyPinModal">>
+    );
+  }, [securityModalNavigation]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load();
@@ -290,6 +376,17 @@ export default function SettingsScreen(): JSX.Element {
             </View>
           </View>
         </PremiumCard>
+
+        <SecuritySettingsSection
+          securityEnabled={securityEnabled}
+          biometryEnabled={biometryEnabled}
+          pinHashExists={pinHashExists}
+          biometryAvailable={biometryAvailable}
+          onRequestEnableSecurity={handleSecurityToggle}
+          onRequestChangeOrSetPin={handleChangeOrSetPin}
+          onRequestDisableSecurity={handleDisableCode}
+          onToggleBiometry={handleBiometryToggle}
+        />
 
         <PremiumCard>
           <SectionHeader title="Dati" />
