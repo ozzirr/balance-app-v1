@@ -122,33 +122,6 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
     setPin("");
   }, [busy]);
 
-  const handleBiometry = useCallback(() => {
-    runBiometry();
-  }, [runBiometry]);
-
-  useEffect(() => {
-    let active = true;
-    if (!config.biometryEnabled) {
-      setBiometryAvailable(false);
-      setAutoBiometryTried(false);
-      return;
-    }
-    (async () => {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const hasEnrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!active) return;
-      const available = hasHardware && hasEnrolled;
-      setBiometryAvailable(available);
-      if (available && !autoBiometryTried) {
-        setAutoBiometryTried(true);
-        runBiometry({ silent: true });
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [autoBiometryTried, config.biometryEnabled, runBiometry]);
-
   const runBiometry = useCallback(
     async (options?: { silent?: boolean }) => {
       if (!config.biometryEnabled) return false;
@@ -195,6 +168,33 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
     [config.biometryEnabled, onAuthenticated]
   );
 
+  const handleBiometry = useCallback(() => {
+    runBiometry();
+  }, [runBiometry]);
+
+  useEffect(() => {
+    let active = true;
+    if (!config.biometryEnabled) {
+      setBiometryAvailable(false);
+      setAutoBiometryTried(false);
+      return;
+    }
+    (async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const hasEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!active) return;
+      const available = hasHardware && hasEnrolled;
+      setBiometryAvailable(available);
+      if (available && !autoBiometryTried) {
+        setAutoBiometryTried(true);
+        runBiometry({ silent: true });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [autoBiometryTried, config.biometryEnabled, runBiometry]);
+
   useEffect(() => {
     return () => {
       if (resetTimer.current) {
@@ -217,44 +217,45 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
 
   return (
     <SafeAreaView style={[styles.safeArea, style]}>
-      <BlurView intensity={65} tint="dark" style={styles.blur}>
-        <Animated.View style={[styles.container, { transform: [{ translateX }], borderColor: tintColor }]}>
-          <Text style={styles.inputLabel}>Inserisci codice a 4 cifre</Text>
-          <PinDots length={4} filled={pin.length} color={tintColor} />
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          <Text style={styles.hintText}>
-            Puoi attivare Face ID dalle impostazioni
-          </Text>
-          <View style={styles.keyWrapper}>
-          <NumberPad
-            onPressDigit={handleDigitPress}
-            onBackspace={(clearAll) => (clearAll ? handleClearAll() : handleBackspace())}
-            disabled={busy}
-          />
+      <Animated.View style={[styles.content, { transform: [{ translateX }] }]}>
+        <Text style={styles.inputLabel}>Inserisci codice</Text>
+        <PinDots length={4} filled={pin.length} color={tintColor} style={styles.pinDots} />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <Text style={styles.hintText}>Puoi attivare Face ID dalle impostazioni</Text>
+        <NumberPad
+          onPressDigit={handleDigitPress}
+          onBackspace={(clearAll) => (clearAll ? handleClearAll() : handleBackspace())}
+          disabled={busy}
+          style={styles.keyWrapper}
+        />
+        <View style={styles.bottomRow}>
+          <Pressable onPress={() => {}} hitSlop={10} style={[styles.bottomAction, styles.bottomLeft]}>
+            <Text style={styles.bottomText}>Codice dimenticato?</Text>
+          </Pressable>
+          <View style={[styles.bottomAction, styles.bottomCenter]}>
+            <FaceIdChip
+              onPress={handleBiometry}
+              disabled={!shouldShowFaceId}
+              style={[matrixStyle, !shouldShowFaceId && styles.faceIdDisabled]}
+            />
           </View>
-          <View style={styles.bottomRow}>
-            <Pressable onPress={() => {}} hitSlop={10}>
-              <Text style={styles.bottomText}>Codice dimenticato?</Text>
-            </Pressable>
-            <View style={styles.bottomCenter}>
-              {shouldShowFaceId ? (
-                <FaceIdChip onPress={handleBiometry} style={matrixStyle} />
-              ) : (
-                <View style={styles.bottomPlaceholder} />
-              )}
-            </View>
-            <View style={styles.bottomRight}>
-              {shouldShowFaceId ? (
-                <Pressable onPress={handleBiometry} hitSlop={10}>
-                  <Text style={styles.bottomText}>Usa Face ID</Text>
-                </Pressable>
-              ) : (
-                <View style={styles.bottomPlaceholder} />
-              )}
-            </View>
-          </View>
-        </Animated.View>
-      </BlurView>
+          <Pressable
+            onPress={handleBiometry}
+            hitSlop={10}
+            disabled={!shouldShowFaceId}
+            style={[styles.bottomAction, styles.bottomRight]}
+          >
+            <Text
+              style={[
+                styles.bottomText,
+                !shouldShowFaceId && styles.bottomTextDisabled,
+              ]}
+            >
+              Usa Face ID
+            </Text>
+          </Pressable>
+        </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -264,41 +265,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
   },
-  blur: {
+  content: {
     flex: 1,
-    backgroundColor: "rgba(4, 6, 12, 0.55)",
-  },
-  container: {
-    flex: 1,
-    marginHorizontal: 24,
-    marginVertical: 40,
-    borderWidth: 1,
-    borderRadius: 32,
-    padding: 24,
+    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(11, 15, 26, 0.55)",
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: 20 },
-    elevation: 12,
-    gap: 12,
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    paddingBottom: 10,
+    gap: 8,
   },
   inputLabel: {
-    marginTop: 16,
-    fontSize: 16,
-    textAlign: "center",
+    fontSize: 20,
     letterSpacing: 0.4,
-    color: "#F7F7FC",
+    color: "#FBFBFF",
+    textAlign: "center",
   },
   keyWrapper: {
     alignItems: "center",
+    width: "100%",
+    marginTop: 10,
   },
   hintText: {
-    fontSize: 13,
+    fontSize: 15,
     textAlign: "center",
-    marginTop: 6,
-    color: "#D0CFF4",
+    color: "#F0EEFA",
+    opacity: 0.92,
   },
   errorText: {
     color: "#F87171",
@@ -306,25 +297,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   bottomRow: {
-    marginTop: 28,
+    position: "absolute",
+    bottom: 26,
+    left: 24,
+    right: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  bottomCenter: {
-    flex: 1,
-    alignItems: "center",
-  },
-  bottomRight: {
-    minWidth: 90,
-    alignItems: "flex-end",
-  },
-  bottomPlaceholder: {
-    width: 68,
-    height: 68,
+    paddingBottom: 16,
   },
   bottomText: {
     fontSize: 13,
-    color: "#D0CFF4",
+    color: "#E5E2F8",
+    textAlign: "center",
+  },
+  bottomTextDisabled: {
+    opacity: 0.35,
+  },
+  bottomAction: {
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  bottomLeft: {
+    width: "33%",
+    alignItems: "center",
+  },
+  bottomCenter: {
+    width: "33%",
+    alignItems: "center",
+  },
+  bottomRight: {
+    width: "33%",
+    alignItems: "center",
+  },
+  faceIdDisabled: {
+    opacity: 0.35,
+  },
+  pinDots: {
+    marginVertical: 14,
   },
 });

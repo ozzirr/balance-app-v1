@@ -22,7 +22,12 @@ import { ThemeContext } from "@/ui/theme";
 import { useOnboardingFlow } from "@/onboarding/flowContext";
 import type { StorageAccessFrameworkIO } from "expo-file-system";
 import SecuritySettingsSection from "@/security/SecuritySettingsSection";
-import { getSecurityConfig, setBiometryEnabled } from "@/security/securityStorage";
+import {
+  getSecurityConfig,
+  setBiometryEnabled,
+  getAutoLockEnabled,
+  setAutoLockEnabled,
+} from "@/security/securityStorage";
 import { isBiometryAvailable } from "@/security/securityBiometry";
 import { handleSecurityToggle as handleSecurityToggleFlow } from "@/security/securityFlowsEnableOnly";
 import { openSetOrChangePinFlow } from "@/security/securityFlowsPinOnly";
@@ -56,6 +61,7 @@ export default function SettingsScreen(): JSX.Element {
   const [biometryEnabled, setBiometryEnabledState] = useState(false);
   const [pinHashExists, setPinHashExists] = useState(false);
   const [biometryAvailable, setBiometryAvailable] = useState(false);
+  const [autoLockEnabled, setAutoLockEnabledState] = useState(false);
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const securityModalNavigation = useMemo(
     () => findSecurityModalNavigation(navigation),
@@ -242,6 +248,7 @@ export default function SettingsScreen(): JSX.Element {
     setBiometryEnabledState(available ? config.biometryEnabled : false);
     setPinHashExists(Boolean(config.pinHash));
     setBiometryAvailable(available);
+    setAutoLockEnabledState(config.autoLockEnabled);
   }, []);
 
   useEffect(() => {
@@ -269,6 +276,11 @@ export default function SettingsScreen(): JSX.Element {
     },
     [refreshSecurityState, securityEnabled]
   );
+
+  const handleAutoLockToggle = useCallback(async (next: boolean) => {
+    await setAutoLockEnabled(next);
+    setAutoLockEnabledState(next);
+  }, []);
 
   const handleChangeOrSetPin = useCallback(() => {
     if (!securityModalNavigation) {
@@ -386,6 +398,8 @@ export default function SettingsScreen(): JSX.Element {
           onRequestChangeOrSetPin={handleChangeOrSetPin}
           onRequestDisableSecurity={handleDisableCode}
           onToggleBiometry={handleBiometryToggle}
+          autoLockEnabled={autoLockEnabled}
+          onToggleAutoLock={handleAutoLockToggle}
         />
 
         <PremiumCard>

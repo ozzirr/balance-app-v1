@@ -60,7 +60,7 @@ export default function NumberPad({
         </View>
       ))}
       <View style={[styles.row, styles.rowSpacing]}>
-        <View style={styles.keyPlaceholder} />
+        <View style={[styles.key, styles.invisibleKey]} pointerEvents="none" />
         <Pressable
           style={({ pressed }) => [styles.key, pressed && styles.keyPressed, disabled && styles.keyDisabled]}
           onPress={() => handleDigit("0")}
@@ -75,7 +75,7 @@ export default function NumberPad({
           hitSlop={10}
           disabled={disabled}
         >
-          <MaterialCommunityIcons name="backspace-outline" size={28} color="#F9FBFF" />
+          <MaterialCommunityIcons name="backspace-outline" size={26} color="#F8F8FF" />
         </Pressable>
       </View>
     </View>
@@ -85,8 +85,8 @@ export default function NumberPad({
 const styles = StyleSheet.create({
   wrapper: {
     flexDirection: "column",
-    marginTop: 24,
     alignItems: "center",
+    marginTop: 18,
   },
   row: {
     flexDirection: "row",
@@ -94,41 +94,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   rowSpacing: {
-    marginTop: 12,
+    marginTop: 14,
   },
   key: {
-    width: 72,
-    height: 72,
-    marginHorizontal: 8,
-    borderRadius: 36,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.25)",
+    width: 76,
+    height: 76,
+    marginHorizontal: 9,
+    borderRadius: 38,
+    borderWidth: 1.4,
+    borderColor: "rgba(193, 164, 255, 0.75)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.02)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    elevation: 6,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    shadowColor: "#B084FF",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 10,
   },
   keyLabel: {
-    fontSize: 28,
-    color: "#F9FBFF",
+    fontSize: 29,
+    color: "#F7F7FF",
     fontWeight: "600",
   },
   keyPressed: {
-    transform: [{ scale: 0.96 }],
-    backgroundColor: "rgba(169, 124, 255, 0.2)",
-    borderColor: "#A97CFF",
-    shadowOpacity: 0.4,
+    transform: [{ scale: 0.965 }],
+    backgroundColor: "rgba(193, 164, 255, 0.12)",
+    borderColor: "#CBA8FF",
+    shadowOpacity: 0.45,
   },
   keyDisabled: {
-    opacity: 0.4,
+    opacity: 0.35,
   },
-  keyPlaceholder: {
-    width: 72,
-    height: 72,
-    marginHorizontal: 8,
+  invisibleKey: {
+    opacity: 0,
   },
 });

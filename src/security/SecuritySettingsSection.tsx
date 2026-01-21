@@ -14,6 +14,8 @@ type Props = {
   onRequestChangeOrSetPin: () => void;
   onRequestDisableSecurity: () => void;
   onToggleBiometry: (nextValue: boolean) => void;
+  autoLockEnabled: boolean;
+  onToggleAutoLock: (nextValue: boolean) => void;
 };
 
 export default function SecuritySettingsSection({
@@ -25,6 +27,8 @@ export default function SecuritySettingsSection({
   onRequestChangeOrSetPin,
   onRequestDisableSecurity,
   onToggleBiometry,
+  autoLockEnabled,
+  onToggleAutoLock,
 }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const actionLabel = pinHashExists ? "Cambia codice" : "Imposta codice";
@@ -60,6 +64,21 @@ export default function SecuritySettingsSection({
             <Text style={[styles.label, { color: securityEnabled ? tokens.colors.text : tokens.colors.muted }]}>
               Usa Face ID
             </Text>
+          </View>
+        ) : null}
+        {securityEnabled ? (
+          <View style={styles.row}>
+            <Switch
+              value={autoLockEnabled}
+              onValueChange={onToggleAutoLock}
+              color={tokens.colors.accent}
+            />
+            <View>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>Blocca automaticamente</Text>
+              <Text style={[styles.autoLockSubtitle, { color: tokens.colors.muted }]}>
+                Dopo 1 minuto di inattività
+              </Text>
+            </View>
           </View>
         ) : null}
         {securityEnabled ? (
@@ -105,5 +124,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  autoLockSubtitle: {
+    fontSize: 12,
   },
 });

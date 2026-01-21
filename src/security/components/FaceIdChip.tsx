@@ -5,16 +5,19 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 type FaceIdChipProps = {
   onPress: () => void;
   style?: ViewStyle;
+  disabled?: boolean;
 };
 
-export default function FaceIdChip({ onPress, style }: FaceIdChipProps): JSX.Element {
+export default function FaceIdChip({ onPress, style, disabled = false }: FaceIdChipProps): JSX.Element {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.container,
         style,
-        pressed && styles.pressed,
+        disabled && styles.disabled,
+        pressed && !disabled && styles.pressed,
       ]}
     >
       <MaterialCommunityIcons name="face-recognition" size={28} color="#FFFFFF" />
@@ -41,5 +44,8 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
     transform: [{ scale: 0.96 }],
+  },
+  disabled: {
+    opacity: 0.35,
   },
 });

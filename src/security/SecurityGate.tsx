@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { getSecurityConfig } from "./securityStorage";
 import LockScreen from "./LockScreen";
 import type { SecurityConfig } from "./securityTypes";
+import { BlurView } from "expo-blur";
 
 type SecurityGateProps = {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ type SecurityGateProps = {
 export default function SecurityGate({ children }: SecurityGateProps): JSX.Element {
   const [config, setConfig] = useState<SecurityConfig | null>(null);
   const [unlocked, setUnlocked] = useState(false);
+  const lastActivityRef = useRef(Date.now());
 
   useEffect(() => {
     let active = true;
@@ -26,6 +28,7 @@ export default function SecurityGate({ children }: SecurityGateProps): JSX.Eleme
             securityEnabled: false,
             biometryEnabled: false,
             pinHash: null,
+            autoLockEnabled: false,
           });
         }
       });
@@ -33,6 +36,31 @@ export default function SecurityGate({ children }: SecurityGateProps): JSX.Eleme
       active = false;
     };
   }, []);
+
+  const autoLockEnabled = config?.autoLockEnabled ?? false;
+  useEffect(() => {
+    if (unlocked) {
+      lastActivityRef.current = Date.now();
+    }
+  }, [unlocked]);
+
+  useEffect(() => {
+    if (!autoLockEnabled || !unlocked) {
+      return;
+    }
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivityRef.current >= 60_000) {
+        setUnlocked(false);
+      }
+    }, 5_000);
+    return () => clearInterval(interval);
+  }, [autoLockEnabled, unlocked]);
+
+  const handleInteraction = useCallback(() => {
+    if (unlocked && autoLockEnabled) {
+      lastActivityRef.current = Date.now();
+    }
+  }, [autoLockEnabled, unlocked]);
 
   if (!config) {
     return (
@@ -45,10 +73,16 @@ export default function SecurityGate({ children }: SecurityGateProps): JSX.Eleme
   const requiresUnlock = config.securityEnabled && !unlocked && Boolean(config.pinHash);
 
   return (
-    <>
+    <View style={styles.root}>
       {children}
       {requiresUnlock ? (
-        <View style={styles.lockScreenOverlay}>
+        <View
+          style={styles.lockScreenOverlay}
+          pointerEvents="auto"
+          onTouchStart={handleInteraction}
+        >
+          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.overlay} />
           <LockScreen
             config={config}
             onAuthenticated={() => setUnlocked(true)}
@@ -56,7 +90,7 @@ export default function SecurityGate({ children }: SecurityGateProps): JSX.Eleme
           />
         </View>
       ) : null}
-    </>
+    </View>
   );
 }
 
@@ -67,9 +101,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
   },
+  root: {
+    flex: 1,
+  },
   lockScreenOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 999,
     elevation: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(8, 10, 18, 0.10)",
   },
 });
