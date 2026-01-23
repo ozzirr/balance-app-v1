@@ -22,6 +22,7 @@ import NumberPad from "./components/NumberPad";
 import FaceIdChip from "./components/FaceIdChip";
 import { getBiometryName, getBiometryUnlockCtaLabel } from "./biometryCopy";
 import { authenticateForUnlock, getBiometryHardwareInfo } from "./securityBiometry";
+import { useTranslation } from "react-i18next";
 
 type LockScreenProps = {
   config: SecurityConfig;
@@ -41,6 +42,7 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
   const [biometryAvailable, setBiometryAvailable] = useState(false);
   const [autoBiometryTried, setAutoBiometryTried] = useState(false);
   const { tokens } = useDashboardTheme();
+  const { t } = useTranslation();
 
   const tintColor = tokens.colors.accent;
   const translateX = shakeAnim.interpolate({
@@ -83,10 +85,10 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
           setPin("");
           return;
         }
-        setError("Codice errato");
+        setError(t("security.lock.invalidPin"));
         triggerShake();
       } catch {
-        setError("Impossibile verificare il codice");
+        setError(t("security.lock.pinCheckFailed"));
         triggerShake();
       } finally {
         setBusy(false);
@@ -98,7 +100,7 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
         }
       }
     },
-    [config.pinHash, onAuthenticated, triggerShake]
+    [config.pinHash, onAuthenticated, triggerShake, t]
   );
 
   const handleDigitPress = useCallback(
@@ -144,9 +146,9 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
       try {
         const info = await getBiometryHardwareInfo();
         if (!info.hasHardware || !info.hasEnrolled) {
-          if (!silent) {
-            setError("Autenticazione biometrica non disponibile");
-          }
+        if (!silent) {
+          setError(t("security.lock.biometryUnavailable"));
+        }
           setBiometryAvailable(false);
           return false;
         }
@@ -159,15 +161,15 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
         if (!silent) {
           const message =
             error === "lockout"
-              ? `${getBiometryName()} bloccato per troppi tentativi, usa il codice.`
-              : "Autenticazione biometrica fallita";
+              ? t("security.lock.biometryLockout", { biometryName: getBiometryName() })
+              : t("security.lock.biometryFailed");
           setError(message);
         }
         return false;
       } catch (error) {
         console.log("[FaceID] runBiometry exception", error);
         if (!silent) {
-          setError("Errore durante l'autenticazione biometrica");
+          setError(t("security.lock.biometryError"));
         }
         return false;
       } finally {
@@ -177,7 +179,7 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
         }
       }
     },
-    [config.biometryEnabled, onAuthenticated]
+    [config.biometryEnabled, onAuthenticated, t]
   );
 
   const scheduleBiometry = useCallback(
@@ -270,10 +272,12 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
   return (
     <SafeAreaView style={[styles.safeArea, style]}>
       <Animated.View style={[styles.content, { transform: [{ translateX }] }]}>
-        <Text style={styles.inputLabel}>Inserisci codice</Text>
+        <Text style={styles.inputLabel}>{t("security.lock.enterPinLabel")}</Text>
         <PinDots length={4} filled={pin.length} color={tintColor} style={styles.pinDots} />
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <Text style={styles.hintText}>{`Puoi attivare ${getBiometryName()} dalle impostazioni`}</Text>
+        <Text style={styles.hintText}>
+          {t("security.lock.biometryHint", { biometryName: getBiometryName() })}
+        </Text>
         <NumberPad
           onPressDigit={handleDigitPress}
           onBackspace={(clearAll) => (clearAll ? handleClearAll() : handleBackspace())}
@@ -282,7 +286,7 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
         />
         <View style={styles.bottomRow}>
           <Pressable onPress={() => {}} hitSlop={10} style={[styles.bottomAction, styles.bottomLeft]}>
-            <Text style={styles.bottomText}>Codice dimenticato?</Text>
+            <Text style={styles.bottomText}>{t("security.lock.forgotPin")}</Text>
           </Pressable>
           <View style={[styles.bottomAction, styles.bottomCenter]}>
             <FaceIdChip

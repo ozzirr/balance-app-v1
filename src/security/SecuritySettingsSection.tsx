@@ -4,7 +4,7 @@ import { Switch } from "react-native-paper";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
-import { getBiometryToggleLabel } from "./biometryCopy";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   securityEnabled: boolean;
@@ -32,11 +32,12 @@ export default function SecuritySettingsSection({
   onToggleAutoLock,
 }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
-  const actionLabel = pinHashExists ? "Cambia codice" : "Imposta codice";
+  const { t } = useTranslation();
+  const actionLabel = pinHashExists ? t("security.pin.changeTitle") : t("security.pin.setTitle");
 
   return (
     <PremiumCard>
-      <SectionHeader title="Sicurezza" />
+      <SectionHeader title={t("security.settings.title")} />
       <View style={styles.content}>
         <View style={styles.row}>
           <Switch
@@ -44,7 +45,7 @@ export default function SecuritySettingsSection({
             onValueChange={onRequestEnableSecurity}
             color={tokens.colors.accent}
           />
-          <Text style={[styles.label, { color: tokens.colors.text }]}>Richiedi codice all’avvio</Text>
+            <Text style={[styles.label, { color: tokens.colors.text }]}>{t("security.settings.requirePin")}</Text>
         </View>
         <Pressable
           onPress={onRequestChangeOrSetPin}
@@ -62,9 +63,16 @@ export default function SecuritySettingsSection({
               color={tokens.colors.accent}
               disabled={!securityEnabled}
             />
-            <Text style={[styles.label, { color: securityEnabled ? tokens.colors.text : tokens.colors.muted }]}>
-              {getBiometryToggleLabel()}
-            </Text>
+            <View style={styles.biometryText}>
+              <Text style={[styles.label, { color: securityEnabled ? tokens.colors.text : tokens.colors.muted }]}>
+                {t("security.settings.useFaceId")}
+              </Text>
+              {!securityEnabled ? (
+                <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
+                  {t("security.settings.faceIdRequiresPinHint")}
+                </Text>
+              ) : null}
+            </View>
           </View>
         ) : null}
         {securityEnabled ? (
@@ -75,9 +83,11 @@ export default function SecuritySettingsSection({
               color={tokens.colors.accent}
             />
             <View>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>Blocca automaticamente</Text>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>
+                {t("security.settings.autoLockTitle")}
+              </Text>
               <Text style={[styles.autoLockSubtitle, { color: tokens.colors.muted }]}>
-                Dopo 1 minuto di inattività
+                {t("security.settings.autoLockSubtitle")}
               </Text>
             </View>
           </View>
@@ -88,7 +98,9 @@ export default function SecuritySettingsSection({
             style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}
             accessibilityRole="button"
           >
-            <Text style={[styles.actionLabel, { color: tokens.colors.red }]}>Disattiva codice</Text>
+            <Text style={[styles.actionLabel, { color: tokens.colors.red }]}>
+              {t("security.settings.disablePin")}
+            </Text>
             <Text style={{ color: tokens.colors.muted }}>→</Text>
           </Pressable>
         ) : null}
@@ -128,5 +140,12 @@ const styles = StyleSheet.create({
   },
   autoLockSubtitle: {
     fontSize: 12,
+  },
+  biometryText: {
+    flex: 1,
+  },
+  helperText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

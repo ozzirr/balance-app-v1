@@ -337,17 +337,19 @@ export default function SnapshotScreen(): JSX.Element {
               contentStyle={styles.fullWidthButtonContent}
               onPress={openNewSnapshot}
             >
-              Nuovo Snapshot
+              {t("snapshot.actions.new")}
             </Button>
           </View>
         </PremiumCard>
 
         {showForm && (
           <PremiumCard>
-            <SectionHeader title={editingSnapshotId ? "Modifica snapshot" : "Nuovo snapshot"} />
+            <SectionHeader
+              title={editingSnapshotId ? t("snapshot.actions.edit") : t("snapshot.actions.new")}
+            />
             <View style={styles.form}>
               <TextInput
-                label="Data"
+                label={t("snapshot.form.dateLabel")}
                 value={snapshotDate}
                 editable={false}
                 mode="outlined"
@@ -437,13 +439,15 @@ export default function SnapshotScreen(): JSX.Element {
 
         {monthGroups.length === 0 ? (
           <PremiumCard>
-            <SectionHeader title="Snapshot" />
-            <Text style={{ color: tokens.colors.muted, padding: 16 }}>Nessuno snapshot.</Text>
+            <SectionHeader title={t("snapshot.title")} />
+            <Text style={{ color: tokens.colors.muted, padding: 16 }}>
+              {t("snapshot.empty.noSnapshots")}
+            </Text>
           </PremiumCard>
         ) : (
           <>
             <PremiumCard>
-              <SectionHeader title="Filtra per mese" />
+              <SectionHeader title={t("snapshot.filter.byMonth")} />
               <View style={styles.monthRow}>
                 {visibleMonthGroups.map((group) => (
                   <Button
@@ -468,37 +472,47 @@ export default function SnapshotScreen(): JSX.Element {
                     textColor={tokens.colors.text}
                     onPress={() => setShowAllMonths(true)}
                   >
-                    Carica altri
+                    {t("snapshot.actions.loadMore")}
                   </Button>
                 )}
               </View>
             </PremiumCard>
             <PremiumCard>
-              <SectionHeader title={`Snapshot ${activeMonth?.label ?? ""}`} />
-            <View style={styles.list}>
-              {activeMonth?.snapshots.map((snapshot) => (
-                <Button
-                  key={snapshot.id}
-                  onPress={() => {
-                    setSelectedSnapshotId(snapshot.id);
-                    void loadLines(snapshot.id);
-                  }}
-                  mode={snapshot.id === selectedSnapshotId ? "contained" : "outlined"}
-                  buttonColor={snapshot.id === selectedSnapshotId ? tokens.colors.accent : undefined}
-                  textColor={snapshot.id === selectedSnapshotId ? tokens.colors.text : tokens.colors.muted}
-                >
-                  {snapshot.date}
-                </Button>
-              ))}
-            </View>
+              <SectionHeader
+                title={
+                  activeMonth?.label
+                    ? `${t("snapshot.title")} ${activeMonth.label}`
+                    : t("snapshot.title")
+                }
+              />
+              <View style={styles.list}>
+                {activeMonth?.snapshots.map((snapshot) => (
+                  <Button
+                    key={snapshot.id}
+                    onPress={() => {
+                      setSelectedSnapshotId(snapshot.id);
+                      void loadLines(snapshot.id);
+                    }}
+                    mode={snapshot.id === selectedSnapshotId ? "contained" : "outlined"}
+                    buttonColor={snapshot.id === selectedSnapshotId ? tokens.colors.accent : undefined}
+                    textColor={snapshot.id === selectedSnapshotId ? tokens.colors.text : tokens.colors.muted}
+                  >
+                    {snapshot.date}
+                  </Button>
+                ))}
+              </View>
             </PremiumCard>
           </>
         )}
 
         <PremiumCard>
-          <SectionHeader title="Dettaglio" />
+          <SectionHeader title={t("snapshot.detail.title")} />
           <View style={styles.list}>
-            {lines.length === 0 && <Text style={{ color: tokens.colors.muted }}>Nessuna linea.</Text>}
+            {lines.length === 0 && (
+              <Text style={{ color: tokens.colors.muted }}>
+                {t("snapshot.detail.emptyLines")}
+              </Text>
+            )}
             {sortedLines.map((line) => {
               const walletLabel =
                 line.wallet_type === "INVEST" && line.wallet_tag
@@ -516,15 +530,15 @@ export default function SnapshotScreen(): JSX.Element {
             {lines.length > 0 && (
               <View style={styles.totals}>
                 <Text style={{ color: tokens.colors.muted }}>
-                  Liquidità: {formatAmount(totals.liquidity)}
+                  {t("snapshot.totals.liquidity")}: {formatAmount(totals.liquidity)}
                   {totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}
                 </Text>
                 <Text style={{ color: tokens.colors.muted }}>
-                  Investimenti: {formatAmount(totals.investments)}
+                  {t("snapshot.totals.investments")}: {formatAmount(totals.investments)}
                   {totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}
                 </Text>
                 <Text style={{ color: tokens.colors.text }}>
-                  Patrimonio: {formatAmount(totals.netWorth)}
+                  {t("snapshot.totals.netWorth")}: {formatAmount(totals.netWorth)}
                   {totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}
                 </Text>
               </View>
@@ -537,7 +551,7 @@ export default function SnapshotScreen(): JSX.Element {
                   style={{ borderColor: tokens.colors.accent }}
                   onPress={() => openEditSnapshot(selectedSnapshotId)}
                 >
-                  Modifica snapshot
+                  {t("snapshot.actions.edit")}
                 </Button>
               </View>
             )}

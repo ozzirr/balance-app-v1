@@ -6,7 +6,7 @@ import * as Localization from "expo-localization";
 import it from "./locales/it.json";
 import en from "./locales/en.json";
 
-export const STORAGE_KEY = "settings.language";
+export const STORAGE_KEY = "appLanguage";
 export const SUPPORTED_LANGUAGES = ["it", "en"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 

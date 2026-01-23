@@ -17,15 +17,63 @@
     "reset": "Reset"
   },
   "errors": {
-    "genericTitle": "Error"
+    "genericTitle": "Error",
+    "generic": "Something went wrong"
+  },
+  "alerts": {
+    "settings": {
+      "export": {
+        "title": "Export data",
+        "body": "Sharing will include all your data as JSON."
+      },
+      "import": {
+        "title": "Confirm import",
+        "body": "Importing will replace all existing data. Continue?"
+      },
+      "pasteJson": {
+        "title": "Confirm paste",
+        "body": "Pasting JSON will replace all existing data. Continue?"
+      },
+      "loadTestData": {
+        "title": "Load test data",
+        "body": "Sample data will replace your current database. Continue?"
+      },
+      "reset": {
+        "title": "Confirm reset",
+        "body": "This will delete all data. Continue?"
+      }
+    }
   },
   "settings": {
     "title": "Settings",
-    "language": {
-      "title": "Language",
-      "it": "Italiano",
-      "en": "English"
-    }
+    "profile": {
+      "title": "Profile",
+      "nameLabel": "Name"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "darkTheme": "Dark theme",
+      "prefillSnapshot": "Prefill snapshot",
+      "monthsInChart": "Months in chart",
+      "languageLabel": "Language",
+      "language": {
+        "it": "Italiano",
+        "en": "English"
+      }
+    },
+    "data": {
+      "title": "Data",
+      "export": "Export",
+      "import": "Import",
+      "pasteJsonFromClipboard": "Paste JSON from clipboard",
+      "loadTestData": "Load test data"
+    },
+    "onboarding": {
+      "title": "Onboarding",
+      "subtitle": "Review the guided setup",
+      "reviewAction": "Review"
+    },
+    "reset": "Reset"
   },
   "onboarding": {
     "intro": {
@@ -277,6 +325,63 @@
       "categoryRequired": "Category is required.",
       "removeIdBeforeCreate": "Remove the ID before creating a new entry.",
       "noEntryForEdit": "No entry selected for editing."
+    }
+  },
+  "security": {
+    "lock": {
+      "enterPinLabel": "Enter PIN",
+      "forgotPin": "Forgot PIN?",
+      "biometryHint": "You can enable {{biometryName}} from settings",
+      "invalidPin": "Incorrect PIN",
+      "pinCheckFailed": "Unable to verify the PIN",
+      "biometryUnavailable": "Biometric authentication unavailable",
+      "biometryLockout": "{{biometryName}} locked after too many attempts, use your PIN",
+      "biometryFailed": "Biometric authentication failed",
+      "biometryError": "Error during biometric authentication"
+    },
+    "pin": {
+      "setTitle": "Set PIN",
+      "changeTitle": "Change PIN",
+      "enterNew": "Enter new PIN",
+      "repeatNew": "Repeat new PIN",
+      "mismatchError": "PINs do not match",
+      "verifyTitle": "Verify PIN",
+      "wrongPin": "Incorrect PIN"
+    },
+    "settings": {
+      "title": "Security",
+      "requirePin": "Require PIN on launch",
+      "useFaceId": "Use Face ID",
+      "autoLockTitle": "Auto lock",
+      "autoLockSubtitle": "After 1 minute of inactivity",
+      "faceIdRequiresPinHint": "Enable PIN first to use Face ID",
+      "disablePin": "Disable PIN"
+    }
+  },
+  "snapshot": {
+    "title": "Snapshot",
+    "actions": {
+      "new": "New snapshot",
+      "edit": "Edit snapshot",
+      "loadMore": "Load more"
+    },
+    "filter": {
+      "byMonth": "Filter by month"
+    },
+    "detail": {
+      "title": "Details",
+      "emptyLines": "No lines."
+    },
+    "empty": {
+      "noSnapshots": "No snapshots yet."
+    },
+    "form": {
+      "dateLabel": "Date"
+    },
+    "totals": {
+      "liquidity": "Liquidity",
+      "investments": "Investments",
+      "netWorth": "Net worth"
     }
   }
 }

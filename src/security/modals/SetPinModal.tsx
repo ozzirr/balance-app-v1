@@ -8,6 +8,7 @@ import PinDots from "@/security/components/PinDots";
 import { hashPin } from "@/security/securityHash";
 import { setPinHash } from "@/security/securityStorage";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import { useTranslation } from "react-i18next";
 
 type SetPinParams = {
   SetPinModal: {
@@ -28,6 +29,7 @@ export default function SetPinModal(): JSX.Element {
   const navigation = useNavigation();
   const { params } = useRoute<RouteProp<SetPinParams, "SetPinModal">>();
   const { tokens } = useDashboardTheme();
+  const { t } = useTranslation();
 
   const translateX = useMemo(
     () =>
@@ -54,8 +56,8 @@ export default function SetPinModal(): JSX.Element {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }, [shakeAnim]);
 
-  const title = params.mode === "change" ? "Cambia codice" : "Imposta codice";
-  const stepTitle = step === 1 ? "Inserisci nuovo codice" : "Ripeti nuovo codice";
+  const title = params.mode === "change" ? t("security.pin.changeTitle") : t("security.pin.setTitle");
+  const stepTitle = step === 1 ? t("security.pin.enterNew") : t("security.pin.repeatNew");
 
   const handleDigit = useCallback(
     (digit: string) => {
@@ -76,7 +78,7 @@ export default function SetPinModal(): JSX.Element {
       setConfirmPin(next);
       if (next.length === 4) {
         if (next !== firstPin) {
-          setError("I codici non coincidono");
+          setError(t("security.pin.mismatchError"));
           triggerShake();
           setConfirmPin("");
           return;
@@ -89,14 +91,14 @@ export default function SetPinModal(): JSX.Element {
             params.onPinSet();
             navigation.goBack();
           } catch {
-            setError("I codici non coincidono");
+            setError(t("security.pin.mismatchError"));
             triggerShake();
             setConfirmPin("");
           }
         })();
       }
     },
-    [confirmPin, firstPin, navigation, params, step, triggerShake]
+    [confirmPin, firstPin, navigation, params, step, triggerShake, t]
   );
 
   const handleBackspace = useCallback(() => {

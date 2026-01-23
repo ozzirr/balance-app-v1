@@ -17,15 +17,63 @@
     "reset": "Reset"
   },
   "errors": {
-    "genericTitle": "Errore"
+    "genericTitle": "Errore",
+    "generic": "Qualcosa è andato storto"
+  },
+  "alerts": {
+    "settings": {
+      "export": {
+        "title": "Esporta dati",
+        "body": "La condivisione includerà tutti i tuoi dati in formato JSON."
+      },
+      "import": {
+        "title": "Conferma importazione",
+        "body": "L'importazione sostituirà tutti i dati esistenti. Continuare?"
+      },
+      "pasteJson": {
+        "title": "Conferma incolla",
+        "body": "Incollare JSON sostituirà tutti i dati esistenti. Continuare?"
+      },
+      "loadTestData": {
+        "title": "Carica dati di test",
+        "body": "I dati di esempio sostituiranno il tuo database attuale. Continuare?"
+      },
+      "reset": {
+        "title": "Conferma reset",
+        "body": "Questa azione cancellerà tutti i dati. Vuoi continuare?"
+      }
+    }
   },
   "settings": {
     "title": "Impostazioni",
-    "language": {
-      "title": "Lingua",
-      "it": "Italiano",
-      "en": "English"
-    }
+    "profile": {
+      "title": "Profilo",
+      "nameLabel": "Nome"
+    },
+    "preferences": {
+      "title": "Preferenze",
+      "darkTheme": "Tema scuro",
+      "prefillSnapshot": "Precompila snapshot",
+      "monthsInChart": "Mesi nel grafico",
+      "languageLabel": "Lingua",
+      "language": {
+        "it": "Italiano",
+        "en": "English"
+      }
+    },
+    "data": {
+      "title": "Dati",
+      "export": "Esporta",
+      "import": "Importa",
+      "pasteJsonFromClipboard": "Incolla JSON dagli appunti",
+      "loadTestData": "Carica dati di test"
+    },
+    "onboarding": {
+      "title": "Onboarding",
+      "subtitle": "Rivedi la configurazione guidata",
+      "reviewAction": "Rivedi"
+    },
+    "reset": "Reset"
   },
   "onboarding": {
     "intro": {
@@ -277,6 +325,63 @@
       "categoryRequired": "Categoria obbligatoria.",
       "removeIdBeforeCreate": "Rimuovi l'id prima di creare una nuova voce.",
       "noEntryForEdit": "Nessuna voce selezionata per la modifica."
+    }
+  },
+  "security": {
+    "lock": {
+      "enterPinLabel": "Inserisci codice",
+      "forgotPin": "Codice dimenticato?",
+      "biometryHint": "Puoi attivare {{biometryName}} dalle impostazioni",
+      "invalidPin": "Codice errato",
+      "pinCheckFailed": "Impossibile verificare il codice",
+      "biometryUnavailable": "Autenticazione biometrica non disponibile",
+      "biometryLockout": "{{biometryName}} bloccato per troppi tentativi, usa il codice",
+      "biometryFailed": "Autenticazione biometrica fallita",
+      "biometryError": "Errore durante l'autenticazione biometrica"
+    },
+    "pin": {
+      "setTitle": "Imposta codice",
+      "changeTitle": "Cambia codice",
+      "enterNew": "Inserisci nuovo codice",
+      "repeatNew": "Ripeti nuovo codice",
+      "mismatchError": "I codici non coincidono",
+      "verifyTitle": "Verifica codice",
+      "wrongPin": "Codice errato"
+    },
+    "settings": {
+      "title": "Sicurezza",
+      "requirePin": "Richiedi codice all’avvio",
+      "useFaceId": "Usa Face ID",
+      "autoLockTitle": "Blocca automaticamente",
+      "autoLockSubtitle": "Dopo 1 minuto di inattività",
+      "faceIdRequiresPinHint": "Attiva prima il PIN per usare Face ID",
+      "disablePin": "Disattiva codice"
+    }
+  },
+  "snapshot": {
+    "title": "Snapshot",
+    "actions": {
+      "new": "Nuovo snapshot",
+      "edit": "Modifica snapshot",
+      "loadMore": "Carica altri"
+    },
+    "filter": {
+      "byMonth": "Filtra per mese"
+    },
+    "detail": {
+      "title": "Dettaglio",
+      "emptyLines": "Nessuna linea."
+    },
+    "empty": {
+      "noSnapshots": "Nessuno snapshot."
+    },
+    "form": {
+      "dateLabel": "Data"
+    },
+    "totals": {
+      "liquidity": "Liquidità",
+      "investments": "Investimenti",
+      "netWorth": "Patrimonio"
     }
   }
 }

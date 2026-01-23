@@ -8,6 +8,7 @@ import { hashPin } from "@/security/securityHash";
 import { getPinHash } from "@/security/securityStorage";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import { useTranslation } from "react-i18next";
 
 type VerifyPinRoute = RouteProp<{ VerifyPinModal: { onVerified: () => void } }, "VerifyPinModal">;
 const SHAKE_DURATION = 80;
@@ -20,6 +21,7 @@ export default function VerifyPinModal(): JSX.Element {
   const navigation = useNavigation();
   const { params } = useRoute<VerifyPinRoute>();
   const { tokens } = useDashboardTheme();
+  const { t } = useTranslation();
 
   const triggerShake = useCallback(() => {
     Animated.sequence([
@@ -48,7 +50,7 @@ export default function VerifyPinModal(): JSX.Element {
           try {
             const stored = await getPinHash();
             if (!stored) {
-              setError("Codice errato");
+              setError(t("security.pin.wrongPin"));
               triggerShake();
               setTimeout(() => setPin(""), 400);
               return;
@@ -59,19 +61,19 @@ export default function VerifyPinModal(): JSX.Element {
               navigation.goBack();
               params.onVerified();
             } else {
-              setError("Codice errato");
+              setError(t("security.pin.wrongPin"));
               triggerShake();
               setTimeout(() => setPin(""), 400);
             }
           } catch {
-            setError("Codice errato");
+            setError(t("security.pin.wrongPin"));
             triggerShake();
             setTimeout(() => setPin(""), 400);
           }
         })();
       }
     },
-    [pin, navigation, params, triggerShake]
+    [pin, navigation, params, triggerShake, t]
   );
 
   const translateX = useMemo(
@@ -86,7 +88,7 @@ export default function VerifyPinModal(): JSX.Element {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.colors.bg }]}>
       <View style={styles.container}>
-        <Text style={[styles.title, { color: tokens.colors.text }]}>Verifica codice</Text>
+        <Text style={[styles.title, { color: tokens.colors.text }]}>{t("security.pin.verifyTitle")}</Text>
         <Animated.View style={{ transform: [{ translateX }] }}>
           <PinDots length={4} filled={pin.length} color={tokens.colors.accent} />
           {error ? <Text style={styles.error}>{error}</Text> : null}

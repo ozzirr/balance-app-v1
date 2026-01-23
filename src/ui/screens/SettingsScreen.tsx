@@ -103,14 +103,14 @@ export default function SettingsScreen(): JSX.Element {
     await setPreference(key, value);
   };
 
-  const confirmWipeAndReplace = async (): Promise<boolean> =>
+  const confirmWipeAndReplace = async (titleKey: string, bodyKey: string): Promise<boolean> =>
     new Promise((resolve) => {
       Alert.alert(
-        "Conferma import",
-        "L'import sostituirà tutti i dati esistenti. Vuoi continuare?",
+        t(titleKey),
+        t(bodyKey),
         [
-          { text: "Annulla", style: "cancel", onPress: () => resolve(false) },
-          { text: "Continua", style: "destructive", onPress: () => resolve(true) },
+          { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+          { text: t("common.confirm"), style: "destructive", onPress: () => resolve(true) },
         ],
         { cancelable: true }
       );
@@ -123,7 +123,10 @@ export default function SettingsScreen(): JSX.Element {
         copyToCacheDirectory: true,
       });
       if (result.canceled || !result.assets?.length) return;
-      const confirmed = await confirmWipeAndReplace();
+      const confirmed = await confirmWipeAndReplace(
+        "alerts.settings.import.title",
+        "alerts.settings.import.body"
+      );
       if (!confirmed) return;
       await importFromFile(result.assets[0].uri);
     } catch (error) {
@@ -182,7 +185,10 @@ export default function SettingsScreen(): JSX.Element {
       const path = `${baseDir}${fileName}`;
       await LegacyFileSystem.writeAsStringAsync(path, json);
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(path, { mimeType: "application/json", dialogTitle: "Esporta dati" });
+        await Sharing.shareAsync(path, {
+          mimeType: "application/json",
+          dialogTitle: t("alerts.settings.export.title"),
+        });
         return;
       }
     } catch (error) {
@@ -194,7 +200,10 @@ export default function SettingsScreen(): JSX.Element {
     try {
       const copy = (await Clipboard.getStringAsync())?.trim();
       if (!copy) return;
-      const confirmed = await confirmWipeAndReplace();
+      const confirmed = await confirmWipeAndReplace(
+        "alerts.settings.pasteJson.title",
+        "alerts.settings.pasteJson.body"
+      );
       if (!confirmed) return;
       let payload: unknown;
       try {
@@ -212,11 +221,11 @@ export default function SettingsScreen(): JSX.Element {
   const confirmReset = async (): Promise<boolean> =>
     new Promise((resolve) => {
       Alert.alert(
-        "Conferma reset",
-        "Questa azione cancellerà tutti i dati. Vuoi continuare?",
+        t("alerts.settings.reset.title"),
+        t("alerts.settings.reset.body"),
         [
-          { text: "Annulla", style: "cancel", onPress: () => resolve(false) },
-          { text: "Reset", style: "destructive", onPress: () => resolve(true) },
+          { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+          { text: t("settings.reset"), style: "destructive", onPress: () => resolve(true) },
         ],
         { cancelable: true }
       );
@@ -337,10 +346,10 @@ export default function SettingsScreen(): JSX.Element {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <PremiumCard>
-          <SectionHeader title="Profilo" />
+          <SectionHeader title={t("settings.profile.title")} />
           <View style={styles.form}>
             <TextInput
-              label="Nome"
+              label={t("settings.profile.nameLabel")}
               value={profileName}
               {...inputProps}
               onChangeText={(value) => {
@@ -352,7 +361,7 @@ export default function SettingsScreen(): JSX.Element {
         </PremiumCard>
 
         <PremiumCard>
-          <SectionHeader title="Preferenze" />
+          <SectionHeader title={t("settings.preferences.title")} />
           <View style={styles.sectionContent}>
             <View style={styles.row}>
               <Switch
@@ -363,7 +372,7 @@ export default function SettingsScreen(): JSX.Element {
                   updatePreference("theme", next);
                 }}
               />
-              <Text style={{ color: tokens.colors.text }}>Tema scuro</Text>
+              <Text style={{ color: tokens.colors.text }}>{t("settings.preferences.darkTheme")}</Text>
             </View>
             <View style={styles.row}>
               <Switch
@@ -373,10 +382,10 @@ export default function SettingsScreen(): JSX.Element {
                   updatePreference("prefill_snapshot", String(value));
                 }}
               />
-              <Text style={{ color: tokens.colors.text }}>Precompila snapshot</Text>
+              <Text style={{ color: tokens.colors.text }}>{t("settings.preferences.prefillSnapshot")}</Text>
             </View>
             <View style={[styles.row, { gap: 12, marginTop: 8 }]}>
-              <Text style={{ color: tokens.colors.text }}>Mesi nel grafico</Text>
+              <Text style={{ color: tokens.colors.text }}>{t("settings.preferences.monthsInChart")}</Text>
               <Button
                 mode="outlined"
                 textColor={tokens.colors.text}
@@ -402,15 +411,17 @@ export default function SettingsScreen(): JSX.Element {
               </Button>
             </View>
             <View style={[styles.languageRow, { marginTop: 12 }]}>
-              <Text style={{ color: tokens.colors.text }}>{t("settings.language.title")}</Text>
+              <Text style={{ color: tokens.colors.text }}>
+                {t("settings.preferences.languageLabel")}
+              </Text>
               <SegmentedButtons
                 value={currentLanguage}
                 onValueChange={(value) => {
                   void handleLanguageChange(value as SupportedLanguage);
                 }}
                 buttons={[
-                  { value: "it", label: t("settings.language.it") },
-                  { value: "en", label: t("settings.language.en") },
+                  { value: "it", label: t("settings.preferences.language.it") },
+                  { value: "en", label: t("settings.preferences.language.en") },
                 ]}
                 style={styles.languageControls}
               />
@@ -432,10 +443,10 @@ export default function SettingsScreen(): JSX.Element {
         />
 
         <PremiumCard>
-          <SectionHeader title="Dati" />
+          <SectionHeader title={t("settings.data.title")} />
           <View style={styles.sectionContent}>
             <Button mode="contained" buttonColor={tokens.colors.accent} onPress={exportData}>
-              Esporta
+              {t("settings.data.export")}
             </Button>
             <Button
               mode="outlined"
@@ -443,7 +454,7 @@ export default function SettingsScreen(): JSX.Element {
               style={{ borderColor: tokens.colors.accent }}
               onPress={importData}
             >
-              Importa
+              {t("settings.data.import")}
             </Button>
             <Button
               mode="outlined"
@@ -451,7 +462,7 @@ export default function SettingsScreen(): JSX.Element {
               onPress={pasteFromClipboard}
               style={{ borderColor: tokens.colors.accent }}
             >
-              Incolla JSON dagli appunti
+              {t("settings.data.pasteJsonFromClipboard")}
             </Button>
             <Button
               mode="outlined"
@@ -459,21 +470,23 @@ export default function SettingsScreen(): JSX.Element {
               style={{ borderColor: tokens.colors.accent }}
               onPress={loadSampleDataHandler}
             >
-              Carica dati di test
+              {t("settings.data.loadTestData")}
             </Button>
             <View style={[styles.onboardingRow, { borderColor: tokens.colors.border, backgroundColor: tokens.colors.surface2 }]}>
               <View style={styles.onboardingText}>
-                <Text style={[styles.onboardingTitle, { color: tokens.colors.text }]}>Onboarding</Text>
+                <Text style={[styles.onboardingTitle, { color: tokens.colors.text }]}>
+                  {t("settings.onboarding.title")}
+                </Text>
                 <Text style={[styles.onboardingSubtitle, { color: tokens.colors.muted }]}>
-                  Rivedi la configurazione guidata
+                  {t("settings.onboarding.subtitle")}
                 </Text>
               </View>
               <Button mode="text" textColor={tokens.colors.accent} onPress={requestReplay}>
-                Rivedi
+                {t("settings.onboarding.reviewAction")}
               </Button>
             </View>
             <Button mode="outlined" textColor={tokens.colors.red} onPress={resetData}>
-              Reset
+              {t("settings.reset")}
             </Button>
           </View>
         </PremiumCard>
