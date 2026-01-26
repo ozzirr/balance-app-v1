@@ -104,8 +104,9 @@
   },
   "dashboard": {
     "errorTitle": "Impossibile caricare la dashboard",
-    "emptyTitle": "Nessun dato disponibile",
-    "emptyBody": "Crea almeno un wallet per iniziare.",
+    "emptyTitle": "Configura subito Balance",
+    "emptyBody": "Crea il tuo primo wallet per iniziare.",
+    "emptyCta": "Configura Balance",
     "greeting": "Ciao",
     "greetingWithName": "Ciao {{name}}",
     "section": {
@@ -197,6 +198,11 @@
       }
     }
   },
+  "navigation": {
+    "blockedNoWalletTitle": "Nessun wallet",
+    "blockedNoWalletBody": "Crea prima il tuo primo wallet per iniziare.",
+    "blockedNoWalletCta": "Vai ai wallet"
+  },
   "recurrences": {
     "frequency": {
       "weekly": "Settimanale",
@@ -279,7 +285,7 @@
       "toggleForm": "Aggiungi o modifica voci"
     },
     "empty": {
-      "noEntries": "Nessuna voce.",
+      "noEntries": "Aggiungi la tua prima voce per iniziare.",
       "noCategoriesActive": "Nessuna categoria attiva. Aggiungine una qui sotto."
     },
     "validation": {

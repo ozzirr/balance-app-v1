@@ -477,45 +477,52 @@ export default function EntriesScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        {entryType === "expense" && activeCategories.length > 0 ? (
-          <GlassCardContainer contentStyle={{ gap: 8 }}>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("entries.list.filterByCategory", { defaultValue: "Filtra per categoria" })}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterRow, { paddingHorizontal: 4 }]}>
-              <Pressable
-                onPress={() => setCategoryFilter("all")}
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor: categoryFilter === "all" ? tokens.colors.accent : tokens.colors.glassBorder,
-                    backgroundColor: categoryFilter === "all" ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
-                  },
-                ]}
-              >
-                <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{t("common.all", { defaultValue: "Tutti" })}</Text>
-              </Pressable>
-              {activeCategories.map((cat) => {
-                const selected = categoryFilter === cat.id;
-                return (
-                  <Pressable
-                    key={cat.id}
-                    onPress={() => setCategoryFilter(cat.id)}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor: selected ? cat.color : tokens.colors.glassBorder,
-                        backgroundColor: selected ? `${cat.color}33` : tokens.colors.glassBg,
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{cat.name}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </GlassCardContainer>
-        ) : null}
-
         <GlassCardContainer contentStyle={{ gap: 8, paddingBottom: 6 }}>
+          {entryType === "expense" && activeCategories.length > 0 ? (
+            <View style={styles.filterSection}>
+              <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>
+                {t("entries.list.filterByCategory", { defaultValue: "Filtra per categoria" })}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[styles.filterRow, { paddingHorizontal: 4 }]}
+              >
+                <Pressable
+                  onPress={() => setCategoryFilter("all")}
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor: categoryFilter === "all" ? tokens.colors.accent : tokens.colors.glassBorder,
+                      backgroundColor: categoryFilter === "all" ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>
+                    {t("common.all", { defaultValue: "Tutti" })}
+                  </Text>
+                </Pressable>
+                {activeCategories.map((cat) => {
+                  const selected = categoryFilter === cat.id;
+                  return (
+                    <Pressable
+                      key={cat.id}
+                      onPress={() => setCategoryFilter(cat.id)}
+                      style={[
+                        styles.filterChip,
+                        {
+                          borderColor: selected ? cat.color : tokens.colors.glassBorder,
+                          backgroundColor: selected ? `${cat.color}33` : tokens.colors.glassBg,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{cat.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
           <FlatList
             data={sortedEntries}
             keyExtractor={(item) => `${entryType}-${item.id}`}
@@ -625,6 +632,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
+  },
+  filterSection: {
+    gap: 8,
+    paddingBottom: 4,
   },
   listRowCard: {
     width: "100%",

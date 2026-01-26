@@ -25,7 +25,7 @@ import PressScale from "@/ui/dashboard/components/PressScale";
 import Skeleton from "@/ui/dashboard/components/Skeleton";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import AppBackground from "@/ui/components/AppBackground";
-import { GlassCardContainer, PillChip, SegmentedControlPill } from "@/ui/components/EntriesUI";
+import { GlassCardContainer, PillChip, SegmentedControlPill, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
@@ -218,7 +218,7 @@ export default function DashboardScreen(): JSX.Element {
   }, []);
 
   const handlePrivacyLearnMore = useCallback(() => {
-    const url = "https://github.com/andrearizzo/balance-app-v1";
+    const url = "https://github.com/ozzirr/balance-app-v1";
     Linking.openURL(url).catch(() => {
       Alert.alert(t("dashboard.privacy.title"), t("dashboard.privacy.body"), [
         { text: t("common.close") },
@@ -261,10 +261,16 @@ export default function DashboardScreen(): JSX.Element {
         ) : null}
 
         {emptyState ? (
-      <PremiumCard>
-        <Text style={[styles.emptyTitle, { color: tokens.colors.text }]}>{t("dashboard.emptyTitle")}</Text>
-        <Text style={[styles.emptyBody, { color: tokens.colors.muted }]}>{t("dashboard.emptyBody")}</Text>
-          </PremiumCard>
+          <GlassCardContainer contentStyle={styles.emptyCard}>
+            <Text style={[styles.emptyBody, { color: tokens.colors.muted }]}>{t("dashboard.emptyBody")}</Text>
+            <View style={styles.emptyCtaRow}>
+              <SmallOutlinePillButton
+                label={t("dashboard.emptyCta", { defaultValue: "Configura Balance" })}
+                onPress={() => navigation.navigate("Wallet", { startSetup: true })}
+                color={tokens.colors.accent}
+              />
+            </View>
+          </GlassCardContainer>
         ) : null}
 
         {dashboard ? (
@@ -447,12 +453,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.25,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
   emptyBody: {
     marginTop: 6,
+  },
+  emptyCard: {
+    gap: 10,
+  },
+  emptyCtaRow: {
+    alignItems: "flex-start",
   },
   errorTitle: {
     fontSize: 18,

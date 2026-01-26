@@ -623,9 +623,20 @@ export default function SnapshotScreen(): JSX.Element {
               title={t("snapshot.detail.title")}
               trailing={
                 formatShortDate(selectedSnapshot?.date ?? snapshotDate) ? (
-                  <Text style={{ color: tokens.colors.muted, fontWeight: "600" }}>
-                    {formatShortDate(selectedSnapshot?.date ?? snapshotDate)}
-                  </Text>
+                  <View
+                    style={[
+                      styles.lastUpdateBadge,
+                      {
+                        backgroundColor: `${tokens.colors.green}18`,
+                        borderColor: `${tokens.colors.green}55`,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.lastUpdateText, { color: tokens.colors.green }]}>
+                      {t("snapshot.detail.lastUpdate", { defaultValue: "Last update" })}{" "}
+                      {formatShortDate(selectedSnapshot?.date ?? snapshotDate)}
+                    </Text>
+                  </View>
                 ) : null
               }
             />
@@ -822,6 +833,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     gap: 4,
+  },
+  lastUpdateBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  lastUpdateText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   kpiLabel: {
     fontSize: 12,

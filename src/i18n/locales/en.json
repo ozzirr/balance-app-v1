@@ -106,6 +106,7 @@
     "errorTitle": "Unable to load the dashboard",
     "emptyTitle": "No data available",
     "emptyBody": "Create at least one wallet to get started.",
+    "emptyCta": "Set up Balance",
     "greeting": "Hi",
     "greetingWithName": "Hi {{name}}",
     "section": {
@@ -197,6 +198,11 @@
       }
     }
   },
+  "navigation": {
+    "blockedNoWalletTitle": "No wallets yet",
+    "blockedNoWalletBody": "Create your first wallet to get started.",
+    "blockedNoWalletCta": "Go to wallets"
+  },
   "recurrences": {
     "frequency": {
       "weekly": "Weekly",
@@ -279,7 +285,7 @@
       "toggleForm": "Add or edit entries"
     },
     "empty": {
-      "noEntries": "No entries.",
+      "noEntries": "Add your first entry to get started.",
       "noCategoriesActive": "No active categories. Add one below."
     },
     "validation": {

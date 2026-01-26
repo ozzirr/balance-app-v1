@@ -502,8 +502,11 @@ export default function SettingsScreen(): JSX.Element {
                 color={tokens.colors.accent}
               />
             </View>
-            <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
         </GlassCardContainer>
+
+        <View style={styles.resetContainer}>
+          <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
+        </View>
       </ScrollView>
     </AppBackground>
   );
@@ -518,6 +521,10 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     gap: 12,
+  },
+  resetContainer: {
+    marginTop: 4,
+    marginBottom: 24,
   },
   row: {
     flexDirection: "row",

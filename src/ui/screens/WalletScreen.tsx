@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import { Snackbar, Text, TextInput, List } from "react-native-paper";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
@@ -40,6 +40,7 @@ type CategoryEdit = {
 
 type WalletRouteParams = {
   walletId?: number;
+  startSetup?: boolean;
 };
 
 const presetColors = [
@@ -120,6 +121,7 @@ export default function WalletScreen(): JSX.Element {
   const route = useRoute();
   const routeParams = route.params as WalletRouteParams | undefined;
   const targetWalletId = routeParams?.walletId;
+  const startSetup = routeParams?.startSetup;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -145,6 +147,7 @@ export default function WalletScreen(): JSX.Element {
   const [expandedWalletId, setExpandedWalletId] = useState<number | null>(null);
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [storeErrorVisible, setStoreErrorVisible] = useState(false);
+  const addWalletPulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (!showInvestments) {
       setTab("LIQUIDITY");
@@ -160,6 +163,14 @@ export default function WalletScreen(): JSX.Element {
     setExpandedWalletId(target.id);
     navigation.setParams({ walletId: undefined });
   }, [navigation, targetWalletId, wallets]);
+
+  useEffect(() => {
+    if (!startSetup) return;
+    if (wallets.length > 0) return;
+    if (showAddWallet.LIQUIDITY) return;
+    setTab("LIQUIDITY");
+    setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: true }));
+  }, [startSetup, wallets.length, showAddWallet.LIQUIDITY]);
 
   const load = useCallback(async () => {
     const [walletList, expenseCats] = await Promise.all([listWallets(), listExpenseCategories()]);
@@ -241,6 +252,35 @@ export default function WalletScreen(): JSX.Element {
     () => wallets.filter((wallet) => wallet.type === "INVEST"),
     [wallets]
   );
+  const noWallets = wallets.length === 0;
+  const shouldPulseAdd = noWallets && !showAddWallet.LIQUIDITY && tab === "LIQUIDITY";
+
+  useEffect(() => {
+    let animation: Animated.CompositeAnimation | null = null;
+    if (shouldPulseAdd) {
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(addWalletPulse, {
+            toValue: 1.08,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(addWalletPulse, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    } else {
+      addWalletPulse.stopAnimation();
+      addWalletPulse.setValue(1);
+    }
+    return () => {
+      animation?.stop();
+    };
+  }, [addWalletPulse, shouldPulseAdd]);
 
   const getWalletCount = (type: "LIQUIDITY" | "INVEST") =>
     type === "LIQUIDITY" ? liquidityWallets.length : investmentWallets.length;
@@ -259,6 +299,7 @@ export default function WalletScreen(): JSX.Element {
       setLimitModalVisible(true);
       return;
     }
+    const wasEmpty = wallets.length === 0;
     await createWallet(
       newWalletDraft.name.trim(),
       type,
@@ -269,6 +310,10 @@ export default function WalletScreen(): JSX.Element {
     setNewWalletDraft({ name: "", tag: "", currency: "EUR" });
     setShowAddWallet((prev) => ({ ...prev, [type]: false }));
     await load();
+    if (startSetup && wasEmpty && type === "LIQUIDITY") {
+      navigation.navigate("Snapshot", { openNew: true });
+      navigation.setParams({ startSetup: undefined });
+    }
   };
 
   const handleRequestAddWallet = (type: "LIQUIDITY" | "INVEST") => {
@@ -328,11 +373,13 @@ export default function WalletScreen(): JSX.Element {
             {tab === "LIQUIDITY" && (
               <>
                 {!showAddWallet.LIQUIDITY && (
-                  <PrimaryPillButton
-                    label={t("wallets.list.addWallet")}
-                    onPress={() => handleRequestAddWallet("LIQUIDITY")}
-                    color={tokens.colors.accent}
-                  />
+                  <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
+                    <PrimaryPillButton
+                      label={t("wallets.list.addWallet")}
+                      onPress={() => handleRequestAddWallet("LIQUIDITY")}
+                      color={tokens.colors.accent}
+                    />
+                  </Animated.View>
                 )}
                 {showAddWallet.LIQUIDITY && (
                   <GlassCardContainer>
