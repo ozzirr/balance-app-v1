@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, LayoutAnimation, Platform, RefreshControl, ScrollView, StyleSheet, UIManager, View } from "react-native";
+import { Alert, LayoutAnimation, Linking, Platform, ScrollView, StyleSheet, UIManager, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +28,7 @@ import { GlassCardContainer, PillChip, SegmentedControlPill } from "@/ui/compone
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
+import { onDataReset } from "@/app/dataEvents";
 
 type Nav = {
   navigate: (name: string, params?: Record<string, unknown>) => void;
@@ -85,7 +86,6 @@ export default function DashboardScreen(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prompted, setPrompted] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>(DEFAULT_SECTION_STATES);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
@@ -204,10 +204,11 @@ export default function DashboardScreen(): JSX.Element {
     }, [load])
   );
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
+  useEffect(() => {
+    const subscription = onDataReset(() => {
+      void load();
+    });
+    return () => subscription.remove();
   }, [load]);
 
   const dismissPrivacyCard = useCallback(() => {
@@ -216,9 +217,12 @@ export default function DashboardScreen(): JSX.Element {
   }, []);
 
   const handlePrivacyLearnMore = useCallback(() => {
-    Alert.alert(t("dashboard.privacy.title"), t("dashboard.privacy.body"), [
-      { text: t("common.close") },
-    ]);
+    const url = "https://github.com/andrearizzo/balance-app-v1";
+    Linking.openURL(url).catch(() => {
+      Alert.alert(t("dashboard.privacy.title"), t("dashboard.privacy.body"), [
+        { text: t("common.close") },
+      ]);
+    });
   }, [t]);
 
   const emptyState = walletsCount === 0 && !loading;
@@ -244,7 +248,6 @@ export default function DashboardScreen(): JSX.Element {
             paddingBottom: 160 + insets.bottom,
           },
         ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {loading && !dashboard && skeleton}

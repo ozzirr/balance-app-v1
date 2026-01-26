@@ -158,7 +158,7 @@ function buildCashflow(income: IncomeEntry[], expense: ExpenseEntry[]): Cashflow
   const months: CashflowMonth[] = [];
   let year = now.getFullYear();
   let month = now.getMonth() + 1;
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < 3; i += 1) {
     const totals = totalsForMonth(income, expense, year, month);
     months.unshift({
       month: toMonthKey(year, month),
@@ -301,8 +301,6 @@ export function createMockDashboardData(showInvestments = true): DashboardData {
     avgExpense: 1680,
     avgSavings: 770,
     months: [
-      { month: "2024-10", income: 2200, expense: 1600 },
-      { month: "2024-11", income: 2400, expense: 1620 },
       { month: "2024-12", income: 2350, expense: 1700 },
       { month: "2025-01", income: 2500, expense: 1750 },
       { month: "2025-02", income: 2600, expense: 1650 },

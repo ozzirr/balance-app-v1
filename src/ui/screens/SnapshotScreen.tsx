@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Text, TextInput } from "react-native-paper";
-import { useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import {
   createSnapshotWithLines,
@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSettings } from "@/settings/useSettings";
 import AppBackground from "@/ui/components/AppBackground";
+import { onDataReset } from "@/app/dataEvents";
 import {
   GlassCardContainer,
   PrimaryPillButton,
@@ -90,8 +91,23 @@ const formatShortDate = (isoDate: string | null): string => {
   return `${dd}-${mm}-${yy}`;
 };
 
+const lastDayIsoFromMonthKey = (key: string): string => {
+  const [yearStr, monthStr] = key.split("-");
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr);
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex)) {
+    return todayIso();
+  }
+  const date = new Date(year, monthIndex + 1, 0);
+  const yyyy = String(date.getFullYear());
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function SnapshotScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { showInvestments } = useSettings();
@@ -108,7 +124,6 @@ export default function SnapshotScreen(): JSX.Element {
   const [snapshotDate, setSnapshotDate] = useState(todayIso());
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
   const [focusedLineId, setFocusedLineId] = useState<number | null>(null);
@@ -146,12 +161,24 @@ export default function SnapshotScreen(): JSX.Element {
     loadLines();
   }, [loadLines]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
+  const refreshAll = useCallback(async () => {
     await load();
     await loadLines();
-    setRefreshing(false);
   }, [load, loadLines]);
+
+  useEffect(() => {
+    const subscription = onDataReset(() => {
+      void refreshAll();
+    });
+    return () => subscription.remove();
+  }, [refreshAll]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAll();
+      return undefined;
+    }, [refreshAll])
+  );
 
   useEffect(() => {
     if (openNew) {
@@ -208,8 +235,14 @@ export default function SnapshotScreen(): JSX.Element {
       walletId: wallet.id,
       amount: lineMap.get(wallet.id) ?? "0",
     }));
+    const currentKey = monthKeyFromDate(todayIso());
+    const selectedKey = activeMonthKey ?? monthKeyFromDate(snapshot.date) ?? currentKey;
+    const targetDate =
+      selectedKey && currentKey && selectedKey !== currentKey
+        ? lastDayIsoFromMonthKey(selectedKey)
+        : todayIso();
     setDraftLines(initialLines);
-    setSnapshotDate(todayIso());
+    setSnapshotDate(targetDate);
     setEditingSnapshotId(snapshotId);
     setShowForm(true);
   };
@@ -375,7 +408,6 @@ export default function SnapshotScreen(): JSX.Element {
         ]}
         alwaysBounceVertical
         bounces
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         {/* Header title/subtitle removed per request */}
 
@@ -610,17 +642,28 @@ export default function SnapshotScreen(): JSX.Element {
                     : line.wallet_name ?? t("wallets.snapshot.unknown");
                 const wallet = walletById.get(line.wallet_id);
                 const currencySuffix = wallet ? currencySymbol(wallet.currency) : "";
+                const walletIcon = wallet?.type === "INVEST" ? "chart-line" : "wallet-outline";
                 return (
                   <Pressable
                     key={line.id}
                     style={styles.accountRow}
                     hitSlop={10}
                     onPress={() => {
-                      // TODO: navigate to account detail if available
+                      navigation.navigate("Wallet", { walletId: line.wallet_id });
                     }}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: tokens.colors.text, fontWeight: "700" }}>{walletLabel}</Text>
+                    <View
+                      style={[
+                        styles.accountIconBadge,
+                        { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                      ]}
+                    >
+                      <MaterialCommunityIcons name={walletIcon} size={16} color={tokens.colors.muted} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={{ color: tokens.colors.text, fontWeight: "700" }} numberOfLines={1} ellipsizeMode="tail">
+                        {walletLabel}
+                      </Text>
                     </View>
                     <Text style={{ color: tokens.colors.text, fontWeight: "700" }}>
                       {formatAmount(line.amount)}
@@ -758,6 +801,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingVertical: 10,
+  },
+  accountIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
   },
   kpiRow: {
     flexDirection: "row",

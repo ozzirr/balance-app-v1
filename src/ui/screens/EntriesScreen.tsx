@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Switch, Text, TextInput } from "react-native-paper";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { listIncomeEntries, createIncomeEntry, updateIncomeEntry, deleteIncomeEntry } from "@/repositories/incomeEntriesRepo";
 import { listExpenseEntries, createExpenseEntry, updateExpenseEntry, deleteExpenseEntry } from "@/repositories/expenseEntriesRepo";
@@ -14,6 +14,7 @@ import AppBackground from "@/ui/components/AppBackground";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { onDataReset } from "@/app/dataEvents";
 import {
   DatePill,
   FrequencyPillGroup,
@@ -77,7 +78,6 @@ export default function EntriesScreen(): JSX.Element {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [showNewEntry, setShowNewEntry] = useState(routeParams.formMode === "edit");
 
   const load = useCallback(async () => {
@@ -95,11 +95,23 @@ export default function EntriesScreen(): JSX.Element {
     load();
   }, [load]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
+  const refreshAll = useCallback(async () => {
     await load();
-    setRefreshing(false);
   }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAll();
+      return undefined;
+    }, [refreshAll])
+  );
+
+  useEffect(() => {
+    const subscription = onDataReset(() => {
+      void refreshAll();
+    });
+    return () => subscription.remove();
+  }, [refreshAll]);
 
   useEffect(() => {
     if (routeParams.entryType) {
@@ -322,7 +334,6 @@ export default function EntriesScreen(): JSX.Element {
           styles.container,
           { gap: tokens.spacing.lg, paddingBottom: 140 + insets.bottom, paddingTop: headerHeight + 12 },
         ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <GlassCardContainer contentStyle={{ gap: tokens.spacing.md }}>
           <SegmentedControlPill
@@ -335,7 +346,7 @@ export default function EntriesScreen(): JSX.Element {
           />
 
           <PrimaryPillButton
-            label={t("entries.actions.toggleForm")}
+            label={showNewEntry ? t("common.cancel") : t("entries.actions.toggleForm")}
             onPress={() => {
               toggleNewEntryVisibility();
               setTimeout(scrollToForm, 80);

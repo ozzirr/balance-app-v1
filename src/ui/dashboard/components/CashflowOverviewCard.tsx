@@ -31,7 +31,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
   const expenseData = cashflow.months.map((month) => ({ x: formatMonthLabel(month.month), y: month.expense }));
   const savingsColor = cashflow.avgSavings >= 0 ? tokens.colors.green : tokens.colors.red;
   const visibleWidth = Math.max(width - 64, 0);
-  const chartWidth = Math.max(visibleWidth, cashflow.months.length * 70);
+  const chartWidth = Math.max(visibleWidth, cashflow.months.length * 56);
   const chartOffset = Math.max(chartWidth - visibleWidth, 0);
   const tooltipFlyout = { fill: tokens.colors.surface2, stroke: tokens.colors.border };
   const tooltipText = { fill: tokens.colors.text, fontSize: 11 };

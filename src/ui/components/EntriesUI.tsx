@@ -134,16 +134,18 @@ export function SmallOutlinePillButton({
   color: string;
   icon?: React.ReactNode;
 }): JSX.Element {
+  const iconOnly = Boolean(icon) && !label;
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.smallOutline,
+        iconOnly && styles.smallOutlineIconOnly,
         { borderColor: color, opacity: pressed ? 0.85 : 1 },
       ]}
     >
       {icon ? <View style={styles.smallOutlineIcon}>{icon}</View> : null}
-      <Text style={[styles.smallOutlineText, { color }]}>{label}</Text>
+      {label ? <Text style={[styles.smallOutlineText, { color }]}>{label}</Text> : null}
     </Pressable>
   );
 }
@@ -238,6 +240,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 6,
     justifyContent: "center",
+  },
+  smallOutlineIconOnly: {
+    width: 38,
+    height: 38,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    minWidth: 0,
   },
   smallOutlineIcon: {
     alignItems: "center",

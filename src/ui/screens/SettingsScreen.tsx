@@ -1,6 +1,6 @@
 /// <reference types="react" />
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { Button, SegmentedButtons, Switch, Text, TextInput } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
@@ -33,7 +33,7 @@ import {
 import { isBiometryAvailable } from "@/security/securityBiometry";
 import { handleSecurityToggle as handleSecurityToggleFlow } from "@/security/securityFlowsEnableOnly";
 import { openSetOrChangePinFlow } from "@/security/securityFlowsPinOnly";
-import { useNavigation, type NavigationProp, type ParamListBase } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { disableSecurityFlow } from "@/security/securityFlowsDisableOnly";
 import { handleBiometryToggle as handleBiometryToggleFlow } from "@/security/securityFlowsBiometryOnly";
 import type { SecurityModalStackParamList } from "@/security/securityFlowsTypes";
@@ -73,7 +73,6 @@ export default function SettingsScreen(): JSX.Element {
     [navigation]
   );
   const { mode, setMode } = useContext(ThemeContext);
-  const [refreshing, setRefreshing] = useState(false);
   const { requestReplay } = useOnboardingFlow();
   const { t, i18n } = useTranslation();
   const { showInvestments, setShowInvestments } = useSettings();
@@ -326,11 +325,13 @@ export default function SettingsScreen(): JSX.Element {
     );
   }, [securityModalNavigation]);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+      void refreshSecurityState();
+      return undefined;
+    }, [load, refreshSecurityState])
+  );
 
   const inputProps = {
     mode: "outlined" as const,
@@ -347,7 +348,6 @@ export default function SettingsScreen(): JSX.Element {
           styles.container,
           { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
         ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <PremiumCard>
           <SectionHeader title={t("settings.profile.title")} />

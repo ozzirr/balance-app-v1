@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Snackbar, Text, TextInput, List } from "react-native-paper";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
@@ -17,11 +17,13 @@ import { getPreference } from "@/repositories/preferencesRepo";
 import type { Wallet, Currency, ExpenseCategory } from "@/repositories/types";
 import { APP_VARIANT, LIMITS } from "@/config/entitlements";
 import { openProStoreLink } from "@/config/storeLinks";
+import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
 import LimitReachedModal from "@/ui/components/LimitReachedModal";
 import AppBackground from "@/ui/components/AppBackground";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { onDataReset } from "@/app/dataEvents";
 import {
   GlassCardContainer,
   PrimaryPillButton,
@@ -33,6 +35,10 @@ import {
 type CategoryEdit = {
   name: string;
   color: string;
+};
+
+type WalletRouteParams = {
+  walletId?: number;
 };
 
 const presetColors = [
@@ -109,6 +115,10 @@ const AccordionItem = ({ title, subtitle, icon, expanded, onToggle, children }: 
 
 export default function WalletScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const route = useRoute();
+  const routeParams = route.params as WalletRouteParams | undefined;
+  const targetWalletId = routeParams?.walletId;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -132,7 +142,6 @@ export default function WalletScreen(): JSX.Element {
     INVEST: false,
   });
   const [expandedWalletId, setExpandedWalletId] = useState<number | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [storeErrorVisible, setStoreErrorVisible] = useState(false);
   useEffect(() => {
@@ -141,6 +150,15 @@ export default function WalletScreen(): JSX.Element {
       setShowAddWallet((prev) => ({ ...prev, INVEST: false }));
     }
   }, [showInvestments]);
+
+  useEffect(() => {
+    if (!targetWalletId) return;
+    const target = wallets.find((wallet) => wallet.id === targetWalletId);
+    if (!target) return;
+    setTab(target.type);
+    setExpandedWalletId(target.id);
+    navigation.setParams({ walletId: undefined });
+  }, [navigation, targetWalletId, wallets]);
 
   const load = useCallback(async () => {
     const [walletList, expenseCats] = await Promise.all([listWallets(), listExpenseCategories()]);
@@ -174,11 +192,23 @@ export default function WalletScreen(): JSX.Element {
     load();
   }, [load]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
+  const refreshAll = useCallback(async () => {
     await load();
-    setRefreshing(false);
   }, [load]);
+
+  useEffect(() => {
+    const subscription = onDataReset(() => {
+      void refreshAll();
+    });
+    return () => subscription.remove();
+  }, [refreshAll]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAll();
+      return undefined;
+    }, [refreshAll])
+  );
 
   const addCategory = async () => {
     if (!newCategory.trim()) return;
@@ -280,7 +310,6 @@ export default function WalletScreen(): JSX.Element {
         ]}
         alwaysBounceVertical
         bounces
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tokens.colors.accent} />}
       >
         <GlassCardContainer>
           <View style={styles.sectionContent}>
