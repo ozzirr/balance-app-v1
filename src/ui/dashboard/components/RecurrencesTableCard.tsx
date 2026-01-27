@@ -1,14 +1,15 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
-import Chip from "@/ui/dashboard/components/Chip";
-import PressScale from "@/ui/dashboard/components/PressScale";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { formatEUR, formatShortDate } from "@/ui/dashboard/formatters";
 import type { RecurrenceRow } from "@/ui/dashboard/types";
+import EntriesTable, { EntriesTableRow } from "@/ui/dashboard/components/EntriesTable";
 import { useTranslation } from "react-i18next";
+import { SmallOutlinePillButton } from "@/ui/components/EntriesUI";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 type Props = {
   rows: RecurrenceRow[];
@@ -36,102 +37,41 @@ export default function RecurrencesTableCard({
 }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
+  const tableRows: EntriesTableRow<RecurrenceRow>[] = rows.map((item) => ({
+    id: item.id,
+    dateLabel: formatShortDate(item.date),
+    amountLabel: formatEUR(item.amount),
+    amountTone: item.type,
+    name: item.description,
+    subtitle: item.frequencyKey ? t(item.frequencyKey) : undefined,
+    categoryLabel: item.category,
+    categoryColor:
+      item.type === "income"
+        ? tokens.colors.green
+        : item.categoryColor ?? categoryPalette[hashLabel(item.category) % categoryPalette.length],
+    meta: item,
+  }));
+
   const content = (
     <>
       {!hideHeader && <SectionHeader title={t("dashboard.recurrences.header")} />}
       {rows.length === 0 ? (
         <Text style={[styles.empty, { color: tokens.colors.muted }]}>{t("dashboard.recurrences.empty")}</Text>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.table}>
-          <View>
-            <View style={styles.headerRow}>
-              <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {t("dashboard.recurrences.table.date")}
-              </Text>
-              <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {t("dashboard.recurrences.table.amount")}
-              </Text>
-              <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {t("dashboard.recurrences.table.name")}
-              </Text>
-              <Text
-                style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {t("dashboard.recurrences.table.category")}
-              </Text>
-            </View>
-            {rows.map((item, index) => {
-              const amountColor = item.type === "income" ? tokens.colors.green : tokens.colors.red;
-              const categoryColor =
-                item.type === "income"
-                  ? tokens.colors.green
-                  : item.categoryColor ?? categoryPalette[hashLabel(item.category) % categoryPalette.length];
-              return (
-                <React.Fragment key={item.id}>
-                  <View style={styles.row}>
-                    <Text style={[styles.cell, { color: tokens.colors.text }, styles.cellDate]}>
-                      {formatShortDate(item.date)}
-                    </Text>
-                    <Text style={[styles.cell, styles.cellAmount, { color: amountColor }]}>
-                      {formatEUR(item.amount)}
-                    </Text>
-                    <View style={styles.descriptionContainer}>
-                      <Text
-                        style={[styles.cell, { color: tokens.colors.text }, styles.cellDesc]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {item.description}
-                      </Text>
-                      {item.frequencyKey ? (
-                        <Text
-                          style={[styles.frequency, { color: tokens.colors.muted }]}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {t(item.frequencyKey)}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <View style={[styles.cell, styles.cellCategory]}>
-                      <Chip label={item.category} color={categoryColor} />
-                    </View>
-                    <View style={[styles.cell, styles.cellAction]}>
-                      <PressScale
-                        onPress={() => onPressRow?.(item)}
-                        style={[
-                          styles.actionButton,
-                          { borderColor: tokens.colors.accent, backgroundColor: `${tokens.colors.accent}14` },
-                        ]}
-                      >
-                        <Text style={[styles.actionText, { color: tokens.colors.accent }]}>
-                          {t("dashboard.recurrences.action")}
-                        </Text>
-                      </PressScale>
-                    </View>
-                  </View>
-                  {index < rows.length - 1 ? (
-                    <View style={[styles.separator, { backgroundColor: tokens.colors.border }]} />
-                  ) : null}
-                </React.Fragment>
-              );
-            })}
-          </View>
-        </ScrollView>
+        <EntriesTable
+          rows={tableRows}
+          emptyLabel={t("dashboard.recurrences.empty")}
+          renderAction={(row) =>
+            row.meta ? (
+              <SmallOutlinePillButton
+                label=""
+                onPress={() => onPressRow?.(row.meta)}
+                color={tokens.colors.accent}
+                icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={tokens.colors.accent} />}
+              />
+            ) : null
+          }
+        />
       )}
     </>
   );
@@ -144,94 +84,5 @@ export default function RecurrencesTableCard({
 }
 
 const styles = StyleSheet.create({
-  table: {
-    gap: 12,
-    paddingBottom: 2,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingBottom: 8,
-    flexWrap: "nowrap",
-    gap: 12,
-  },
-  headerCell: {
-    fontSize: 12,
-    fontWeight: "600",
-    minWidth: 0,
-    textAlign: "left",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    flexWrap: "nowrap",
-    width: 480,
-    gap: 12,
-  },
-  cell: {
-    fontSize: 12,
-    minWidth: 0,
-    textAlign: "left",
-  },
-  cellCenter: {
-    textAlign: "center",
-  },
-  cellDate: {
-    width: 70,
-    flexShrink: 0,
-    marginRight: 6,
-  },
-  cellCategory: {
-    width: 120,
-    flexShrink: 1,
-    marginRight: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    flexWrap: "wrap",
-  },
-  cellAction: {
-    width: 80,
-    flexShrink: 0,
-    alignItems: "center",
-  },
-  cellDesc: {
-    width: 100,
-    flexShrink: 1,
-    marginRight: 4,
-  },
-  cellAmount: {
-    width: 58,
-    textAlign: "center",
-    fontWeight: "700",
-    flexShrink: 0,
-    marginRight: 4,
-  },
-  headerAmount: {
-    textAlign: "left",
-  },
-  separator: {
-    height: 1,
-  },
-  actionButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: "center",
-  },
-  actionText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  descriptionContainer: {
-    flexDirection: "column",
-    flex: 1,
-  },
-  frequency: {
-    fontSize: 10,
-    marginTop: 2,
-  },
   empty: {},
 });

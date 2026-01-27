@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSettings } from "@/settings/useSettings";
 import AppBackground from "@/ui/components/AppBackground";
+import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
 import { onDataReset } from "@/app/dataEvents";
 import {
   GlassCardContainer,
@@ -121,6 +122,7 @@ const lastDayIsoFromMonthKey = (key: string): string => {
 
 export default function SnapshotScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
+  const baseInputProps = createStandardTextInputProps(tokens);
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -564,11 +566,8 @@ export default function SnapshotScreen(): JSX.Element {
                 label={t("snapshot.form.dateLabel")}
                 value={snapshotDate}
                 editable={false}
-                mode="outlined"
-                outlineColor={tokens.colors.border}
-                activeOutlineColor={tokens.colors.accent}
-                textColor={tokens.colors.text}
-                style={{ backgroundColor: tokens.colors.surface2 }}
+                {...baseInputProps}
+                style={[baseInputProps.style, { backgroundColor: tokens.colors.surface2 }]}
               />
               {draftLines.map((line, index) => {
                 const wallet = orderedWallets.find((item) => item.id === line.walletId);
@@ -599,11 +598,8 @@ export default function SnapshotScreen(): JSX.Element {
                         }}
                         keyboardType="decimal-pad"
                         value={line.amount}
-                        mode="outlined"
-                        outlineColor={tokens.colors.border}
-                        activeOutlineColor={tokens.colors.accent}
-                        textColor={tokens.colors.text}
-                        style={{ backgroundColor: tokens.colors.surface, flex: 1 }}
+                        {...baseInputProps}
+                        style={[baseInputProps.style, { backgroundColor: tokens.colors.surface, flex: 1 }]}
                         onChangeText={onAmountChange}
                         onFocus={() => setFocusedLineId(line.walletId)}
                         onBlur={() => setFocusedLineId((prev) => (prev === line.walletId ? null : prev))}

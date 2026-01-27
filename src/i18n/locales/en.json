@@ -152,7 +152,7 @@
       "uncategorized": "Uncategorized"
     },
     "recurrences": {
-      "header": "Upcoming movements",
+      "header": "Upcoming scheduled movements",
       "empty": "No scheduled movements.",
       "table": {
         "date": "Date",
@@ -350,7 +350,7 @@
     },
     "detail": {
       "title": "Details",
-      "emptyLines": "No lines."
+      "emptyLines": "Add your first snapshot to get started."
     },
     "delete": {
       "title": "Delete snapshot?",

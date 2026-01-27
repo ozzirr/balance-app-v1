@@ -32,6 +32,7 @@ import {
   SmallOutlinePillButton,
   SegmentedControlPill,
 } from "@/ui/components/EntriesUI";
+import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
 
 type CategoryEdit = {
   name: string;
@@ -353,13 +354,7 @@ export default function WalletScreen(): JSX.Element {
     }
   }, []);
 
-  const inputProps = {
-    mode: "outlined" as const,
-    outlineColor: tokens.colors.border,
-    activeOutlineColor: tokens.colors.accent,
-    textColor: tokens.colors.text,
-    style: { backgroundColor: tokens.colors.glassBg },
-  };
+  const inputProps = createStandardTextInputProps(tokens);
 
   return (
     <AppBackground>

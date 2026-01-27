@@ -152,7 +152,7 @@
       "uncategorized": "Senza categoria"
     },
     "recurrences": {
-      "header": "Prossimi movimenti",
+      "header": "Prossimi movimenti programmati",
       "empty": "Nessun movimento programmato.",
       "table": {
         "date": "Data",
@@ -350,7 +350,7 @@
     },
     "detail": {
       "title": "Dettaglio",
-      "emptyLines": "Nessuna linea."
+      "emptyLines": "Inserisci il tuo primo snapshot per iniziare."
     },
     "delete": {
       "title": "Eliminare snapshot?",

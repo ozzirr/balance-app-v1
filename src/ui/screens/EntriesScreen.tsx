@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Button, Switch, Text, TextInput } from "react-native-paper";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -8,15 +8,15 @@ import { listExpenseEntries, createExpenseEntry, updateExpenseEntry, deleteExpen
 import { listExpenseCategories } from "@/repositories/expenseCategoriesRepo";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
 import { isIsoDate, todayIso } from "@/utils/dates";
-import { formatEUR } from "@/ui/dashboard/formatters";
+import { formatEUR, formatShortDate } from "@/ui/dashboard/formatters";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import AppBackground from "@/ui/components/AppBackground";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { onDataReset } from "@/app/dataEvents";
+import EntriesTable, { EntriesTableRow } from "@/ui/dashboard/components/EntriesTable";
 import {
-  DatePill,
   FrequencyPillGroup,
   GlassCardContainer,
   PrimaryPillButton,
@@ -269,6 +269,7 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const entries = entryType === "income" ? incomeEntries : expenseEntries;
+  const { width } = useWindowDimensions();
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
   const categoryById = useMemo(() => {
@@ -313,18 +314,57 @@ export default function EntriesScreen(): JSX.Element {
 
   const entryAccent = entryType === "income" ? tokens.colors.income : tokens.colors.expense;
 
-  const scrollToForm = () => {
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
-  };
+  const tableRows = useMemo<EntriesTableRow<(IncomeEntry | ExpenseEntry) | null>[]>(
+    () =>
+      sortedEntries.map((item) => {
+        const amountAbs = Math.abs(item.amount);
+        const amountText = `${entryType === "income" ? "+" : "-"} ${formatEUR(amountAbs)}`;
+        const dateLabel = formatShortDate(item.start_date);
+        const category =
+          "expense_category_id" in item ? categoryById.get(item.expense_category_id) : null;
+        const categoryLabel =
+          entryType === "income"
+            ? t("entries.list.incomeLabel")
+            : category?.name ?? t("entries.list.categoryFallback");
+        const categoryColor =
+          entryType === "income" ? tokens.colors.income : category?.color ?? tokens.colors.expense;
+        const frequencyKey =
+          item.recurrence_frequency && typeof item.recurrence_frequency === "string"
+            ? (`entries.form.frequency.${item.recurrence_frequency.toLowerCase()}` as const)
+            : null;
 
-  const formatDateParts = (iso: string) => {
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return { day: "--", month: "" };
-    return {
-      day: String(date.getDate()).padStart(2, "0"),
-      month: date.toLocaleString("default", { month: "short" }).replace(".", ""),
-    };
-  };
+        return {
+          id: item.id,
+          dateLabel,
+          amountLabel: amountText,
+          amountTone: entryType,
+          amountColor: entryType === "income" ? tokens.colors.income : tokens.colors.expense,
+          name: item.name,
+          subtitle: frequencyKey ? t(frequencyKey) : undefined,
+          categoryLabel,
+          categoryColor,
+          meta: item,
+        };
+      }),
+    [sortedEntries, entryType, categoryById, tokens.colors.income, tokens.colors.expense, t]
+  );
+
+  const scrollToForm = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
+  const handleRowAction = useCallback(
+    (entry: IncomeEntry | ExpenseEntry) => {
+      (navigation as any).setParams({
+        formMode: "edit",
+        entryId: entry.id,
+        entryType,
+      });
+      setShowNewEntry(true);
+      scrollToForm();
+    },
+    [entryType, navigation, scrollToForm]
+  );
 
   return (
     <AppBackground>
@@ -488,7 +528,7 @@ export default function EntriesScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        <GlassCardContainer contentStyle={{ gap: 8, paddingBottom: 6 }}>
+        <GlassCardContainer contentStyle={styles.entriesTableCard}>
           {entryType === "expense" && activeCategories.length > 0 ? (
             <View style={styles.filterSection}>
               <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>
@@ -534,65 +574,21 @@ export default function EntriesScreen(): JSX.Element {
               </ScrollView>
             </View>
           ) : null}
-          <FlatList
-            data={sortedEntries}
-            keyExtractor={(item) => `${entryType}-${item.id}`}
-            scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
-            ListEmptyComponent={
-              <Text style={{ color: tokens.colors.muted, paddingVertical: 12 }}>{t("entries.empty.noEntries")}</Text>
+          <EntriesTable
+            rows={tableRows}
+            minWidth={entryType === "income" ? Math.max(420, width - 48) : Math.max(520, width - 48)}
+            emptyLabel={t("entries.empty.noEntries")}
+            showCategory={entryType !== "income"}
+            renderAction={(row) =>
+              row.meta ? (
+                <SmallOutlinePillButton
+                  label=""
+                  onPress={() => handleRowAction(row.meta)}
+                  color={tokens.colors.accent}
+                  icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={tokens.colors.accent} />}
+                />
+              ) : null
             }
-            renderItem={({ item }) => {
-              const { day, month } = formatDateParts(item.start_date);
-              const amountAbs = Math.abs(item.amount);
-              const amountText = `${entryType === "income" ? "+" : "-"} ${formatEUR(amountAbs)}`;
-              const amountColor = entryType === "income" ? tokens.colors.income : tokens.colors.expense;
-              const category =
-                "expense_category_id" in item ? categoryById.get(item.expense_category_id) : null;
-
-              return (
-                <GlassCardContainer style={styles.listRowCard} contentStyle={styles.listRow}>
-                  <DatePill day={day} month={month} />
-                  <View style={styles.listContent}>
-                    <Text
-                      style={[styles.entryName, { color: tokens.colors.text }]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {item.name}
-                    </Text>
-                    {category ? (
-                      <Text
-                        style={[styles.entryCategory, { color: tokens.colors.muted }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {category.name}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View style={styles.listRight}>
-                    <Text style={[styles.entryAmount, { color: amountColor }]} numberOfLines={1}>
-                      {amountText}
-                    </Text>
-                    <SmallOutlinePillButton
-                      label=""
-                      onPress={() => {
-                        (navigation as any).setParams({
-                          formMode: "edit",
-                          entryId: item.id,
-                          entryType,
-                        });
-                        setShowNewEntry(true);
-                        scrollToForm();
-                      }}
-                      color={tokens.colors.accent}
-                      icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={tokens.colors.accent} />}
-                    />
-                  </View>
-                </GlassCardContainer>
-              );
-            }}
           />
         </GlassCardContainer>
       </ScrollView>
@@ -650,47 +646,10 @@ const styles = StyleSheet.create({
   filterSection: {
     gap: 8,
     paddingBottom: 4,
+    marginBottom: 12,
   },
-  listRowCard: {
-    width: "100%",
-    alignSelf: "stretch",
-  },
-  listRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  listContent: {
-    flex: 1,
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: "auto",
-    gap: 4,
-    minWidth: 0,
-    marginLeft: 2,
-    marginRight: 6,
-  },
-  listRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flexShrink: 0,
-  },
-  entryName: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  entryCategory: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  entryAmount: {
-    fontSize: 15,
-    fontWeight: "800",
-    minWidth: 74,
-    textAlign: "right",
+  entriesTableCard: {
+    gap: 16,
+    paddingBottom: 6,
   },
 });

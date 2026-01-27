@@ -1,11 +1,12 @@
-import React from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listWallets } from "@/repositories/walletsRepo";
+import LimitReachedModal from "@/ui/components/LimitReachedModal";
 import { useTranslation } from "react-i18next";
 
 const ICONS: Record<string, string> = {
@@ -21,6 +22,19 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const [blockedModalVisible, setBlockedModalVisible] = useState(false);
+  const blockedTitle = t("navigation.blockedNoWalletTitle", { defaultValue: "Nessun wallet" });
+  const blockedBody = t("navigation.blockedNoWalletBody", {
+    defaultValue: "Crea prima il tuo primo wallet per iniziare.",
+  });
+  const blockedCta = t("navigation.blockedNoWalletCta", { defaultValue: "Vai ai wallet" });
+  const handleCloseBlockedModal = useCallback(() => {
+    setBlockedModalVisible(false);
+  }, []);
+  const handleUpgradeBlockedModal = useCallback(() => {
+    setBlockedModalVisible(false);
+    navigation.navigate("Wallet");
+  }, [navigation]);
   const isDark = theme.dark;
   const blurTint = isDark ? "dark" : "light";
   const blurIntensity = 35;
@@ -31,91 +45,90 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const tabRoutes = state.routes.filter((route) => route.name !== "Impostazioni");
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
-      <BlurView
-        intensity={blurIntensity}
-        tint={blurTint}
-        style={[
-          styles.blur,
-          {
-            backgroundColor: barBg,
-            borderColor,
-            paddingBottom: insets.bottom + 8,
-            minHeight: BAR_HEIGHT + insets.bottom,
-          },
-        ]}
-      >
-        <View style={styles.inner}>
-          {tabRoutes.map((route) => {
-            const { options } = descriptors[route.key];
-            const label = options.tabBarLabel ?? options.title ?? route.name;
-            const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
-            const onPress = async () => {
-              const event = navigation.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (event.defaultPrevented) return;
+    <>
+      <View style={styles.container} pointerEvents="box-none">
+        <BlurView
+          intensity={blurIntensity}
+          tint={blurTint}
+          style={[
+            styles.blur,
+            {
+              backgroundColor: barBg,
+              borderColor,
+              paddingBottom: insets.bottom + 8,
+              minHeight: BAR_HEIGHT + insets.bottom,
+            },
+          ]}
+        >
+          <View style={styles.inner}>
+            {tabRoutes.map((route) => {
+              const { options } = descriptors[route.key];
+              const label = options.tabBarLabel ?? options.title ?? route.name;
+              const isFocused = state.index === state.routes.findIndex((r) => r.key === route.key);
+              const onPress = async () => {
+                const event = navigation.emit({
+                  type: "tabPress",
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (event.defaultPrevented) return;
 
-              if (!isFocused && (route.name === "Snapshot" || route.name === "Balance")) {
-                try {
-                  const wallets = await listWallets();
-                  if (wallets.length === 0) {
-                    Alert.alert(
-                      t("navigation.blockedNoWalletTitle", { defaultValue: "Nessun wallet" }),
-                      t("navigation.blockedNoWalletBody", {
-                        defaultValue: "Crea prima il tuo primo wallet per iniziare.",
-                      }),
-                      [
-                        { text: t("common.cancel", { defaultValue: "Annulla" }), style: "cancel" },
-                        {
-                          text: t("navigation.blockedNoWalletCta", { defaultValue: "Vai ai wallet" }),
-                          onPress: () => navigation.navigate("Wallet"),
-                        },
-                      ]
-                    );
-                    return;
+                if (!isFocused && (route.name === "Snapshot" || route.name === "Balance")) {
+                  try {
+                    const wallets = await listWallets();
+                    if (wallets.length === 0) {
+                      setBlockedModalVisible(true);
+                      return;
+                    }
+                  } catch {
+                    // If check fails, allow navigation to avoid blocking the user.
                   }
-                } catch {
-                  // If check fails, allow navigation to avoid blocking the user.
                 }
-              }
 
-              if (!isFocused) {
-                navigation.navigate(route.name);
-              }
-            };
-            const icon = ICONS[route.name] ?? "circle-outline";
+                if (!isFocused) {
+                  navigation.navigate(route.name);
+                }
+              };
+              const icon = ICONS[route.name] ?? "circle-outline";
 
-            return (
-              <Pressable
-                key={route.key}
-                onPress={onPress}
-                style={styles.tabItem}
-              >
-                <MaterialCommunityIcons
-                  name={icon}
-                  size={isFocused ? 28 : 24}
-                  color={isFocused ? theme.colors.primary : inactiveColor}
-                />
-                <Text
-                  variant="labelSmall"
-                  style={[
-                    styles.label,
-                    { color: isFocused ? theme.colors.primary : inactiveColor },
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
+              return (
+                <Pressable
+                  key={route.key}
+                  onPress={onPress}
+                  style={styles.tabItem}
                 >
-                  {String(label)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </BlurView>
-    </View>
+                  <MaterialCommunityIcons
+                    name={icon}
+                    size={isFocused ? 28 : 24}
+                    color={isFocused ? theme.colors.primary : inactiveColor}
+                  />
+                  <Text
+                    variant="labelSmall"
+                    style={[
+                      styles.label,
+                      { color: isFocused ? theme.colors.primary : inactiveColor },
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {String(label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </BlurView>
+      </View>
+      <LimitReachedModal
+        visible={blockedModalVisible}
+        onClose={handleCloseBlockedModal}
+        onUpgrade={handleUpgradeBlockedModal}
+        title={blockedTitle}
+        subtitle={blockedBody}
+        ctaLabel={blockedCta}
+        benefits={[]}
+      />
+    </>
   );
 }
 

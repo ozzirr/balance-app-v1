@@ -44,6 +44,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
   const baseChartWidth = Math.max(cashflow.months.length * perMonthWidth, 230);
   const chartWidth = showAllMonthsInline ? baseChartWidth : Math.max(visibleWidth, baseChartWidth);
   const chartOffset = showAllMonthsInline ? 0 : Math.max(chartWidth - visibleWidth, 0);
+  const chartPaddingRight = showAllMonthsInline ? 80 : 70;
   const tooltipFlyout = { fill: tokens.colors.surface2, stroke: tokens.colors.border };
   const tooltipText = { fill: tokens.colors.text, fontSize: 11 };
   const tooltipSeriesLabel = (series: "income" | "expense" | undefined) => {
@@ -88,7 +89,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
                 width={chartWidth}
                 height={200}
                 domainPadding={{ x: 6, y: 14 }}
-                padding={{ left: 40, right: 42, top: 10, bottom: 30 }}
+                padding={{ left: 40, right: chartPaddingRight, top: 10, bottom: 30 }}
                 containerComponent={
                   <VictoryVoronoiContainer
                     labels={({ datum }) => {
@@ -120,7 +121,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
                   style={{
                     axis: { stroke: "transparent" },
                     grid: { stroke: tokens.colors.border },
-                    tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 6 },
+                    tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 6, dx: 8 },
                   }}
                 />
                 <VictoryGroup offset={6}>

@@ -13,6 +13,7 @@ type Props = {
   title?: string;
   subtitle?: string;
   benefits?: string[];
+  ctaLabel?: string;
 };
 
 const LinearGradient: React.ComponentType<any> | undefined = undefined;
@@ -24,6 +25,7 @@ export default function LimitReachedModal({
   title,
   subtitle,
   benefits,
+  ctaLabel,
 }: Props): JSX.Element {
   const { tokens, shadows } = useDashboardTheme();
   const { t } = useTranslation();
@@ -64,13 +66,13 @@ export default function LimitReachedModal({
   }, [opacity, scale, visible]);
 
   const renderPrimaryCta = () => {
-    const label = t("wallets.actions.limitUpgradeCta");
+    const resolvedCtaLabel = ctaLabel ?? t("wallets.actions.limitUpgradeCta");
     if (LinearGradient) {
       const Gradient = LinearGradient;
       return (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={label}
+          accessibilityLabel={resolvedCtaLabel}
           onPress={onUpgrade}
           style={{ width: "100%" }}
         >
@@ -80,7 +82,7 @@ export default function LimitReachedModal({
             end={{ x: 1, y: 1 }}
             style={styles.gradientButton}
           >
-            <Text style={[styles.ctaText, { color: "#FFFFFF" }]}>{label}</Text>
+            <Text style={[styles.ctaText, { color: "#FFFFFF" }]}>{resolvedCtaLabel}</Text>
           </Gradient>
         </Pressable>
       );
@@ -95,7 +97,7 @@ export default function LimitReachedModal({
         style={styles.fallbackButton}
         contentStyle={{ paddingVertical: 10 }}
       >
-        {label}
+        {resolvedCtaLabel}
       </Button>
     );
   };
