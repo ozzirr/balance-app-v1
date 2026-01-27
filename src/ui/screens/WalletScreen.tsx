@@ -41,6 +41,7 @@ type CategoryEdit = {
 type WalletRouteParams = {
   walletId?: number;
   startSetup?: boolean;
+  startCategory?: boolean;
 };
 
 const presetColors = [
@@ -122,6 +123,7 @@ export default function WalletScreen(): JSX.Element {
   const routeParams = route.params as WalletRouteParams | undefined;
   const targetWalletId = routeParams?.walletId;
   const startSetup = routeParams?.startSetup;
+  const startCategory = routeParams?.startCategory;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -148,6 +150,8 @@ export default function WalletScreen(): JSX.Element {
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [storeErrorVisible, setStoreErrorVisible] = useState(false);
   const addWalletPulse = useRef(new Animated.Value(1)).current;
+  const scrollRef = useRef<ScrollView | null>(null);
+  const categoriesOffsetY = useRef(0);
   useEffect(() => {
     if (!showInvestments) {
       setTab("LIQUIDITY");
@@ -171,6 +175,16 @@ export default function WalletScreen(): JSX.Element {
     setTab("LIQUIDITY");
     setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: true }));
   }, [startSetup, wallets.length, showAddWallet.LIQUIDITY]);
+
+  useEffect(() => {
+    if (!startCategory) return;
+    if (showAddCategory) return;
+    setShowAddCategory(true);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(categoriesOffsetY.current - 16, 0), animated: true });
+    });
+    navigation.setParams({ startCategory: undefined });
+  }, [navigation, showAddCategory, startCategory]);
 
   const load = useCallback(async () => {
     const [walletList, expenseCats] = await Promise.all([listWallets(), listExpenseCategories()]);
@@ -350,6 +364,7 @@ export default function WalletScreen(): JSX.Element {
   return (
     <AppBackground>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.container,
           { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
@@ -611,133 +626,139 @@ export default function WalletScreen(): JSX.Element {
           </View>
         </GlassCardContainer>
 
-        <GlassCardContainer contentStyle={{ gap: 12, padding: 12 }}>
-          <SectionHeader title={t("wallets.list.categoriesTitle")} />
-          {!showAddCategory && (
-            <PrimaryPillButton
-              label={t("wallets.list.addCategory", { defaultValue: t("common.add") })}
-              onPress={() => setShowAddCategory(true)}
-              color={tokens.colors.accent}
-            />
-          )}
-          {showAddCategory && (
+        <View
+          onLayout={(event) => {
+            categoriesOffsetY.current = event.nativeEvent.layout.y;
+          }}
+        >
+          <GlassCardContainer contentStyle={{ gap: 12, padding: 12 }}>
+            <SectionHeader title={t("wallets.list.categoriesTitle")} />
+            {!showAddCategory && (
+              <PrimaryPillButton
+                label={t("wallets.list.addCategory", { defaultValue: t("common.add") })}
+                onPress={() => setShowAddCategory(true)}
+                color={tokens.colors.accent}
+              />
+            )}
+            {showAddCategory && (
+              <View style={{ gap: 10 }}>
+                <View style={[styles.colorLine, { paddingVertical: 2 }]}>
+                  <TextInput
+                    label={t("wallets.list.newCategoryLabel")}
+                    value={newCategory}
+                    {...inputProps}
+                    style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
+                    onChangeText={setNewCategory}
+                  />
+                  <PressScale
+                    onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
+                    style={[
+                      styles.colorSwatch,
+                      { backgroundColor: newCategoryColor, borderColor: tokens.colors.glassBorder },
+                    ]}
+                  />
+                </View>
+                <View style={styles.actionsRow}>
+                  <PrimaryPillButton label={t("common.add")} onPress={addCategory} color={tokens.colors.accent} />
+                  <SmallOutlinePillButton
+                    label={t("common.cancel")}
+                    onPress={() => {
+                      setShowAddCategory(false);
+                      setNewCategory("");
+                      setNewCategoryColor(presetColors[0]);
+                    }}
+                    color={tokens.colors.text}
+                  />
+                </View>
+              </View>
+            )}
+            {categories.length === 0 ? (
+              <Text style={{ color: tokens.colors.muted }}>{t("wallets.list.noCategories")}</Text>
+            ) : null}
             <View style={{ gap: 10 }}>
-              <View style={[styles.colorLine, { paddingVertical: 2 }]}>
-                <TextInput
-                  label={t("wallets.list.newCategoryLabel")}
-                  value={newCategory}
-                  {...inputProps}
-                  style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
-                  onChangeText={setNewCategory}
-                />
-                <PressScale
-                  onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
-                  style={[
-                    styles.colorSwatch,
-                    { backgroundColor: newCategoryColor, borderColor: tokens.colors.glassBorder },
-                  ]}
-                />
-              </View>
-              <View style={styles.actionsRow}>
-                <PrimaryPillButton label={t("common.add")} onPress={addCategory} color={tokens.colors.accent} />
-                <SmallOutlinePillButton
-                  label={t("common.cancel")}
-                  onPress={() => {
-                    setShowAddCategory(false);
-                    setNewCategory("");
-                    setNewCategoryColor(presetColors[0]);
-                  }}
-                  color={tokens.colors.text}
-                />
-              </View>
-            </View>
-          )}
-          {categories.length === 0 ? (
-            <Text style={{ color: tokens.colors.muted }}>{t("wallets.list.noCategories")}</Text>
-          ) : null}
-          <View style={{ gap: 10 }}>
-            {categories.map((cat) => {
-              const isActive = cat.active === 1;
-              const subtitle = isActive
-                ? t("wallets.list.categoryActive")
-                : t("wallets.list.categoryInactive");
-              return (
-                <AccordionItem
-                  key={cat.id}
-                  title={categoryEdits[cat.id]?.name ?? cat.name}
-                  subtitle={subtitle}
-                  icon="tag"
-                  expanded={expandedCategoryId === cat.id}
-                  onToggle={() => setExpandedCategoryId((prev) => (prev === cat.id ? null : cat.id))}
-                >
-                  <View style={[styles.sectionContent, styles.accordionInner]}>
-                    <View style={[styles.colorLine, { paddingVertical: 0 }]}>
-                      <TextInput
-                        label="Nome categoria"
-                        value={categoryEdits[cat.id]?.name ?? cat.name}
-                        {...inputProps}
-                        style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
-                        onChangeText={(value) =>
-                          setCategoryEdits((prev) => ({
-                            ...prev,
-                            [cat.id]: {
-                              name: value,
-                              color: prev[cat.id]?.color ?? cat.color,
-                            },
-                          }))
-                        }
-                      />
-                      <PressScale
-                        onPress={() =>
-                          setCategoryEdits((prev) => {
-                            const current = prev[cat.id]?.color ?? cat.color;
-                            return {
+              {categories.map((cat) => {
+                const isActive = cat.active === 1;
+                const subtitle = isActive
+                  ? t("wallets.list.categoryActive")
+                  : t("wallets.list.categoryInactive");
+                return (
+                  <AccordionItem
+                    key={cat.id}
+                    title={categoryEdits[cat.id]?.name ?? cat.name}
+                    subtitle={subtitle}
+                    icon="tag"
+                    expanded={expandedCategoryId === cat.id}
+                    onToggle={() => setExpandedCategoryId((prev) => (prev === cat.id ? null : cat.id))}
+                  >
+                    <View style={[styles.sectionContent, styles.accordionInner]}>
+                      <View style={[styles.colorLine, { paddingVertical: 0 }]}>
+                        <TextInput
+                          label="Nome categoria"
+                          value={categoryEdits[cat.id]?.name ?? cat.name}
+                          {...inputProps}
+                          style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
+                          onChangeText={(value) =>
+                            setCategoryEdits((prev) => ({
                               ...prev,
                               [cat.id]: {
-                                name: prev[cat.id]?.name ?? cat.name,
-                                color: nextPresetColor(current),
+                                name: value,
+                                color: prev[cat.id]?.color ?? cat.color,
                               },
-                            };
-                          })
-                        }
-                        style={[
-                          styles.colorSwatch,
-                          {
-                            backgroundColor: categoryEdits[cat.id]?.color ?? cat.color,
-                            borderColor: tokens.colors.glassBorder,
-                          },
-                        ]}
-                      />
+                            }))
+                          }
+                        />
+                        <PressScale
+                          onPress={() =>
+                            setCategoryEdits((prev) => {
+                              const current = prev[cat.id]?.color ?? cat.color;
+                              return {
+                                ...prev,
+                                [cat.id]: {
+                                  name: prev[cat.id]?.name ?? cat.name,
+                                  color: nextPresetColor(current),
+                                },
+                              };
+                            })
+                          }
+                          style={[
+                            styles.colorSwatch,
+                            {
+                              backgroundColor: categoryEdits[cat.id]?.color ?? cat.color,
+                              borderColor: tokens.colors.glassBorder,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <View style={styles.actionsRow}>
+                        <PrimaryPillButton label={t("common.save")} onPress={async () => { await saveCategory(cat.id); }} color={tokens.colors.accent} />
+                        <SmallOutlinePillButton
+                          label={
+                            isActive
+                              ? t("wallets.list.categoryDeactivate")
+                              : t("wallets.list.categoryActivate")
+                          }
+                          onPress={async () => {
+                            await setExpenseCategoryActive(cat.id, isActive ? 0 : 1);
+                            await load();
+                          }}
+                          color={isActive ? tokens.colors.red : tokens.colors.accent}
+                        />
+                        <SmallOutlinePillButton
+                          label={t("common.delete")}
+                          onPress={async () => {
+                            await removeCategory(cat.id);
+                            setExpandedCategoryId(null);
+                          }}
+                          color={tokens.colors.red}
+                        />
+                      </View>
                     </View>
-                    <View style={styles.actionsRow}>
-                      <PrimaryPillButton label={t("common.save")} onPress={async () => { await saveCategory(cat.id); }} color={tokens.colors.accent} />
-                      <SmallOutlinePillButton
-                        label={
-                          isActive
-                            ? t("wallets.list.categoryDeactivate")
-                            : t("wallets.list.categoryActivate")
-                        }
-                        onPress={async () => {
-                          await setExpenseCategoryActive(cat.id, isActive ? 0 : 1);
-                          await load();
-                        }}
-                        color={isActive ? tokens.colors.red : tokens.colors.accent}
-                      />
-                      <SmallOutlinePillButton
-                        label={t("common.delete")}
-                        onPress={async () => {
-                          await removeCategory(cat.id);
-                          setExpandedCategoryId(null);
-                        }}
-                        color={tokens.colors.red}
-                      />
-                    </View>
-                  </View>
-                </AccordionItem>
-              );
-            })}
-          </View>
-        </GlassCardContainer>
+                  </AccordionItem>
+                );
+              })}
+            </View>
+          </GlassCardContainer>
+        </View>
 
         <LimitReachedModal
           visible={limitModalVisible}

@@ -413,7 +413,18 @@ export default function EntriesScreen(): JSX.Element {
                   <Text style={{ color: tokens.colors.muted }}>{t("entries.form.categoryTitle")}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                     {activeCategories.length === 0 ? (
-                      <Text style={{ color: tokens.colors.muted }}>{t("entries.empty.noCategoriesActive")}</Text>
+                      <Text style={{ color: tokens.colors.muted }}>
+                        {t("entries.empty.noCategoriesActivePrefix")}
+                        {" "}
+                        <Text
+                          style={[styles.categoryLink, { color: tokens.colors.accent }]}
+                          onPress={() => {
+                            navigation.navigate("Wallet", { startCategory: true });
+                          }}
+                        >
+                          {t("entries.empty.noCategoriesActiveLink")}
+                        </Text>
+                      </Text>
                     ) : null}
                     {activeCategories.map((cat) => {
                       const selected = form.categoryId === String(cat.id);
@@ -622,6 +633,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
+  },
+  categoryLink: {
+    fontWeight: "600",
   },
   filterRow: {
     gap: 8,

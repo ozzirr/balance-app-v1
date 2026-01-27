@@ -27,14 +27,34 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const isCompact = width < 380;
-  const incomeData = cashflow.months.map((month) => ({ x: formatMonthLabel(month.month), y: month.income }));
-  const expenseData = cashflow.months.map((month) => ({ x: formatMonthLabel(month.month), y: month.expense }));
+  const incomeData = cashflow.months.map((month) => ({
+    x: formatMonthLabel(month.month),
+    y: month.income,
+    series: "income" as const,
+  }));
+  const expenseData = cashflow.months.map((month) => ({
+    x: formatMonthLabel(month.month),
+    y: month.expense,
+    series: "expense" as const,
+  }));
   const savingsColor = cashflow.avgSavings >= 0 ? tokens.colors.green : tokens.colors.red;
   const visibleWidth = Math.max(width - 64, 0);
-  const chartWidth = Math.max(visibleWidth, cashflow.months.length * 56);
-  const chartOffset = Math.max(chartWidth - visibleWidth, 0);
+  const perMonthWidth = 64;
+  const showAllMonthsInline = cashflow.months.length <= 3;
+  const baseChartWidth = Math.max(cashflow.months.length * perMonthWidth, 230);
+  const chartWidth = showAllMonthsInline ? baseChartWidth : Math.max(visibleWidth, baseChartWidth);
+  const chartOffset = showAllMonthsInline ? 0 : Math.max(chartWidth - visibleWidth, 0);
   const tooltipFlyout = { fill: tokens.colors.surface2, stroke: tokens.colors.border };
   const tooltipText = { fill: tokens.colors.text, fontSize: 11 };
+  const tooltipSeriesLabel = (series: "income" | "expense" | undefined) => {
+    if (series === "income") {
+      return t("dashboard.cashflow.chartLegendIncome");
+    }
+    if (series === "expense") {
+      return t("dashboard.cashflow.chartLegendExpense");
+    }
+    return "";
+  };
 
   const content = (
     <>
@@ -61,17 +81,20 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.chartScroll, { justifyContent: "flex-end" }]}
+              contentContainerStyle={[styles.chartScroll, { justifyContent: "flex-start" }]}
               contentOffset={{ x: chartOffset }}
             >
               <VictoryChart
                 width={chartWidth}
                 height={200}
-                domainPadding={{ x: 18, y: 14 }}
+                domainPadding={{ x: 6, y: 14 }}
                 padding={{ left: 40, right: 42, top: 10, bottom: 30 }}
                 containerComponent={
                   <VictoryVoronoiContainer
-                    labels={({ datum }) => `${datum.x} • ${formatEUR(datum.y)}`}
+                    labels={({ datum }) => {
+                      const seriesLabel = tooltipSeriesLabel(datum?.series);
+                      return `${seriesLabel} • ${datum?.x} • ${formatEUR(datum?.y ?? 0)}`;
+                    }}
                     labelComponent={
                       <VictoryTooltip
                         flyoutStyle={tooltipFlyout}
@@ -92,6 +115,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
                 />
                 <VictoryAxis
                   dependentAxis
+                  orientation="right"
                   tickFormat={(tick) => formatCompact(Number(tick))}
                   style={{
                     axis: { stroke: "transparent" },
@@ -99,19 +123,19 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
                     tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 6 },
                   }}
                 />
-                <VictoryAxis
-                  dependentAxis
-                  orientation="right"
-                  tickFormat={(tick) => formatCompact(Number(tick))}
-                  style={{
-                    axis: { stroke: "transparent" },
-                    grid: { stroke: "transparent" },
-                    tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 6 },
-                  }}
-                />
-                <VictoryGroup offset={12}>
-                  <VictoryBar data={incomeData} cornerRadius={4} style={{ data: { fill: tokens.colors.green, opacity: 0.85 } }} />
-                  <VictoryBar data={expenseData} cornerRadius={4} style={{ data: { fill: tokens.colors.red, opacity: 0.85 } }} />
+                <VictoryGroup offset={6}>
+                  <VictoryBar
+                    barWidth={22}
+                    data={incomeData}
+                    cornerRadius={4}
+                    style={{ data: { fill: tokens.colors.green, opacity: 0.85 } }}
+                  />
+                  <VictoryBar
+                    barWidth={22}
+                    data={expenseData}
+                    cornerRadius={4}
+                    style={{ data: { fill: tokens.colors.red, opacity: 0.85 } }}
+                  />
                 </VictoryGroup>
               </VictoryChart>
             </ScrollView>

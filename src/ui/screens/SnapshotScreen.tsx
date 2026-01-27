@@ -373,18 +373,24 @@ export default function SnapshotScreen(): JSX.Element {
   }, [snapshots]);
 
   const displayMonthGroups = useMemo(() => {
-    if (monthGroups.length > 0) {
-      return monthGroups;
-    }
     const currentKey = monthKeyFromDate(todayIso());
     if (!currentKey) {
-      return [];
+      return monthGroups;
     }
-    return buildRecentMonthGroups(currentKey, 6);
+    const base = buildRecentMonthGroups(currentKey, 6);
+    const baseKeys = new Set(base.map((item) => item.key));
+    const snapshotByKey = new Map(monthGroups.map((group) => [group.key, group]));
+    const merged = base.map((item) => snapshotByKey.get(item.key) ?? item);
+    const extras = monthGroups.filter((group) => !baseKeys.has(group.key));
+    return [...merged, ...extras];
   }, [monthGroups]);
 
   useEffect(() => {
-    if (!activeMonthKey && displayMonthGroups.length > 0) {
+    if (displayMonthGroups.length === 0) return;
+    const isValid = activeMonthKey
+      ? displayMonthGroups.some((group) => group.key === activeMonthKey)
+      : false;
+    if (!isValid) {
       setActiveMonthKey(displayMonthGroups[0].key);
     }
   }, [activeMonthKey, displayMonthGroups]);
@@ -618,13 +624,54 @@ export default function SnapshotScreen(): JSX.Element {
               })}
               {error && <Text style={{ color: tokens.colors.red }}>{error}</Text>}
             </View>
-            <View style={styles.actionsRow}>
-              <View style={styles.actionSlot}>
-                <PrimaryPillButton label={t("common.save")} onPress={saveSnapshot} color={tokens.colors.accent} />
+            <View style={styles.actionsColumn}>
+              <View style={styles.actionsRow}>
+                <View style={styles.actionSlot}>
+                  <PrimaryPillButton label={t("common.save")} onPress={saveSnapshot} color={tokens.colors.accent} />
+                </View>
+                {editingSnapshotId !== null ? (
+                  <View style={styles.actionSlot}>
+                    <SmallOutlinePillButton
+                      label={t("common.delete")}
+                      onPress={() => {
+                        Alert.alert(
+                          t("snapshot.delete.title", { defaultValue: "Elimina snapshot?" }),
+                          t("snapshot.delete.body", { defaultValue: "Questa operazione è irreversibile." }),
+                          [
+                            { text: t("common.cancel", { defaultValue: "Annulla" }), style: "cancel" },
+                            {
+                              text: t("common.delete", { defaultValue: "Elimina" }),
+                              style: "destructive",
+                              onPress: async () => {
+                                await deleteSnapshot(editingSnapshotId);
+                                setShowForm(false);
+                                setEditingSnapshotId(null);
+                                setSelectedSnapshotId(null);
+                                await load();
+                                setLines([]);
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      color={tokens.colors.red}
+                      fullWidth
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.actionSlot}>
+                    <SmallOutlinePillButton label={t("common.close")} onPress={() => setShowForm(false)} color={tokens.colors.text} />
+                  </View>
+                )}
               </View>
-              <View style={styles.actionSlot}>
-                <SmallOutlinePillButton label={t("common.close")} onPress={() => setShowForm(false)} color={tokens.colors.text} />
-              </View>
+              {editingSnapshotId !== null && (
+                <SmallOutlinePillButton
+                  label={t("common.close")}
+                  onPress={() => setShowForm(false)}
+                  color={tokens.colors.text}
+                  fullWidth
+                />
+              )}
             </View>
           </GlassCardContainer>
         )}
@@ -739,9 +786,12 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 12,
     width: "100%",
     alignItems: "stretch",
+  },
+  actionsColumn: {
+    gap: 12,
+    marginTop: 12,
   },
   actionSlot: {
     flex: 1,

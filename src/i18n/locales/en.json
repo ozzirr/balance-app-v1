@@ -286,7 +286,8 @@
     },
     "empty": {
       "noEntries": "Add your first entry to get started.",
-      "noCategoriesActive": "No active categories. Add one below."
+      "noCategoriesActivePrefix": "No active categories.",
+      "noCategoriesActiveLink": "Add one here."
     },
     "validation": {
       "nameRequired": "Name is required.",
@@ -350,6 +351,10 @@
     "detail": {
       "title": "Details",
       "emptyLines": "No lines."
+    },
+    "delete": {
+      "title": "Delete snapshot?",
+      "body": "This action cannot be undone."
     },
     "empty": {
       "noSnapshots": "No snapshots yet.",

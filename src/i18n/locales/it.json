@@ -220,7 +220,7 @@
       "categoriesTitle": "Categorie di spesa",
       "newCategoryLabel": "Nuova categoria",
       "addCategory": "Aggiungi",
-      "noCategories": "Nessuna categoria configurata.",
+      "noCategories": "Crea la tua prima categoria di spesa.",
       "categoryActive": "Attiva",
       "categoryInactive": "Disattivata",
       "categoryActivate": "Attiva",
@@ -286,7 +286,8 @@
     },
     "empty": {
       "noEntries": "Aggiungi la tua prima voce per iniziare.",
-      "noCategoriesActive": "Nessuna categoria attiva. Aggiungine una qui sotto."
+      "noCategoriesActivePrefix": "Nessuna categoria attiva.",
+      "noCategoriesActiveLink": "Aggiungine una qui."
     },
     "validation": {
       "nameRequired": "Nome obbligatorio.",
@@ -350,6 +351,10 @@
     "detail": {
       "title": "Dettaglio",
       "emptyLines": "Nessuna linea."
+    },
+    "delete": {
+      "title": "Eliminare snapshot?",
+      "body": "Questa operazione è irreversibile."
     },
     "empty": {
       "noSnapshots": "Nessuno snapshot.",
