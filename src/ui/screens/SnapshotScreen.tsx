@@ -91,6 +91,20 @@ const formatShortDate = (isoDate: string | null): string => {
   return `${dd}-${mm}-${yy}`;
 };
 
+const buildRecentMonthGroups = (startKey: string, count: number): { key: string; label: string; snapshots: Snapshot[] }[] => {
+  const [yearStr, monthStr] = startKey.split("-");
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr);
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex)) {
+    return [];
+  }
+  return Array.from({ length: count }).map((_, index) => {
+    const date = new Date(year, monthIndex - index, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, "0")}`;
+    return { key, label: monthLabelFromKey(key), snapshots: [] };
+  });
+};
+
 const lastDayIsoFromMonthKey = (key: string): string => {
   const [yearStr, monthStr] = key.split("-");
   const year = Number(yearStr);
@@ -186,6 +200,18 @@ export default function SnapshotScreen(): JSX.Element {
     }
   }, [openNew]);
 
+  useEffect(() => {
+    if (!showForm || editingSnapshotId !== null) return;
+    const currentKey = monthKeyFromDate(todayIso());
+    const targetKey = activeMonthKey ?? currentKey;
+    if (!targetKey) return;
+    if (targetKey !== currentKey) {
+      setSnapshotDate(lastDayIsoFromMonthKey(targetKey));
+    } else {
+      setSnapshotDate(todayIso());
+    }
+  }, [activeMonthKey, editingSnapshotId, showForm]);
+
   const openNewSnapshot = async () => {
     if (showForm) {
       setShowForm(false);
@@ -216,7 +242,13 @@ export default function SnapshotScreen(): JSX.Element {
     }
 
     setDraftLines(initialLines);
-    setSnapshotDate(todayIso());
+    const currentKey = monthKeyFromDate(todayIso());
+    const targetKey = activeMonthKey ?? currentKey;
+    if (targetKey && targetKey !== currentKey) {
+      setSnapshotDate(lastDayIsoFromMonthKey(targetKey));
+    } else {
+      setSnapshotDate(todayIso());
+    }
     setShowForm(true);
   };
 
@@ -340,19 +372,31 @@ export default function SnapshotScreen(): JSX.Element {
     }));
   }, [snapshots]);
 
-  useEffect(() => {
-    if (!activeMonthKey && monthGroups.length > 0) {
-      setActiveMonthKey(monthGroups[0].key);
+  const displayMonthGroups = useMemo(() => {
+    if (monthGroups.length > 0) {
+      return monthGroups;
     }
-  }, [activeMonthKey, monthGroups]);
+    const currentKey = monthKeyFromDate(todayIso());
+    if (!currentKey) {
+      return [];
+    }
+    return buildRecentMonthGroups(currentKey, 6);
+  }, [monthGroups]);
 
-  const activeMonth = monthGroups.find((group) => group.key === activeMonthKey) ?? monthGroups[0];
-  const monthLimit = showAllMonths ? monthGroups.length : 5;
-  const visibleMonthGroups = monthGroups.slice(0, monthLimit);
-  const hasMoreMonths = monthGroups.length > visibleMonthGroups.length;
-  const activeIndex = monthGroups.findIndex((group) => group.key === activeMonthKey);
-  const prevMonthKey = activeIndex >= 0 && activeIndex < monthGroups.length - 1 ? monthGroups[activeIndex + 1]?.key : null;
-  const nextMonthKey = activeIndex > 0 ? monthGroups[activeIndex - 1]?.key : null;
+  useEffect(() => {
+    if (!activeMonthKey && displayMonthGroups.length > 0) {
+      setActiveMonthKey(displayMonthGroups[0].key);
+    }
+  }, [activeMonthKey, displayMonthGroups]);
+
+  const activeMonth = displayMonthGroups.find((group) => group.key === activeMonthKey) ?? displayMonthGroups[0];
+  const monthLimit = showAllMonths ? displayMonthGroups.length : 6;
+  const visibleMonthGroups = displayMonthGroups.slice(0, monthLimit);
+  const hasMoreMonths = displayMonthGroups.length > visibleMonthGroups.length;
+  const activeIndex = displayMonthGroups.findIndex((group) => group.key === activeMonthKey);
+  const prevMonthKey =
+    activeIndex >= 0 && activeIndex < displayMonthGroups.length - 1 ? displayMonthGroups[activeIndex + 1]?.key : null;
+  const nextMonthKey = activeIndex > 0 ? displayMonthGroups[activeIndex - 1]?.key : null;
 
   const isEditingCurrent =
     showForm &&
@@ -419,12 +463,17 @@ export default function SnapshotScreen(): JSX.Element {
                 style={[
                   styles.statusBadge,
                   {
-                    backgroundColor: activeMonth.snapshots.length ? `${tokens.colors.green}22` : `${tokens.colors.red}22`,
-                    borderColor: activeMonth.snapshots.length ? `${tokens.colors.green}66` : `${tokens.colors.red}66`,
+                    backgroundColor: activeMonth.snapshots.length ? `${tokens.colors.green}22` : `${tokens.colors.yellow}22`,
+                    borderColor: activeMonth.snapshots.length ? `${tokens.colors.green}66` : `${tokens.colors.yellow}66`,
                   },
                 ]}
               >
-                <Text style={{ color: activeMonth.snapshots.length ? tokens.colors.green : tokens.colors.red, fontWeight: "700" }}>
+                <Text
+                  style={{
+                    color: activeMonth.snapshots.length ? tokens.colors.green : tokens.colors.yellow,
+                    fontWeight: "700",
+                  }}
+                >
                   {activeMonth.snapshots.length ? t("snapshot.hero.saved") : t("snapshot.hero.missing")}
                 </Text>
               </View>
@@ -436,7 +485,7 @@ export default function SnapshotScreen(): JSX.Element {
                 onPress={() => {
                   if (prevMonthKey) {
                     setActiveMonthKey(prevMonthKey);
-                    const nextId = monthGroups.find((m) => m.key === prevMonthKey)?.snapshots[0]?.id ?? null;
+                    const nextId = displayMonthGroups.find((m) => m.key === prevMonthKey)?.snapshots[0]?.id ?? null;
                     if (nextId) {
                       setSelectedSnapshotId(nextId);
                       void loadLines(nextId);
@@ -454,7 +503,7 @@ export default function SnapshotScreen(): JSX.Element {
                 onPress={() => {
                   if (nextMonthKey) {
                     setActiveMonthKey(nextMonthKey);
-                    const nextId = monthGroups.find((m) => m.key === nextMonthKey)?.snapshots[0]?.id ?? null;
+                    const nextId = displayMonthGroups.find((m) => m.key === nextMonthKey)?.snapshots[0]?.id ?? null;
                     if (nextId) {
                       setSelectedSnapshotId(nextId);
                       void loadLines(nextId);
@@ -476,11 +525,11 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        {monthGroups.length > 0 && (
+        {displayMonthGroups.length > 0 && (
           <GlassCardContainer contentStyle={{ gap: 12 }}>
             <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.hero.recentMonths")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
-              {monthGroups.slice(0, 6).map((group) => (
+              {visibleMonthGroups.map((group) => (
                 <PillChip
                   key={group.key}
                   label={monthLabelFromKey(group.key)}
@@ -580,49 +629,12 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        {monthGroups.length === 0 ? (
-          <GlassCardContainer>
-            <SectionHeader
-              title={t("snapshot.title")}
-              trailing={
-                monthKeyFromDate(todayIso()) ? (
-                  <Text style={{ color: tokens.colors.muted, fontWeight: "600" }}>
-                    {formatHeroMonth(monthKeyFromDate(todayIso())!)}
-                  </Text>
-                ) : null
-              }
-            />
-            <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 12 }}>
-              <PrimaryPillButton
-                label={t("snapshot.actions.new")}
-                onPress={() => {
-                  void openNewSnapshot();
-                }}
-                color={tokens.colors.accent}
-              />
-            </View>
-            <Text style={{ color: tokens.colors.muted, paddingHorizontal: 16, paddingBottom: 6 }}>
-              {t("snapshot.empty.noSnapshots")}
-            </Text>
-            <Text style={{ color: tokens.colors.text, paddingHorizontal: 16, paddingBottom: 12 }}>
-              {(() => {
-                const key = "snapshot.empty.firstHint";
-                const value = t(key);
-                if (value !== key) return value;
-                return i18n.resolvedLanguage?.startsWith("it")
-                  ? "Dopo aver configurato i wallet, aggiungi qui il tuo primo snapshot."
-                  : "After setting up wallets, add your first snapshot here.";
-              })()}
-            </Text>
-          </GlassCardContainer>
-        ) : null}
-
-        {monthGroups.length > 0 && (
+        {displayMonthGroups.length > 0 && (
           <GlassCardContainer contentStyle={{ gap: 12 }}>
             <SectionHeader
               title={t("snapshot.detail.title")}
               trailing={
-                formatShortDate(selectedSnapshot?.date ?? snapshotDate) ? (
+                formatShortDate(selectedSnapshot?.date ?? null) ? (
                   <View
                     style={[
                       styles.lastUpdateBadge,
@@ -634,7 +646,7 @@ export default function SnapshotScreen(): JSX.Element {
                   >
                     <Text style={[styles.lastUpdateText, { color: tokens.colors.green }]}>
                       {t("snapshot.detail.lastUpdate", { defaultValue: "Last update" })}{" "}
-                      {formatShortDate(selectedSnapshot?.date ?? snapshotDate)}
+                      {formatShortDate(selectedSnapshot?.date ?? null)}
                     </Text>
                   </View>
                 ) : null
