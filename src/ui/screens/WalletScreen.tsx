@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Modal, ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Animated, Modal, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Snackbar, Text, TextInput } from "react-native-paper";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
@@ -15,10 +15,11 @@ import { DarkTheme, useFocusEffect, useNavigation, useRoute, type NavigationProp
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
 import LimitReachedModal from "@/ui/components/LimitReachedModal";
+import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import AppBackground from "@/ui/components/AppBackground";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
-import { emitDataReset, onDataReset } from "@/app/dataEvents";
+import GlassBlur from "@/ui/components/GlassBlur";
+import { emitDataChanged, onDataChanged, onDataReset } from "@/app/dataEvents";
 import {
   GlassCardContainer,
   PrimaryPillButton,
@@ -145,6 +146,7 @@ const AccordionItem = ({
 
 export default function WalletScreen(): JSX.Element {
   const { tokens, isDark } = useDashboardTheme();
+  const deleteIconColor = isDark ? tokens.colors.bg : tokens.colors.surface;
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const route = useRoute();
   const routeParams = route.params as WalletRouteParams | undefined;
@@ -184,6 +186,9 @@ export default function WalletScreen(): JSX.Element {
   const [expandedWalletId, setExpandedWalletId] = useState<number | null>(null);
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [storeErrorVisible, setStoreErrorVisible] = useState(false);
+  const [confirmWalletId, setConfirmWalletId] = useState<number | null>(null);
+  const [confirmWalletLoading, setConfirmWalletLoading] = useState(false);
+  const [confirmWalletError, setConfirmWalletError] = useState<string | null>(null);
   const addWalletPulse = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef<ScrollView | null>(null);
   useEffect(() => {
@@ -240,6 +245,13 @@ export default function WalletScreen(): JSX.Element {
     return () => subscription.remove();
   }, [refreshAll]);
 
+  useEffect(() => {
+    const subscription = onDataChanged(() => {
+      void refreshAll();
+    });
+    return () => subscription.remove();
+  }, [refreshAll]);
+
   useFocusEffect(
     useCallback(() => {
       void refreshAll();
@@ -284,6 +296,37 @@ export default function WalletScreen(): JSX.Element {
     },
     [walletEdits, wallets]
   );
+
+  const openConfirmDeleteWallet = useCallback((walletId: number) => {
+    setConfirmWalletId(walletId);
+    setConfirmWalletError(null);
+  }, []);
+
+  const closeConfirmDeleteWallet = useCallback(() => {
+    if (confirmWalletLoading) return;
+    setConfirmWalletId(null);
+    setConfirmWalletError(null);
+  }, [confirmWalletLoading]);
+
+  const handleConfirmDeleteWallet = useCallback(async () => {
+    if (!confirmWalletId) return;
+    setConfirmWalletLoading(true);
+    setConfirmWalletError(null);
+    try {
+      await deleteWallet(confirmWalletId);
+      await load();
+      emitDataChanged();
+      setExpandedWalletId(null);
+      setConfirmWalletId(null);
+    } catch (error) {
+      console.warn("Failed to delete wallet", error);
+      setConfirmWalletError(
+        t("wallets.actions.deleteError", { defaultValue: "Errore durante l'eliminazione. Riprova." })
+      );
+    } finally {
+      setConfirmWalletLoading(false);
+    }
+  }, [confirmWalletId, load, t]);
 
   const orderedWallets = useMemo(() => orderWalletsForUI(wallets), [wallets]);
   const liquidityWallets = useMemo(
@@ -335,7 +378,7 @@ export default function WalletScreen(): JSX.Element {
     return getWalletCount(type) >= limit;
   };
   const canCreateWallet = (type: "LIQUIDITY" | "INVEST") => !hasReachedLimit(type);
-  const canReorder = wallets.length > 1;
+  const canReorder = getWalletCount(tab) > 1;
 
   useEffect(() => {
     if (!canReorder && reorderMode) {
@@ -457,9 +500,9 @@ export default function WalletScreen(): JSX.Element {
     setNewWalletDraft({ name: "", tag: "", currency: "EUR", color: DEFAULT_WALLET_COLOR });
     setShowAddWallet((prev) => ({ ...prev, [type]: false }));
     await load();
-    emitDataReset();
+    emitDataChanged();
     if (startSetup && wasEmpty && type === "LIQUIDITY") {
-      navigation.navigate("Snapshot", { openNew: true });
+      navigation.navigate("Snapshot");
       navigation.setParams({ startSetup: undefined });
     }
   };
@@ -489,8 +532,14 @@ export default function WalletScreen(): JSX.Element {
 
   const inputProps = createStandardTextInputProps(tokens);
   const closeReorderModal = useCallback(() => setReorderMode(false), []);
-  const reorderSheetBackground = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
-  const reorderSheetBorder = isDark ? DarkTheme.colors.border : "rgba(169, 124, 255, 0.5)";
+  const reorderSheetBackground =
+    Platform.OS === "android"
+      ? tokens.colors.surface2
+      : isDark
+      ? "rgba(15, 18, 30, 0.55)"
+      : "rgba(169, 124, 255, 0.32)";
+  const reorderSheetBorder =
+    Platform.OS === "android" ? tokens.colors.border : isDark ? DarkTheme.colors.border : "rgba(169, 124, 255, 0.5)";
   const reorderBlurIntensity = 35;
   const reorderOverlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
   const openReorderSheet = useCallback(() => {
@@ -519,27 +568,27 @@ export default function WalletScreen(): JSX.Element {
     outputRange: [64, 0],
   });
   const orderToggle = canReorder ? (
-    <View style={[styles.orderToggleRow, styles.orderToggleRowFooter]}>
-      <SmallOutlinePillButton
-        label={t("wallets.list.editOrder")}
-        onPress={() => setReorderMode((prev) => !prev)}
-        color={tokens.colors.accent}
-        icon={<MaterialCommunityIcons name="arrow-up-down" size={16} color={tokens.colors.accent} />}
-      />
+    <View style={styles.orderToggleRow}>
+      <PressScale onPress={() => setReorderMode((prev) => !prev)} style={styles.orderToggleLink}>
+        <Text style={[styles.orderToggleText, { color: tokens.colors.accent }]}>
+          {t("wallets.list.editOrder")}
+        </Text>
+      </PressScale>
     </View>
   ) : null;
 
   return (
-    <AppBackground>
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={[
-          styles.container,
-          { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
-        ]}
-        alwaysBounceVertical
-        bounces
-      >
+    <View style={styles.screenRoot}>
+      <AppBackground>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.container,
+            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
+          ]}
+          alwaysBounceVertical
+          bounces
+        >
         <GlassCardContainer>
           <View style={styles.sectionContent}>
             {showInvestments && (
@@ -555,60 +604,7 @@ export default function WalletScreen(): JSX.Element {
 
             {tab === "LIQUIDITY" && (
               <>
-                {!showAddWallet.LIQUIDITY && (
-                  <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
-                    <PrimaryPillButton
-                      label={t("wallets.list.addWallet")}
-                      onPress={() => handleRequestAddWallet("LIQUIDITY")}
-                      color={tokens.colors.accent}
-                    />
-                  </Animated.View>
-                )}
-                {showAddWallet.LIQUIDITY && (
-                  <GlassCardContainer>
-                    <SectionHeader title={t("wallets.list.newLiquidityTitle")} />
-                    <View style={styles.sectionContent}>
-                      <View style={[styles.colorLine]}>
-                        <TextInput
-                          label={t("wallets.form.name")}
-                          value={newWalletDraft.name}
-                          {...inputProps}
-                          style={[
-                            styles.walletNameInput,
-                            { backgroundColor: tokens.colors.glassBg },
-                          ]}
-                          onChangeText={(value) => setNewWalletDraft((prev) => ({ ...prev, name: value }))}
-                        />
-                        <PressScale
-                          onPress={() =>
-                            setNewWalletDraft((prev) => ({ ...prev, color: nextPresetColor(prev.color) }))
-                          }
-                          style={[
-                            styles.colorSwatch,
-                            {
-                              backgroundColor: newWalletDraft.color,
-                              borderColor: tokens.colors.glassBorder,
-                            },
-                          ]}
-                        />
-                      </View>
-                      <SegmentedControlPill
-                        value={newWalletDraft.currency}
-                        onChange={(value) => setNewWalletDraft((prev) => ({ ...prev, currency: value as Currency }))}
-                        options={[
-                          { value: "EUR", label: "EUR" },
-                          { value: "USD", label: "USD" },
-                          { value: "GBP", label: "GBP" },
-                        ]}
-                      />
-                    </View>
-                    <View style={styles.actionsRow}>
-                      <PrimaryPillButton label={t("common.add")} onPress={() => addWallet("LIQUIDITY")} color={tokens.colors.accent} />
-                      <SmallOutlinePillButton label={t("common.cancel")} onPress={() => setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: false }))} color={tokens.colors.text} />
-                    </View>
-                  </GlassCardContainer>
-                )}
-
+                {orderToggle}
                 {liquidityWallets.map((wallet) => {
                   const subtitle = `${walletEdits[wallet.id]?.currency ?? wallet.currency}${wallet.tag ? ` · ${wallet.tag}` : ""}`;
                   const editColor = walletEdits[wallet.id]?.color ?? wallet.color ?? DEFAULT_WALLET_COLOR;
@@ -623,15 +619,11 @@ export default function WalletScreen(): JSX.Element {
                       color={getWalletDisplayColor(wallet)}
                       iconOverride={expandedWalletId === wallet.id ? "trash-can-outline" : undefined}
                       iconBackgroundOverride={expandedWalletId === wallet.id ? tokens.colors.red : undefined}
-                      iconColorOverride={expandedWalletId === wallet.id ? "#FFFFFF" : undefined}
+                      iconColorOverride={expandedWalletId === wallet.id ? deleteIconColor : undefined}
                       onIconPress={
                         expandedWalletId === wallet.id
                           ? () => {
-                              void (async () => {
-                                await deleteWallet(wallet.id);
-                                await load();
-                                setExpandedWalletId(null);
-                              })();
+                              openConfirmDeleteWallet(wallet.id);
                             }
                           : undefined
                       }
@@ -680,26 +672,22 @@ export default function WalletScreen(): JSX.Element {
                     </AccordionItem>
                   );
                 })}
-                {orderToggle}
-              </>
-            )}
-
-            {showInvestments && tab === "INVEST" && (
-              <>
-                {!showAddWallet.INVEST && (
-                  <PrimaryPillButton
-                    label={t("wallets.list.addWallet")}
-                    onPress={() => handleRequestAddWallet("INVEST")}
-                    color={tokens.colors.accent}
-                  />
+                {!showAddWallet.LIQUIDITY && (
+                  <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
+                    <PrimaryPillButton
+                      label={t("wallets.list.addWallet")}
+                      onPress={() => handleRequestAddWallet("LIQUIDITY")}
+                      color={tokens.colors.accent}
+                    />
+                  </Animated.View>
                 )}
-                {showAddWallet.INVEST && (
+                {showAddWallet.LIQUIDITY && (
                   <GlassCardContainer>
-                    <SectionHeader title={t("wallets.list.newInvestTitle")} />
+                    <SectionHeader title={t("wallets.list.newLiquidityTitle")} />
                     <View style={styles.sectionContent}>
                       <View style={[styles.colorLine]}>
                         <TextInput
-                          label={t("wallets.form.brokerLabel")}
+                          label={t("wallets.form.name")}
                           value={newWalletDraft.name}
                           {...inputProps}
                           style={[
@@ -721,12 +709,6 @@ export default function WalletScreen(): JSX.Element {
                           ]}
                         />
                       </View>
-                      <TextInput
-                        label={t("wallets.form.investmentTypeLabel")}
-                        value={newWalletDraft.tag}
-                        {...inputProps}
-                        onChangeText={(value) => setNewWalletDraft((prev) => ({ ...prev, tag: value }))}
-                      />
                       <SegmentedControlPill
                         value={newWalletDraft.currency}
                         onChange={(value) => setNewWalletDraft((prev) => ({ ...prev, currency: value as Currency }))}
@@ -737,13 +719,27 @@ export default function WalletScreen(): JSX.Element {
                         ]}
                       />
                     </View>
-                      <View style={styles.actionsRow}>
-                        <PrimaryPillButton label={t("common.add")} onPress={() => addWallet("INVEST")} color={tokens.colors.accent} />
-                        <SmallOutlinePillButton label={t("common.cancel")} onPress={() => setShowAddWallet((prev) => ({ ...prev, INVEST: false }))} color={tokens.colors.text} />
+                    <View style={styles.addWalletAction}>
+                      <PrimaryPillButton
+                        label={newWalletDraft.name.trim() ? t("common.add") : t("common.cancel")}
+                        onPress={() => {
+                          if (newWalletDraft.name.trim()) {
+                            void addWallet("LIQUIDITY");
+                            return;
+                          }
+                          setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: false }));
+                        }}
+                        color={tokens.colors.accent}
+                      />
                     </View>
                   </GlassCardContainer>
                 )}
+              </>
+            )}
 
+            {showInvestments && tab === "INVEST" && (
+              <>
+                {orderToggle}
                 {investmentWallets.map((wallet) => {
                   const subtitle = `${walletEdits[wallet.id]?.currency ?? wallet.currency}${
                     walletEdits[wallet.id]?.tag || wallet.tag ? ` · ${walletEdits[wallet.id]?.tag ?? wallet.tag}` : ""
@@ -760,15 +756,11 @@ export default function WalletScreen(): JSX.Element {
                       color={getWalletDisplayColor(wallet)}
                       iconOverride={expandedWalletId === wallet.id ? "trash-can-outline" : undefined}
                       iconBackgroundOverride={expandedWalletId === wallet.id ? tokens.colors.red : undefined}
-                      iconColorOverride={expandedWalletId === wallet.id ? "#FFFFFF" : undefined}
+                      iconColorOverride={expandedWalletId === wallet.id ? deleteIconColor : undefined}
                       onIconPress={
                         expandedWalletId === wallet.id
                           ? () => {
-                              void (async () => {
-                                await deleteWallet(wallet.id);
-                                await load();
-                                setExpandedWalletId(null);
-                              })();
+                              openConfirmDeleteWallet(wallet.id);
                             }
                           : undefined
                       }
@@ -825,11 +817,92 @@ export default function WalletScreen(): JSX.Element {
                     </AccordionItem>
                   );
                 })}
-                {orderToggle}
+                {!showAddWallet.INVEST && (
+                  <PrimaryPillButton
+                    label={t("wallets.list.addWallet")}
+                    onPress={() => handleRequestAddWallet("INVEST")}
+                    color={tokens.colors.accent}
+                  />
+                )}
+                {showAddWallet.INVEST && (
+                  <GlassCardContainer>
+                    <SectionHeader title={t("wallets.list.newInvestTitle")} />
+                    <View style={styles.sectionContent}>
+                      <View style={[styles.colorLine]}>
+                        <TextInput
+                          label={t("wallets.form.brokerLabel")}
+                          value={newWalletDraft.name}
+                          {...inputProps}
+                          style={[
+                            styles.walletNameInput,
+                            { backgroundColor: tokens.colors.glassBg },
+                          ]}
+                          onChangeText={(value) => setNewWalletDraft((prev) => ({ ...prev, name: value }))}
+                        />
+                        <PressScale
+                          onPress={() =>
+                            setNewWalletDraft((prev) => ({ ...prev, color: nextPresetColor(prev.color) }))
+                          }
+                          style={[
+                            styles.colorSwatch,
+                            {
+                              backgroundColor: newWalletDraft.color,
+                              borderColor: tokens.colors.glassBorder,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <TextInput
+                        label={t("wallets.form.investmentTypeLabel")}
+                        value={newWalletDraft.tag}
+                        {...inputProps}
+                        onChangeText={(value) => setNewWalletDraft((prev) => ({ ...prev, tag: value }))}
+                      />
+                      <SegmentedControlPill
+                        value={newWalletDraft.currency}
+                        onChange={(value) => setNewWalletDraft((prev) => ({ ...prev, currency: value as Currency }))}
+                        options={[
+                          { value: "EUR", label: "EUR" },
+                          { value: "USD", label: "USD" },
+                          { value: "GBP", label: "GBP" },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.addWalletAction}>
+                      <PrimaryPillButton
+                        label={newWalletDraft.name.trim() ? t("common.add") : t("common.cancel")}
+                        onPress={() => {
+                          if (newWalletDraft.name.trim()) {
+                            void addWallet("INVEST");
+                            return;
+                          }
+                          setShowAddWallet((prev) => ({ ...prev, INVEST: false }));
+                        }}
+                        color={tokens.colors.accent}
+                      />
+                    </View>
+                  </GlassCardContainer>
+                )}
               </>
             )}
           </View>
         </GlassCardContainer>
+
+        <ConfirmDialog
+          visible={confirmWalletId !== null}
+          title={t("wallets.delete.title", { defaultValue: "Eliminare wallet?" })}
+          message={t("wallets.delete.body", {
+            defaultValue:
+              "Se elimini questo wallet, verranno eliminati anche tutti gli snapshot associati nel tempo. Questa azione non può essere annullata.",
+          })}
+          confirmLabel={t("wallets.delete.confirm", { defaultValue: "Elimina wallet" })}
+          cancelLabel={t("common.cancel", { defaultValue: "Annulla" })}
+          onConfirm={handleConfirmDeleteWallet}
+          onCancel={closeConfirmDeleteWallet}
+          loading={confirmWalletLoading}
+          error={confirmWalletError}
+          confirmColor={tokens.colors.expense}
+        />
 
         <LimitReachedModal
           visible={limitModalVisible}
@@ -868,11 +941,10 @@ export default function WalletScreen(): JSX.Element {
               },
             ]}
           >
-            <BlurView
+            <GlassBlur
               intensity={reorderBlurIntensity}
               tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
+              fallbackColor="transparent"
             />
             <View style={styles.reorderSheetHeader}>
               <Text style={[styles.reorderSheetTitle, { color: tokens.colors.text }]}>
@@ -905,6 +977,7 @@ export default function WalletScreen(): JSX.Element {
         </View>
       </Modal>
     </AppBackground>
+  </View>
   );
 }
 
@@ -914,6 +987,9 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     gap: 12,
+  },
+  addWalletAction: {
+    marginTop: 12,
   },
   actionsRow: {
     flexDirection: "row",
@@ -991,13 +1067,14 @@ const styles = StyleSheet.create({
   orderToggleRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "flex-end",
   },
-  orderToggleRowFooter: {
-    marginTop: 8,
+  orderToggleLink: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
-  orderToggleLabel: {
-    fontSize: 14,
+  orderToggleText: {
+    fontSize: 13,
     fontWeight: "600",
   },
   reorderOverlay: {
@@ -1083,5 +1160,8 @@ const styles = StyleSheet.create({
   reorderAction: {
     padding: 6,
     borderRadius: 6,
+  },
+  screenRoot: {
+    flex: 1,
   },
 });

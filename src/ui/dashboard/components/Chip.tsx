@@ -20,7 +20,9 @@ export default function Chip({ label, tone = "muted", color }: Props): JSX.Eleme
   const tint = color ?? colorMap[tone];
   return (
     <View style={[styles.chip, { borderColor: tint, backgroundColor: `${tint}1A` }]}>
-      <Text style={[styles.text, { color: tint }]}>{label}</Text>
+      <Text style={[styles.text, { color: tint }]} numberOfLines={1} ellipsizeMode="tail">
+        {label}
+      </Text>
     </View>
   );
 }
@@ -31,6 +33,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
+    maxWidth: 120,
   },
   text: {
     fontSize: 12,

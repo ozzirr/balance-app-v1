@@ -298,7 +298,7 @@
       }
     },
     "actions": {
-      "toggleForm": "Aggiungi o modifica voci"
+      "toggleForm": "Aggiungi voce"
     },
     "empty": {
       "noEntries": "Aggiungi la tua prima voce per iniziare.",
@@ -309,6 +309,7 @@
       "nameRequired": "Nome obbligatorio.",
       "invalidDate": "Data non valida (YYYY-MM-DD).",
       "amountInvalid": "Importo non valido.",
+      "amountTooSmall": "Importo minimo: 0,01.",
       "categoryRequired": "Categoria obbligatoria.",
       "removeIdBeforeCreate": "Rimuovi l'id prima di creare una nuova voce.",
       "noEntryForEdit": "Nessuna voce selezionata per la modifica."
@@ -375,6 +376,12 @@
     "empty": {
       "noSnapshots": "Nessuno snapshot.",
       "firstHint": "Dopo aver configurato i wallet, aggiungi qui il tuo primo snapshot."
+    },
+    "guide": {
+      "title": "Aggiungi il tuo primo snapshot",
+      "bodyLine1": "Uno snapshot è il saldo del wallet in una data.",
+      "bodyLine2": "Inizia inserendo il saldo di oggi.",
+      "cta": "Aggiungi snapshot"
     },
     "form": {
       "dateLabel": "Data"

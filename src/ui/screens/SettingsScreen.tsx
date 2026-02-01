@@ -239,7 +239,7 @@ export default function SettingsScreen(): JSX.Element {
     await setInitialSeedDone(false);
     await setOnboardingCompleted(false);
     await setShowInvestments(false);
-    requestReplay();
+    requestReplay({ seed: true });
     emitDataReset();
   };
 
@@ -503,7 +503,7 @@ export default function SettingsScreen(): JSX.Element {
               </View>
               <SmallOutlinePillButton
                 label={t("settings.onboarding.reviewAction")}
-                onPress={requestReplay}
+                onPress={() => requestReplay({ seed: false })}
                 color={tokens.colors.accent}
               />
             </View>

@@ -26,7 +26,8 @@ import PressScale from "@/ui/dashboard/components/PressScale";
 import Skeleton from "@/ui/dashboard/components/Skeleton";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import AppBackground from "@/ui/components/AppBackground";
-import { GlassCardContainer, PillChip, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
+import { GlassCardContainer } from "@/ui/components/EntriesUI";
+import CoachTipCard from "@/ui/components/CoachTipCard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
@@ -34,6 +35,7 @@ import { onDataReset } from "@/app/dataEvents";
 
 type Nav = {
   navigate: (name: string, params?: Record<string, unknown>) => void;
+  setParams?: (params: Record<string, unknown>) => void;
 };
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -254,17 +256,18 @@ export default function DashboardScreen(): JSX.Element {
   );
 
   return (
-    <AppBackground>
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            paddingTop: headerHeight + 12,
-            paddingBottom: 160 + insets.bottom,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
+    <View style={styles.screenRoot}>
+      <AppBackground>
+        <ScrollView
+          contentContainerStyle={[
+            styles.container,
+            {
+              paddingTop: headerHeight + 12,
+              paddingBottom: 160 + insets.bottom,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
         {loading && !dashboard && skeleton}
 
         {error && !loading ? (
@@ -275,16 +278,12 @@ export default function DashboardScreen(): JSX.Element {
         ) : null}
 
         {emptyState ? (
-          <GlassCardContainer contentStyle={styles.emptyCard}>
-            <Text style={[styles.emptyBody, { color: tokens.colors.muted }]}>{t("dashboard.emptyBody")}</Text>
-            <View style={styles.emptyCtaRow}>
-              <SmallOutlinePillButton
-                label={t("dashboard.emptyCta", { defaultValue: "Configura Balance" })}
-                onPress={() => navigation.navigate("Wallet", { startSetup: true })}
-                color={tokens.colors.accent}
-              />
-            </View>
-          </GlassCardContainer>
+          <CoachTipCard
+            lines={[t("dashboard.emptyBody")]}
+            ctaLabel={t("dashboard.emptyCta", { defaultValue: "Configura Balance" })}
+            onPress={() => navigation.navigate("Wallet", { startSetup: true })}
+            ctaColor={tokens.colors.accent}
+          />
         ) : null}
 
         {dashboard ? (
@@ -306,34 +305,26 @@ export default function DashboardScreen(): JSX.Element {
               <KPIStrip items={dashboard.kpis} />
             </View>
             {showPrivacyCard && (
-              <GlassCardContainer>
-                <View style={styles.privacyHeader}>
-                  <MaterialCommunityIcons name="shield-lock-outline" size={20} color={tokens.colors.accent} />
-                  <View style={styles.privacyText}>
-                    <Text style={[styles.privacyTitle, { color: tokens.colors.text }]}>
-                      {t("dashboard.privacy.title")}
-                    </Text>
-                    <Text
-                      style={[styles.privacyBody, { color: tokens.colors.muted }]}
-                      numberOfLines={2}
-                    >
-                      {t("dashboard.privacy.body")}
-                    </Text>
+              <CoachTipCard
+                leadingIcon={<MaterialCommunityIcons name="shield-lock-outline" size={20} color={tokens.colors.accent} />}
+                title={t("dashboard.privacy.title")}
+                lines={[t("dashboard.privacy.body")]}
+                lineNumberOfLines={2}
+                actions={
+                  <View style={styles.privacyActions}>
+                    <PressScale onPress={handlePrivacyLearnMore} style={styles.privacyLink}>
+                      <Text style={[styles.privacyLinkText, { color: tokens.colors.accent }]}>
+                        {t("dashboard.privacy.learnMore")}
+                      </Text>
+                    </PressScale>
+                    <PressScale onPress={dismissPrivacyCard}>
+                      <Text style={[styles.privacyDismiss, { color: tokens.colors.text }]}>
+                        {t("dashboard.privacy.dismiss")}
+                      </Text>
+                    </PressScale>
                   </View>
-                </View>
-                <View style={styles.privacyActions}>
-                  <PressScale onPress={handlePrivacyLearnMore} style={styles.privacyLink}>
-                    <Text style={[styles.privacyLinkText, { color: tokens.colors.accent }]}>
-                      {t("dashboard.privacy.learnMore")}
-                    </Text>
-                  </PressScale>
-                  <PressScale onPress={dismissPrivacyCard}>
-                    <Text style={[styles.privacyDismiss, { color: tokens.colors.text }]}>
-                      {t("dashboard.privacy.dismiss")}
-                    </Text>
-                  </PressScale>
-                </View>
-              </GlassCardContainer>
+                }
+              />
             )}
 
             <SectionAccordion
@@ -393,8 +384,9 @@ export default function DashboardScreen(): JSX.Element {
             </SectionAccordion>
           </>
         ) : null}
-      </ScrollView>
-    </AppBackground>
+        </ScrollView>
+      </AppBackground>
+    </View>
   );
 }
 
@@ -402,6 +394,9 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     gap: 10,
+  },
+  screenRoot: {
+    flex: 1,
   },
   section: {
     gap: 10,
@@ -417,26 +412,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 12,
   },
-  privacyHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  privacyText: {
-    flex: 1,
-    gap: 4,
-  },
-  privacyTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  privacyBody: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "500",
-  },
   privacyActions: {
-    marginTop: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -484,15 +460,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     flexGrow: 1,
     minWidth: 180,
-  },
-  emptyBody: {
-    marginTop: 6,
-  },
-  emptyCard: {
-    gap: 10,
-  },
-  emptyCtaRow: {
-    alignItems: "flex-start",
   },
   errorTitle: {
     fontSize: 18,

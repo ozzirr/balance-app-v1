@@ -9,7 +9,6 @@ import {
   listExpenseCategories,
   createExpenseCategory,
   updateExpenseCategory,
-  setExpenseCategoryActive,
   deleteExpenseCategory,
 } from "@/repositories/expenseCategoriesRepo";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
@@ -20,7 +19,7 @@ import AppBackground from "@/ui/components/AppBackground";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { onDataReset } from "@/app/dataEvents";
+import { emitDataChanged, onDataChanged, onDataReset } from "@/app/dataEvents";
 import EntriesTable, { EntriesTableRow } from "@/ui/dashboard/components/EntriesTable";
 import {
   FrequencyPillGroup,
@@ -33,6 +32,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
 import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
+import ConfirmDialog from "@/ui/components/ConfirmDialog";
 
 type EntryType = "income" | "expense";
 type FormMode = "create" | "edit";
@@ -106,6 +106,10 @@ type AccordionItemProps = {
   title: string;
   subtitle?: string;
   icon: string;
+  iconOverride?: string;
+  iconBackgroundOverride?: string;
+  iconColorOverride?: string;
+  onIconPress?: () => void;
   expanded: boolean;
   onToggle: () => void;
   color?: string;
@@ -116,30 +120,40 @@ const AccordionItem = ({
   title,
   subtitle,
   icon,
+  iconOverride,
+  iconBackgroundOverride,
+  iconColorOverride,
+  onIconPress,
   expanded,
   onToggle,
   color,
   children,
 }: AccordionItemProps) => {
   const { tokens, isDark } = useDashboardTheme();
+  const iconName = iconOverride ?? icon;
+  const iconBg = iconBackgroundOverride ?? color ?? tokens.colors.glassBg;
+  const iconFg = iconColorOverride ?? (isDark ? tokens.colors.bg : "#FFFFFF");
   return (
     <GlassCardContainer contentStyle={{ gap: 12, padding: 12 }}>
       <PressScale onPress={onToggle} style={[styles.walletRow, { paddingVertical: 6 }]}>
-        <View
+        <Pressable
+          onPress={onIconPress}
+          hitSlop={6}
+          disabled={!onIconPress}
           style={[
             styles.walletIconBadge,
             {
               borderColor: tokens.colors.glassBorder,
-              backgroundColor: color ?? tokens.colors.glassBg,
+              backgroundColor: iconBg,
             },
           ]}
         >
           <MaterialCommunityIcons
-            name={icon}
+            name={iconName}
             size={18}
-            color={isDark ? tokens.colors.background : "#FFFFFF"}
+            color={iconFg}
           />
-        </View>
+        </Pressable>
         <View style={styles.walletText}>
           <Text style={[styles.walletTitle, { color: tokens.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
             {title}
@@ -167,7 +181,8 @@ const AccordionItem = ({
 };
 
 export default function EntriesScreen(): JSX.Element {
-  const { tokens } = useDashboardTheme();
+  const { tokens, isDark } = useDashboardTheme();
+  const deleteIconColor = isDark ? tokens.colors.bg : tokens.colors.surface;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { t } = useTranslation();
@@ -175,6 +190,8 @@ export default function EntriesScreen(): JSX.Element {
   const route = useRoute();
   const scrollRef = useRef<ScrollView | null>(null);
   const routeParams = (route.params ?? {}) as EntriesRouteParams;
+  const { width } = useWindowDimensions();
+  const lastFormModeRef = useRef<FormMode | undefined>(routeParams.formMode);
   const [entryType, setEntryType] = useState<EntryType>(routeParams.entryType ?? "income");
   const [formMode, setFormMode] = useState<FormMode>(routeParams.formMode ?? "create");
   const [editingId, setEditingId] = useState<number | null>(
@@ -188,6 +205,9 @@ export default function EntriesScreen(): JSX.Element {
   const [newCategoryColor, setNewCategoryColor] = useState(presetColors[0]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null);
+  const [confirmCategoryId, setConfirmCategoryId] = useState<number | null>(null);
+  const [confirmCategoryLoading, setConfirmCategoryLoading] = useState(false);
+  const [confirmCategoryError, setConfirmCategoryError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
@@ -229,6 +249,13 @@ export default function EntriesScreen(): JSX.Element {
   }, [refreshAll]);
 
   useEffect(() => {
+    const subscription = onDataChanged(() => {
+      void refreshAll();
+    });
+    return () => subscription.remove();
+  }, [refreshAll]);
+
+  useEffect(() => {
     if (routeParams.entryType) {
       setEntryType(routeParams.entryType);
     }
@@ -244,14 +271,17 @@ export default function EntriesScreen(): JSX.Element {
         applyEntryToForm(found, targetType);
         setShowNewEntry(true);
       }
+      lastFormModeRef.current = nextFormMode;
       return;
     }
     if (nextFormMode === "create") {
-      setFormMode("create");
-      setEditingId(null);
-      setForm(emptyForm);
-      setShowNewEntry(true);
+      if (lastFormModeRef.current !== "create") {
+        setFormMode("create");
+        setEditingId(null);
+        setForm(emptyForm);
+      }
     }
+    lastFormModeRef.current = nextFormMode;
   }, [routeParams.formMode, routeParams.entryId, routeParams.entryType, incomeEntries, expenseEntries]);
 
   useEffect(() => {
@@ -307,6 +337,10 @@ export default function EntriesScreen(): JSX.Element {
     const amount = Number(form.amount.replace(",", "."));
     if (!Number.isFinite(amount)) {
       setError(t("entries.validation.amountInvalid"));
+      return;
+    }
+    if (amount < 0.01) {
+      setError(t("entries.validation.amountTooSmall"));
       return;
     }
     const recurring = form.recurring;
@@ -384,7 +418,6 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const entries = entryType === "income" ? incomeEntries : expenseEntries;
-  const { width } = useWindowDimensions();
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
   const inputProps = createStandardTextInputProps(tokens);
@@ -404,6 +437,7 @@ export default function EntriesScreen(): JSX.Element {
     setNewCategoryColor(presetColors[0]);
     setShowAddCategory(false);
     await refreshAll();
+    emitDataChanged();
   };
 
   const persistCategoryEdit = useCallback(
@@ -427,9 +461,35 @@ export default function EntriesScreen(): JSX.Element {
     [categories, categoryEdits]
   );
 
-  const removeCategory = async (id: number) => {
-    await deleteExpenseCategory(id);
-    await refreshAll();
+  const openConfirmDeleteCategory = (id: number) => {
+    setConfirmCategoryId(id);
+    setConfirmCategoryError(null);
+  };
+
+  const closeConfirmDeleteCategory = () => {
+    if (confirmCategoryLoading) return;
+    setConfirmCategoryId(null);
+    setConfirmCategoryError(null);
+  };
+
+  const handleConfirmDeleteCategory = async () => {
+    if (!confirmCategoryId) return;
+    setConfirmCategoryLoading(true);
+    setConfirmCategoryError(null);
+    try {
+      await deleteExpenseCategory(confirmCategoryId);
+      await refreshAll();
+      emitDataChanged();
+      setExpandedCategoryId(null);
+      setConfirmCategoryId(null);
+    } catch (error) {
+      console.warn("Failed to delete category", error);
+      setConfirmCategoryError(
+        t("wallets.list.categoryDeleteError", { defaultValue: "Errore durante l'eliminazione. Riprova." })
+      );
+    } finally {
+      setConfirmCategoryLoading(false);
+    }
   };
 
   const openCategorySection = useCallback(() => {
@@ -479,7 +539,31 @@ export default function EntriesScreen(): JSX.Element {
   }, [filteredEntries]);
 
   const entryAccent = entryType === "income" ? tokens.colors.income : tokens.colors.expense;
+  const expenseCategoryCount = useMemo(() => {
+    if (entryType !== "expense") return 0;
+    const activeCategoryIds = new Set(activeCategories.map((cat) => cat.id));
+    const ids = new Set<number>();
+    entries.forEach((entry) => {
+      if (typeof entry.expense_category_id === "number" && activeCategoryIds.has(entry.expense_category_id)) {
+        ids.add(entry.expense_category_id);
+      }
+    });
+    return ids.size;
+  }, [activeCategories, entries, entryType]);
+  const shouldShowEntriesCard = entries.length > 0;
+  const shouldShowCategoryFilter =
+    entryType === "expense" && entries.length >= 5 && expenseCategoryCount >= 2;
+  const canSubmitNewCategory = showAddCategory && newCategory.trim().length > 0;
+  const newEntryTitle =
+    entryType === "income"
+      ? t("entries.form.newIncomeTitle", { defaultValue: "Nuova voce in entrata" })
+      : t("entries.form.newExpenseTitle", { defaultValue: "Nuova voce in uscita" });
 
+  useEffect(() => {
+    if (!shouldShowCategoryFilter && categoryFilter !== "all") {
+      setCategoryFilter("all");
+    }
+  }, [categoryFilter, shouldShowCategoryFilter]);
   const tableRows = useMemo<EntriesTableRow<(IncomeEntry | ExpenseEntry) | null>[]>(
     () =>
       sortedEntries.map((item) => {
@@ -533,14 +617,15 @@ export default function EntriesScreen(): JSX.Element {
   );
 
   return (
-    <AppBackground>
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={[
-          styles.container,
-          { gap: tokens.spacing.lg, paddingBottom: 140 + insets.bottom, paddingTop: headerHeight + 12 },
-        ]}
-      >
+    <View style={styles.screenRoot}>
+      <AppBackground>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.container,
+            { gap: tokens.spacing.lg, paddingBottom: 140 + insets.bottom, paddingTop: headerHeight + 12 },
+          ]}
+        >
         <GlassCardContainer contentStyle={{ gap: tokens.spacing.md }}>
           <SegmentedControlPill
             value={entryType}
@@ -562,15 +647,15 @@ export default function EntriesScreen(): JSX.Element {
         </GlassCardContainer>
 
         {showNewEntry && (
-          <GlassCardContainer>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("entries.form.newEntryTitle") ?? "New Entry"}</Text>
+          <GlassCardContainer style={{ borderColor: entryAccent }}>
+            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{newEntryTitle}</Text>
             <View style={{ gap: 12 }}>
               <TextInput
                 label={t("entries.form.name")}
                 value={form.name}
                 mode="outlined"
                 outlineColor={tokens.colors.glassBorder}
-                activeOutlineColor={entryAccent}
+                activeOutlineColor={tokens.colors.accent}
                 textColor={tokens.colors.text}
                 style={[styles.glassInput, { backgroundColor: tokens.colors.glassBg }]}
                 onChangeText={(text) => setForm((prev) => ({ ...prev, name: text }))}
@@ -581,8 +666,8 @@ export default function EntriesScreen(): JSX.Element {
                   keyboardType="decimal-pad"
                   value={form.amount}
                   mode="outlined"
-                  outlineColor={entryAccent}
-                  activeOutlineColor={entryAccent}
+                  outlineColor={tokens.colors.glassBorder}
+                  activeOutlineColor={tokens.colors.accent}
                   textColor={tokens.colors.text}
                   style={[styles.glassInput, styles.flex, { backgroundColor: tokens.colors.glassBg }]}
                   onChangeText={(text) => setForm((prev) => ({ ...prev, amount: sanitizeAmountInput(text) }))}
@@ -698,69 +783,71 @@ export default function EntriesScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        <GlassCardContainer contentStyle={styles.entriesTableCard}>
-          {entryType === "expense" && activeCategories.length > 0 ? (
-            <View style={styles.filterSection}>
-              <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>
-                {t("entries.list.filterByCategory", { defaultValue: "Filtra per categoria" })}
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={[styles.filterRow, { paddingHorizontal: 4 }]}
-              >
-                <Pressable
-                  onPress={() => setCategoryFilter("all")}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor: categoryFilter === "all" ? tokens.colors.accent : tokens.colors.glassBorder,
-                      backgroundColor: categoryFilter === "all" ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
-                    },
-                  ]}
+        {shouldShowEntriesCard ? (
+          <GlassCardContainer contentStyle={styles.entriesTableCard}>
+            {shouldShowCategoryFilter ? (
+              <View style={styles.filterSection}>
+                <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>
+                  {t("entries.list.filterByCategory", { defaultValue: "Filtra per categoria" })}
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={[styles.filterRow, { paddingHorizontal: 4 }]}
                 >
-                  <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>
-                    {t("common.all", { defaultValue: "Tutti" })}
-                  </Text>
-                </Pressable>
-                {activeCategories.map((cat) => {
-                  const selected = categoryFilter === cat.id;
-                  return (
-                    <Pressable
-                      key={cat.id}
-                      onPress={() => setCategoryFilter(cat.id)}
-                      style={[
-                        styles.filterChip,
-                        {
-                          borderColor: selected ? cat.color : tokens.colors.glassBorder,
-                          backgroundColor: selected ? `${cat.color}33` : tokens.colors.glassBg,
-                        },
-                      ]}
-                    >
-                      <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{cat.name}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          ) : null}
-          <EntriesTable
-            rows={tableRows}
-            minWidth={entryType === "income" ? Math.max(420, width - 48) : Math.max(520, width - 48)}
-            emptyLabel={t("entries.empty.noEntries")}
-            showCategory={entryType !== "income"}
-            renderAction={(row) =>
-              row.meta ? (
-                <SmallOutlinePillButton
-                  label=""
-                  onPress={() => handleRowAction(row.meta)}
-                  color={tokens.colors.accent}
-                  icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={tokens.colors.accent} />}
-                />
-              ) : null
-            }
-          />
-        </GlassCardContainer>
+                  <Pressable
+                    onPress={() => setCategoryFilter("all")}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: categoryFilter === "all" ? tokens.colors.accent : tokens.colors.glassBorder,
+                        backgroundColor: categoryFilter === "all" ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>
+                      {t("common.all", { defaultValue: "Tutti" })}
+                    </Text>
+                  </Pressable>
+                  {activeCategories.map((cat) => {
+                    const selected = categoryFilter === cat.id;
+                    return (
+                      <Pressable
+                        key={cat.id}
+                        onPress={() => setCategoryFilter(cat.id)}
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor: selected ? cat.color : tokens.colors.glassBorder,
+                            backgroundColor: selected ? `${cat.color}33` : tokens.colors.glassBg,
+                          },
+                        ]}
+                      >
+                        <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{cat.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : null}
+            <EntriesTable
+              rows={tableRows}
+              minWidth={entryType === "income" ? Math.max(420, width - 48) : Math.max(520, width - 48)}
+              emptyLabel={t("entries.empty.noEntries")}
+              showCategory={entryType !== "income"}
+              renderAction={(row) =>
+                row.meta ? (
+                  <SmallOutlinePillButton
+                    label=""
+                    onPress={() => handleRowAction(row.meta)}
+                    color={tokens.colors.accent}
+                    icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={tokens.colors.accent} />}
+                  />
+                ) : null
+              }
+            />
+          </GlassCardContainer>
+        ) : null}
         {entryType === "expense" ? (
           <View
             onLayout={(event) => {
@@ -769,45 +856,6 @@ export default function EntriesScreen(): JSX.Element {
           >
             <GlassCardContainer contentStyle={{ gap: 12, padding: 12 }}>
               <SectionHeader title={t("wallets.list.categoriesTitle")} />
-              {!showAddCategory && (
-                <PrimaryPillButton
-                  label={t("wallets.list.addCategory", { defaultValue: t("common.add") })}
-                  onPress={() => setShowAddCategory(true)}
-                  color={tokens.colors.accent}
-                />
-              )}
-              {showAddCategory && (
-                <View style={{ gap: 10 }}>
-                  <View style={[styles.colorLine, { paddingVertical: 2 }]}>
-                    <TextInput
-                      label={t("wallets.list.newCategoryLabel")}
-                      value={newCategory}
-                      {...inputProps}
-                      style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
-                      onChangeText={setNewCategory}
-                    />
-                    <PressScale
-                      onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
-                      style={[
-                        styles.colorSwatch,
-                        { backgroundColor: newCategoryColor, borderColor: tokens.colors.glassBorder },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.actionsRow}>
-                    <PrimaryPillButton label={t("common.add")} onPress={addCategory} color={tokens.colors.accent} />
-                    <SmallOutlinePillButton
-                      label={t("common.cancel")}
-                      onPress={() => {
-                        setShowAddCategory(false);
-                        setNewCategory("");
-                        setNewCategoryColor(presetColors[0]);
-                      }}
-                      color={tokens.colors.text}
-                    />
-                  </View>
-                </View>
-              )}
               {categories.length === 0 ? (
                 <Text style={{ color: tokens.colors.muted }}>{t("wallets.list.noCategories")}</Text>
               ) : null}
@@ -826,6 +874,16 @@ export default function EntriesScreen(): JSX.Element {
                       expanded={expandedCategoryId === cat.id}
                       onToggle={() => setExpandedCategoryId((prev) => (prev === cat.id ? null : cat.id))}
                       color={categoryEdits[cat.id]?.color ?? cat.color}
+                      iconOverride={expandedCategoryId === cat.id ? "trash-can-outline" : undefined}
+                      iconBackgroundOverride={expandedCategoryId === cat.id ? tokens.colors.red : undefined}
+                      iconColorOverride={expandedCategoryId === cat.id ? deleteIconColor : undefined}
+                      onIconPress={
+                        expandedCategoryId === cat.id
+                          ? () => {
+                              openConfirmDeleteCategory(cat.id);
+                            }
+                          : undefined
+                      }
                     >
                       <View style={[styles.sectionContent, styles.accordionInner]}>
                         <View style={[styles.colorLine, { paddingVertical: 0 }]}>
@@ -852,43 +910,83 @@ export default function EntriesScreen(): JSX.Element {
                             ]}
                           />
                         </View>
-                        <View style={styles.actionsRow}>
-                          <SmallOutlinePillButton
-                            label={
-                              isActive
-                                ? t("wallets.list.categoryDeactivate")
-                                : t("wallets.list.categoryActivate")
-                            }
-                            onPress={async () => {
-                              await setExpenseCategoryActive(cat.id, isActive ? 0 : 1);
-                              await refreshAll();
-                            }}
-                            color={isActive ? tokens.colors.red : tokens.colors.accent}
-                          />
-                          <SmallOutlinePillButton
-                            label={t("common.delete")}
-                            onPress={async () => {
-                              await removeCategory(cat.id);
-                              setExpandedCategoryId(null);
-                            }}
-                            color={tokens.colors.red}
-                          />
-                        </View>
                       </View>
                     </AccordionItem>
                   );
                 })}
               </View>
+              {showAddCategory && (
+                <View style={{ gap: 10 }}>
+                  <View style={[styles.colorLine, { paddingVertical: 2 }]}>
+                    <TextInput
+                      label={t("wallets.list.newCategoryLabel")}
+                      value={newCategory}
+                      {...inputProps}
+                      style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
+                      onChangeText={setNewCategory}
+                    />
+                    <PressScale
+                      onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: newCategoryColor, borderColor: tokens.colors.glassBorder },
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
+              <PrimaryPillButton
+                label={
+                  showAddCategory
+                    ? canSubmitNewCategory
+                      ? t("common.add")
+                      : t("common.cancel")
+                    : t("wallets.list.addCategory", { defaultValue: t("common.add") })
+                }
+                onPress={() => {
+                  if (showAddCategory) {
+                    if (canSubmitNewCategory) {
+                      void addCategory();
+                      return;
+                    }
+                    setShowAddCategory(false);
+                    setNewCategory("");
+                    setNewCategoryColor(presetColors[0]);
+                    return;
+                  }
+                  setShowAddCategory(true);
+                }}
+                color={tokens.colors.accent}
+              />
             </GlassCardContainer>
           </View>
         ) : null}
-      </ScrollView>
-    </AppBackground>
+        <ConfirmDialog
+          visible={confirmCategoryId !== null}
+          title={t("categories.delete.title", { defaultValue: "Eliminare categoria?" })}
+          message={t("categories.delete.body", {
+            defaultValue:
+              "Eliminando questa categoria verranno eliminate anche tutte le spese associate. Se devi solo cambiarne il nome, modifica la categoria invece di eliminarla.",
+          })}
+          confirmLabel={t("categories.delete.confirm", { defaultValue: "Elimina categoria" })}
+          cancelLabel={t("common.cancel", { defaultValue: "Annulla" })}
+          onConfirm={handleConfirmDeleteCategory}
+          onCancel={closeConfirmDeleteCategory}
+          loading={confirmCategoryLoading}
+          error={confirmCategoryError}
+          confirmColor={tokens.colors.expense}
+        />
+        </ScrollView>
+      </AppBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  screenRoot: {
     flex: 1,
   },
   container: {

@@ -1,13 +1,14 @@
 import React, { useCallback, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { BlurView } from "expo-blur";
+import GlassSurface from "@/ui/components/GlassSurface";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listWallets } from "@/repositories/walletsRepo";
 import LimitReachedModal from "@/ui/components/LimitReachedModal";
 import { useTranslation } from "react-i18next";
+import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 const ICONS: Record<string, string> = {
   Dashboard: "view-grid",
@@ -20,6 +21,7 @@ const BAR_HEIGHT = 72;
 
 export default function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps): JSX.Element {
   const theme = useTheme();
+  const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [blockedModalVisible, setBlockedModalVisible] = useState(false);
@@ -38,23 +40,30 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const isDark = theme.dark;
   const blurTint = isDark ? "dark" : "light";
   const blurIntensity = 35;
-  const barBg = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
-  const borderColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
+  const barBg =
+    Platform.OS === "android"
+      ? isDark
+        ? tokens.colors.surface2
+        : tokens.colors.surface
+      : isDark
+      ? "rgba(15, 18, 30, 0.55)"
+      : "rgba(169, 124, 255, 0.32)";
+  const borderColor =
+    Platform.OS === "android" ? tokens.colors.border : isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
   const inactiveColor = isDark ? theme.colors.onSurface : "#4B4B60";
-
   const tabRoutes = state.routes.filter((route) => route.name !== "Impostazioni");
-
   return (
     <>
       <View style={styles.container} pointerEvents="box-none">
-        <BlurView
+        <GlassSurface
           intensity={blurIntensity}
           tint={blurTint}
+          backgroundColor={barBg}
+          borderColor={borderColor}
+          radius={0}
           style={[
             styles.blur,
             {
-              backgroundColor: barBg,
-              borderColor,
               paddingBottom: insets.bottom + 8,
               minHeight: BAR_HEIGHT + insets.bottom,
             },
@@ -117,7 +126,7 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
               );
             })}
           </View>
-        </BlurView>
+        </GlassSurface>
       </View>
       <LimitReachedModal
         visible={blockedModalVisible}
@@ -145,6 +154,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingHorizontal: 16,
     justifyContent: "center",
+    borderWidth: 0,
     borderTopWidth: 1,
   },
   inner: {

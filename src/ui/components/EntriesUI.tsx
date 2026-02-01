@@ -1,8 +1,9 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { BlurView } from "expo-blur";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useTheme, Text } from "react-native-paper";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import GlassBlur from "@/ui/components/GlassBlur";
+import GlassSurface from "@/ui/components/GlassSurface";
 import type { StyleProp, ViewStyle } from "react-native";
 
 type SegmentOption<T> = {
@@ -22,8 +23,20 @@ export function SegmentedControlPill<T>({ value, options, onChange }: SegmentedC
   const { tokens } = useDashboardTheme();
   const tint = paperTheme.dark ? "dark" : "light";
   return (
-    <View style={[styles.segmentWrap, { borderColor: tokens.colors.glassBorder }]}>
-      <BlurView intensity={35} tint={tint} style={StyleSheet.absoluteFill} />
+    <View
+      style={[
+        styles.segmentWrap,
+        {
+          borderColor: tokens.colors.glassBorder,
+          backgroundColor: Platform.OS === "android" ? tokens.colors.surface2 : "transparent",
+        },
+      ]}
+    >
+      <GlassBlur
+        intensity={35}
+        tint={tint}
+        fallbackColor={paperTheme.dark ? "rgba(255,255,255,0.1)" : tokens.colors.glassBg}
+      />
       {options.map((option) => {
         const active = value === option.value;
         return (
@@ -73,25 +86,23 @@ export function GlassCardContainer({
   const { tokens } = useDashboardTheme();
   const tint = paperTheme.dark ? "dark" : "light";
   return (
-    <View
-      style={[
-        styles.glassCard,
-        { borderColor: tokens.colors.glassBorder },
-        { width: "100%", alignSelf: "stretch" },
-        style,
-      ]}
+    <GlassSurface
+      intensity={32}
+      tint={tint}
+      backgroundColor={tokens.colors.glassBg}
+      borderColor={tokens.colors.glassBorder}
+      radius={18}
+      style={[styles.glassCard, { width: "100%", alignSelf: "stretch" }, style]}
     >
-      <BlurView intensity={32} tint={tint} style={StyleSheet.absoluteFill} />
       <View
         style={[
           styles.glassInner,
-          { backgroundColor: tokens.colors.glassBg },
           contentStyle,
         ]}
       >
         {children}
       </View>
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -214,8 +225,6 @@ const styles = StyleSheet.create({
   },
   glassCard: {
     borderRadius: 18,
-    borderWidth: 1,
-    overflow: "hidden",
   },
   glassInner: {
     padding: 16,

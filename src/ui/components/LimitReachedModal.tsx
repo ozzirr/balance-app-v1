@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Modal, Portal, Text, Button } from "react-native-paper";
-import { BlurView } from "expo-blur";
+import GlassBlur from "@/ui/components/GlassBlur";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useTranslation } from "react-i18next";
@@ -104,8 +104,14 @@ export default function LimitReachedModal({
 
   const iconTint = `${tokens.colors.accentPurple}22`;
   const overlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
-  const cardBackground = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
-  const cardBorder = isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
+  const cardBackground =
+    Platform.OS === "android"
+      ? tokens.colors.surface2
+      : isDark
+      ? "rgba(15, 18, 30, 0.55)"
+      : "rgba(169, 124, 255, 0.32)";
+  const cardBorder =
+    Platform.OS === "android" ? tokens.colors.border : isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
   const blurTint = isDark ? "dark" : "light";
   const blurIntensity = 35;
 
@@ -131,7 +137,7 @@ export default function LimitReachedModal({
             },
           ]}
         >
-          <BlurView intensity={blurIntensity} tint={blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <GlassBlur intensity={blurIntensity} tint={blurTint} fallbackColor="transparent" />
           <View style={[styles.iconWrap, { backgroundColor: iconTint }]}>
             <View style={[styles.iconInner, { backgroundColor: tokens.colors.modalBorder }]}>
               <MaterialCommunityIcons name="wallet-outline" size={32} color={tokens.colors.accent} />

@@ -1,9 +1,9 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { BlurView } from "expo-blur";
 import type { ViewStyle, StyleProp } from "react-native";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useTheme } from "react-native-paper";
+import GlassBlur from "@/ui/components/GlassBlur";
 
 type Props = {
   children: React.ReactNode;
@@ -24,7 +24,7 @@ export default function PremiumCard({ children, style, hideDecorations = false }
         style,
       ]}
     >
-      <BlurView intensity={32} tint={tint} style={StyleSheet.absoluteFill} />
+      <GlassBlur intensity={32} tint={tint} fallbackColor={tokens.colors.glassBg} />
       {!hideDecorations ? (
         <>
           <View pointerEvents="none" style={[styles.highlight, { backgroundColor: "rgba(255,255,255,0.05)" }]} />

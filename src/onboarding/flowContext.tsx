@@ -1,7 +1,7 @@
 import React, { createContext, useContext } from "react";
 
 type OnboardingFlowContextValue = {
-  requestReplay: () => void;
+  requestReplay: (options?: { seed?: boolean }) => void;
 };
 
 const OnboardingFlowContext = createContext<OnboardingFlowContextValue | undefined>(undefined);

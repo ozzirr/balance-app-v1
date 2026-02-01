@@ -11,7 +11,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useDashboardTheme } from "@/ui/dashboard/theme";

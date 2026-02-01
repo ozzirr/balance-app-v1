@@ -298,7 +298,7 @@
       }
     },
     "actions": {
-      "toggleForm": "Add or edit entries"
+      "toggleForm": "Add entry"
     },
     "empty": {
       "noEntries": "Add your first entry to get started.",
@@ -309,6 +309,7 @@
       "nameRequired": "Name is required.",
       "invalidDate": "Invalid date (YYYY-MM-DD).",
       "amountInvalid": "Invalid amount.",
+      "amountTooSmall": "Minimum amount: 0.01.",
       "categoryRequired": "Category is required.",
       "removeIdBeforeCreate": "Remove the ID before creating a new entry.",
       "noEntryForEdit": "No entry selected for editing."
@@ -375,6 +376,12 @@
     "empty": {
       "noSnapshots": "No snapshots yet.",
       "firstHint": "After setting up wallets, add your first snapshot here."
+    },
+    "guide": {
+      "title": "Add your first snapshot",
+      "bodyLine1": "A snapshot is your wallet balance at a specific date.",
+      "bodyLine2": "Start by entering today's balance.",
+      "cta": "Add snapshot"
     },
     "form": {
       "dateLabel": "Date"

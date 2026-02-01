@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Alert, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { ActivityIndicator, Text, TextInput } from "react-native-paper";
 import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
@@ -24,18 +24,24 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useSettings } from "@/settings/useSettings";
 import AppBackground from "@/ui/components/AppBackground";
 import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
-import { onDataReset } from "@/app/dataEvents";
+import { onDataChanged, onDataReset } from "@/app/dataEvents";
+import { getOnboardingCompleted } from "@/onboarding/onboardingStorage";
 import {
   GlassCardContainer,
   PrimaryPillButton,
   PillChip,
   SmallOutlinePillButton,
 } from "@/ui/components/EntriesUI";
+import CoachTipCard from "@/ui/components/CoachTipCard";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 type DraftLine = {
   walletId: number;
   amount: string;
+};
+
+type SnapshotRouteParams = {
+  openNew?: boolean;
 };
 
 const MONTH_LABELS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
@@ -128,9 +134,10 @@ export default function SnapshotScreen(): JSX.Element {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { showInvestments } = useSettings();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const route = useRoute();
-  const openNew = (route.params as { openNew?: boolean } | undefined)?.openNew;
+  const routeParams = route.params as SnapshotRouteParams | undefined;
+  const openNew = routeParams?.openNew;
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<number | null>(null);
   const [lines, setLines] = useState<SnapshotLineDetail[]>([]);
@@ -145,15 +152,18 @@ export default function SnapshotScreen(): JSX.Element {
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
   const [focusedLineId, setFocusedLineId] = useState<number | null>(null);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const inputRefs = useRef<Record<number, React.ComponentRef<typeof TextInput> | null>>({});
 
   const load = useCallback(async () => {
-    const [snap, walletList] = await Promise.all([
+    const [snap, walletList, onboardingDone] = await Promise.all([
       listSnapshots(),
       listWallets(true),
+      getOnboardingCompleted(),
     ]);
     setSnapshots(snap);
     setWallets(walletList);
+    setOnboardingCompleted(onboardingDone);
     const prefill = await getPreference("prefill_snapshot");
     setPrefillSnapshot(prefill ? prefill.value === "true" : true);
     if (snap.length > 0 && selectedSnapshotId === null) {
@@ -186,6 +196,13 @@ export default function SnapshotScreen(): JSX.Element {
 
   useEffect(() => {
     const subscription = onDataReset(() => {
+      void refreshAll();
+    });
+    return () => subscription.remove();
+  }, [refreshAll]);
+
+  useEffect(() => {
+    const subscription = onDataChanged(() => {
       void refreshAll();
     });
     return () => subscription.remove();
@@ -483,17 +500,21 @@ export default function SnapshotScreen(): JSX.Element {
     }
   }, [activeMonth, selectedSnapshotId, loadLines]);
 
+  const shouldShowFirstSnapshotTip =
+    onboardingCompleted && snapshots.length === 0 && wallets.length > 0 && !showForm;
+
   return (
-    <AppBackground>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[
-          styles.container,
-          { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
-        ]}
-        alwaysBounceVertical
-        bounces
-      >
+    <View style={styles.screenRoot}>
+      <AppBackground>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.container,
+            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
+          ]}
+          alwaysBounceVertical
+          bounces
+        >
         {/* Header title/subtitle removed per request */}
 
         {activeMonth && (
@@ -587,6 +608,23 @@ export default function SnapshotScreen(): JSX.Element {
               ))}
             </ScrollView>
           </GlassCardContainer>
+        )}
+
+        {shouldShowFirstSnapshotTip && (
+          <CoachTipCard
+            title={t("snapshot.guide.title", { defaultValue: "Aggiungi il tuo primo snapshot" })}
+            lines={[
+              t("snapshot.guide.bodyLine1", {
+                defaultValue: "Uno snapshot è il saldo del wallet in una data.",
+              }),
+              t("snapshot.guide.bodyLine2", {
+                defaultValue: "Inizia inserendo il saldo di oggi.",
+              }),
+            ]}
+            ctaLabel={t("snapshot.guide.cta", { defaultValue: "Aggiungi snapshot" })}
+            onPress={handleHeroCta}
+            ctaColor={tokens.colors.accent}
+          />
         )}
 
         {showForm && (
@@ -797,8 +835,9 @@ export default function SnapshotScreen(): JSX.Element {
             </View>
           </GlassCardContainer>
         )}
-      </ScrollView>
-    </AppBackground>
+        </ScrollView>
+      </AppBackground>
+    </View>
   );
 }
 
@@ -945,5 +984,8 @@ const styles = StyleSheet.create({
   recentRow: {
     gap: 10,
     paddingHorizontal: 4,
+  },
+  screenRoot: {
+    flex: 1,
   },
 });

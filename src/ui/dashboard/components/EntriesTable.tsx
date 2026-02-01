@@ -55,6 +55,13 @@ export default function EntriesTable({
     const start = pageIndex * ROWS_PER_PAGE;
     return rows.slice(start, start + ROWS_PER_PAGE);
   }, [rows, pageIndex]);
+  const displayRows = useMemo(() => {
+    const filled = [...pageRows];
+    while (filled.length < ROWS_PER_PAGE) {
+      filled.push(null);
+    }
+    return filled;
+  }, [pageRows]);
 
   useEffect(() => {
     if (pageIndex > totalPages - 1) {
@@ -63,69 +70,89 @@ export default function EntriesTable({
   }, [pageIndex, totalPages]);
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ minWidth: adjustedMinWidth }}
-    >
-      <View style={{ minWidth: adjustedMinWidth }}>
-        <View style={styles.tableHeaderRow}>
-          <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]}>
-            {t("entries.list.table.date", { defaultValue: "Data" })}
-          </Text>
-          <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]}>
-            {t("entries.list.table.amount", { defaultValue: "Importo" })}
-          </Text>
-          <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]}>
-            {t("entries.list.table.name", { defaultValue: "Nome" })}
-          </Text>
-          {showCategory ? (
-            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]}>
-              {t("entries.list.table.category", { defaultValue: "Categoria" })}
+    <View style={styles.tableWrap}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ minWidth: adjustedMinWidth }}
+      >
+        <View style={{ minWidth: adjustedMinWidth }}>
+          <View style={styles.tableHeaderRow}>
+            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]}>
+              {t("entries.list.table.date", { defaultValue: "Data" })}
             </Text>
-          ) : null}
-          <View style={[styles.headerCell, styles.cellAction]} />
-        </View>
-        <View style={[styles.divider, { backgroundColor: tokens.colors.border }]} />
-        <FlatList
-          data={pageRows}
-          keyExtractor={(item) => `${item.id}`}
-          scrollEnabled={false}
-          contentContainerStyle={styles.entriesList}
-          ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: tokens.colors.border }]} />}
-          ListEmptyComponent={
-            <Text style={{ color: tokens.colors.muted, paddingVertical: 12 }}>
-              {emptyLabel ?? t("entries.empty.noEntries")}
+            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]}>
+              {t("entries.list.table.amount", { defaultValue: "Importo" })}
             </Text>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.entryRow}>
-              <Text style={[styles.cell, styles.cellDate]}>{item.dateLabel}</Text>
-              <Text style={[styles.cell, styles.cellAmount, { color: item.amountColor ?? amountColorForTone(item.amountTone) }]}>
-                {item.amountLabel}
+            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]}>
+              {t("entries.list.table.name", { defaultValue: "Nome" })}
+            </Text>
+            {showCategory ? (
+              <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]}>
+                {t("entries.list.table.category", { defaultValue: "Categoria" })}
               </Text>
-              <View style={[styles.entryDescription, styles.cellDesc]}>
-                <Text style={[styles.entryName, { color: tokens.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
-                  {clampName(item.name)}
-                </Text>
-                {item.subtitle ? (
-                  <Text style={[styles.entrySubtitle, { color: tokens.colors.muted }]} numberOfLines={1}>
-                    {item.subtitle}
+            ) : null}
+            <View style={[styles.headerCell, styles.cellAction]} />
+          </View>
+          <View style={[styles.divider, { backgroundColor: tokens.colors.border }]} />
+          <FlatList
+            data={displayRows}
+            keyExtractor={(item, index) => (item ? `${item.id}` : `empty-${pageIndex}-${index}`)}
+            scrollEnabled={false}
+            contentContainerStyle={styles.entriesList}
+            ItemSeparatorComponent={() => <View style={[styles.divider, { backgroundColor: tokens.colors.border }]} />}
+            ListEmptyComponent={
+              <Text style={{ color: tokens.colors.muted, paddingVertical: 12 }}>
+                {emptyLabel ?? t("entries.empty.noEntries")}
+              </Text>
+            }
+            renderItem={({ item }) => (
+              item ? (
+                <View style={styles.entryRow}>
+                  <Text style={[styles.cell, styles.cellDate]}>{item.dateLabel}</Text>
+                  <Text style={[styles.cell, styles.cellAmount, { color: item.amountColor ?? amountColorForTone(item.amountTone) }]}>
+                    {item.amountLabel}
                   </Text>
-                ) : null}
-              </View>
-              {showCategory ? (
-                <View style={[styles.cell, styles.cellCategory]}>
-                  <Chip label={item.categoryLabel} color={item.categoryColor ?? tokens.colors.muted} />
+                  <View style={[styles.entryDescription, styles.cellDesc]}>
+                    <Text style={[styles.entryName, { color: tokens.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
+                      {clampName(item.name)}
+                    </Text>
+                    {item.subtitle ? (
+                      <Text style={[styles.entrySubtitle, { color: tokens.colors.muted }]} numberOfLines={1}>
+                        {item.subtitle}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {showCategory ? (
+                    <View style={[styles.cell, styles.cellCategory]}>
+                      <Chip label={item.categoryLabel} color={item.categoryColor ?? tokens.colors.muted} />
+                    </View>
+                  ) : null}
+                  <View style={[styles.cell, styles.cellAction]}>{renderAction?.(item) ?? null}</View>
                 </View>
-              ) : null}
-              <View style={[styles.cell, styles.cellAction]}>{renderAction?.(item) ?? null}</View>
-            </View>
-          )}
-        />
-        {totalPages > 1 ? (
-          <View style={styles.paginationWrap}>
-            <View style={styles.paginationRow}>
+              ) : (
+                <View style={styles.entryRow}>
+                  <Text style={[styles.cell, styles.cellDate, styles.placeholderText]}> </Text>
+                  <Text style={[styles.cell, styles.cellAmount, styles.placeholderText]}> </Text>
+                  <View style={[styles.entryDescription, styles.cellDesc]}>
+                    <Text style={[styles.entryName, styles.placeholderText]} numberOfLines={1}>
+                      {" "}
+                    </Text>
+                    <Text style={[styles.entrySubtitle, styles.placeholderText]} numberOfLines={1}>
+                      {" "}
+                    </Text>
+                  </View>
+                  {showCategory ? <View style={[styles.cell, styles.cellCategory]} /> : null}
+                  <View style={[styles.cell, styles.cellAction]} />
+                </View>
+              )
+            )}
+          />
+        </View>
+      </ScrollView>
+      {totalPages > 1 ? (
+        <View style={styles.paginationWrap}>
+          <View style={styles.paginationRow}>
             <SmallOutlinePillButton
               label=""
               onPress={
@@ -161,15 +188,17 @@ export default function EntriesTable({
                 />
               }
             />
-            </View>
           </View>
-        ) : null}
-      </View>
-    </ScrollView>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  tableWrap: {
+    width: "100%",
+  },
   entriesList: {
     paddingVertical: 4,
   },
@@ -191,6 +220,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: COLUMN_GAP,
     width: "100%",
+  },
+  placeholderText: {
+    opacity: 0,
   },
   cell: {
     fontSize: 12,

@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { getSecurityConfig } from "./securityStorage";
 import LockScreen from "./LockScreen";
 import type { SecurityConfig } from "./securityTypes";
-import { BlurView } from "expo-blur";
+import GlassBlur from "@/ui/components/GlassBlur";
 
 type SecurityGateProps = {
   children: React.ReactNode;
@@ -81,7 +81,7 @@ export default function SecurityGate({ children }: SecurityGateProps): JSX.Eleme
           pointerEvents="auto"
           onTouchStart={handleInteraction}
         >
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+          <GlassBlur intensity={40} tint="dark" fallbackColor="rgba(8,10,18,0.5)" />
           <View style={styles.overlay} />
           <LockScreen
             config={config}

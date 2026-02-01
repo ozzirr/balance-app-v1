@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
 import { enableScreens } from "react-native-screens";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { BlurView } from "expo-blur";
+import GlassBlur from "@/ui/components/GlassBlur";
 import * as SplashScreen from "expo-splash-screen";
 import AnimatedSplashOverlay from "@/ui/splash/AnimatedSplashOverlay";
 import { useAppBootstrap } from "@/app/useAppBootstrap";
@@ -54,6 +54,7 @@ export default function App(): JSX.Element {
   const [i18nReady, setI18nReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
   const [manualOnboarding, setManualOnboarding] = useState(false);
+  const [seedOnCompleteRequested, setSeedOnCompleteRequested] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -83,12 +84,14 @@ export default function App(): JSX.Element {
 
   const handleOnboardingComplete = useCallback(() => {
     setManualOnboarding(false);
+    setSeedOnCompleteRequested(false);
     void setOnboardingCompleted(true);
     setOnboardingCompletedState(true);
   }, []);
 
-  const requestManualOnboarding = useCallback(() => {
+  const requestManualOnboarding = useCallback((options?: { seed?: boolean }) => {
     setManualOnboarding(true);
+    setSeedOnCompleteRequested(Boolean(options?.seed));
   }, []);
 
   const [securityReady, setSecurityReady] = useState(false);
@@ -172,6 +175,8 @@ export default function App(): JSX.Element {
   const headerOverlay =
     themeMode === "dark" ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
   const headerBorder = themeMode === "dark" ? navTheme.colors.border : "rgba(169, 124, 255, 0.5)";
+  const isFirstOnboarding = onboardingCompleted !== true && !manualOnboarding;
+  const shouldSeedOnComplete = isFirstOnboarding || seedOnCompleteRequested;
 
   if (!i18nReady) {
     return null;
@@ -200,27 +205,40 @@ export default function App(): JSX.Element {
                                 !onboardingCompleted || manualOnboarding ? (
                                   <OnboardingNavigator
                                     onComplete={handleOnboardingComplete}
-                                    shouldSeedOnComplete={!manualOnboarding}
+                                    shouldSeedOnComplete={shouldSeedOnComplete}
                                   />
                                 ) : (
                                   <Tab.Navigator
                                     screenOptions={({ route }) => ({
                                       headerTitleAlign: "center",
                                       headerTransparent: true,
-                                      headerBackground: () => (
-                                        <BlurView
-                                          intensity={35}
-                                          tint={headerBlurTint}
-                                          style={[
-                                            StyleSheet.absoluteFill,
-                                            {
-                                              borderBottomWidth: 1,
-                                              borderBottomColor: headerBorder,
-                                              backgroundColor: headerOverlay,
-                                            },
-                                          ]}
-                                        />
-                                      ),
+                                      headerBackground: () =>
+                                        Platform.OS === "android" ? (
+                                          <View
+                                            style={[
+                                              StyleSheet.absoluteFill,
+                                              {
+                                                borderBottomWidth: 1,
+                                                borderBottomColor: headerBorder,
+                                                backgroundColor: paperTheme.dark ? "#141923" : "#FFFFFF",
+                                              },
+                                            ]}
+                                          />
+                                        ) : (
+                                          <GlassBlur
+                                            intensity={35}
+                                            tint={headerBlurTint}
+                                            fallbackColor="transparent"
+                                            style={[
+                                              StyleSheet.absoluteFill,
+                                              {
+                                                borderBottomWidth: 1,
+                                                borderBottomColor: headerBorder,
+                                                backgroundColor: headerOverlay,
+                                              },
+                                            ]}
+                                          />
+                                        ),
                                       headerLeft: () => (
                                         <ProfileButton
                                           isSettingsScreen={route.name === "Impostazioni"}

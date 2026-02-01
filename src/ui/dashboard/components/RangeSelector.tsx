@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
-import { BlurView } from "expo-blur";
+import { Animated, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
@@ -8,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DarkTheme } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import type { KpiDeltaRange } from "@/ui/dashboard/types";
+import GlassBlur from "@/ui/components/GlassBlur";
 
 type Option = { value: KpiDeltaRange; label: string };
 
@@ -33,8 +33,18 @@ export default function RangeSelector({
     () => options.find((opt) => opt.value === selectedRange)?.label ?? "",
     [options, selectedRange]
   );
-  const sheetBackground = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
-  const sheetBorder = isDark ? DarkTheme.colors.border : "rgba(169, 124, 255, 0.5)";
+  const sheetBackground =
+    Platform.OS === "android"
+      ? tokens.colors.surface2
+      : isDark
+      ? "rgba(15, 18, 30, 0.55)"
+      : "rgba(169, 124, 255, 0.32)";
+  const sheetBorder =
+    Platform.OS === "android"
+      ? tokens.colors.border
+      : isDark
+      ? DarkTheme.colors.border
+      : "rgba(169, 124, 255, 0.5)";
   const blurIntensity = 35;
   const overlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
 
@@ -74,11 +84,7 @@ export default function RangeSelector({
         style={({ pressed }) => [
           styles.selectorRow,
           !showLabel && styles.selectorRowCompact,
-          {
-            borderColor: tokens.colors.accent,
-            backgroundColor: "transparent",
-            opacity: pressed ? 0.92 : 1,
-          },
+          { opacity: pressed ? 0.7 : 1 },
         ]}
         accessibilityRole="button"
         accessibilityLabel={`Periodo: ${selectedLabel}`}
@@ -130,7 +136,7 @@ export default function RangeSelector({
                 },
               ]}
             >
-            <BlurView intensity={blurIntensity} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} pointerEvents="none" />
+            <GlassBlur intensity={blurIntensity} tint={isDark ? "dark" : "light"} fallbackColor="transparent" />
             <Text style={[styles.sheetTitle, { color: tokens.colors.text }]}>
               {t("dashboard.range.title")}
             </Text>
@@ -183,17 +189,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    minWidth: 72,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    minWidth: 0,
     maxWidth: "100%",
     alignSelf: "flex-start",
-    gap: 6,
+    gap: 4,
   },
   selectorRowCompact: {
-    minWidth: 72,
+    minWidth: 0,
   },
   selectorLabel: {
     fontSize: 12,
@@ -203,13 +207,13 @@ const styles = StyleSheet.create({
   selectorValue: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
     maxWidth: "80%",
     flexShrink: 1,
   },
   selectorValueText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   selectorValueTextCompact: {
     fontSize: 13,
