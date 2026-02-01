@@ -27,6 +27,7 @@ export default function CoachTipCard({
 }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const showDefaultCta = !actions && ctaLabel && onPress;
+  const bodyText = lines.filter(Boolean).join("\n");
   return (
     <GlassCardContainer contentStyle={styles.card}>
       <View style={styles.headerRow}>
@@ -36,15 +37,14 @@ export default function CoachTipCard({
             <Text style={[styles.title, { color: tokens.colors.text }]}>{title}</Text>
           ) : null}
           <View style={styles.body}>
-            {lines.map((line, index) => (
+            {bodyText ? (
               <Text
-                key={`${index}-${line}`}
                 numberOfLines={lineNumberOfLines}
                 style={[styles.bodyText, { color: tokens.colors.muted }]}
               >
-                {line}
+                {bodyText}
               </Text>
-            ))}
+            ) : null}
           </View>
         </View>
       </View>

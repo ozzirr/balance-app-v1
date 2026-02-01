@@ -1,7 +1,7 @@
 import { Linking, Platform } from "react-native";
 import i18n from "i18next";
 
-export const PRO_WAITLIST_URL = "https://YOUR_DOMAIN/pro-waitlist";
+export const PRO_WAITLIST_URL = "https://ozzirr.github.io/balance/pro-waitlist.html";
 
 function resolveLocaleParam(): "it" | "en" {
   const language = i18n.resolvedLanguage ?? i18n.language ?? "it";

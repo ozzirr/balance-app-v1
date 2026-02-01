@@ -621,6 +621,7 @@ export default function SnapshotScreen(): JSX.Element {
                 defaultValue: "Inizia inserendo il saldo di oggi.",
               }),
             ]}
+            lineNumberOfLines={2}
             ctaLabel={t("snapshot.guide.cta", { defaultValue: "Aggiungi snapshot" })}
             onPress={handleHeroCta}
             ctaColor={tokens.colors.accent}
