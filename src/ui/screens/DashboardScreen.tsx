@@ -13,7 +13,6 @@ import { getPreference, setPreference } from "@/repositories/preferencesRepo";
 import type { SnapshotLineDetail } from "@/repositories/types";
 import { todayIso } from "@/utils/dates";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
-import { getKpiDeltaRangeLabel } from "@/ui/dashboard/types";
 import type { DashboardData, KpiDeltaRange } from "@/ui/dashboard/types";
 import { buildDashboardData, createMockDashboardData } from "@/ui/dashboard/adapter";
 import KPIStrip from "@/ui/dashboard/components/KPIStrip";
@@ -98,14 +97,13 @@ export default function DashboardScreen(): JSX.Element {
   const { showInvestments } = useSettings();
   const kpiRangeOptions = useMemo(
     () => ([
-      { value: "1D", label: getKpiDeltaRangeLabel("1D") },
-      { value: "7D", label: getKpiDeltaRangeLabel("7D") },
-      { value: "28D", label: getKpiDeltaRangeLabel("28D") },
-      { value: "3M", label: getKpiDeltaRangeLabel("3M") },
-      { value: "6M", label: getKpiDeltaRangeLabel("6M") },
-      { value: "12M", label: getKpiDeltaRangeLabel("12M") },
+      { value: "7D", label: t("dashboard.range.options.last7Days") },
+      { value: "28D", label: t("dashboard.range.options.last28Days") },
+      { value: "3M", label: t("dashboard.range.options.last3Months") },
+      { value: "6M", label: t("dashboard.range.options.last6Months") },
+      { value: "12M", label: t("dashboard.range.options.last12Months") },
     ] as const),
-    []
+    [t]
   );
 
   const load = useCallback(async () => {
@@ -480,7 +478,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   greetingText: {
-    fontSize: 34,
+    fontSize: 29,
     fontWeight: "700",
     letterSpacing: 0.25,
     flexShrink: 1,

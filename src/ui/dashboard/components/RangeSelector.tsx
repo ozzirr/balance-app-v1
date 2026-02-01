@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DarkTheme } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import type { KpiDeltaRange } from "@/ui/dashboard/types";
 
 type Option = { value: KpiDeltaRange; label: string };
@@ -25,7 +26,9 @@ export default function RangeSelector({
 }: Props): JSX.Element {
   const { tokens, isDark } = useDashboardTheme();
   const insets = useSafeAreaInsets();
-  const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
+  const [modalVisible, setModalVisible] = useState(false);
+  const anim = useRef(new Animated.Value(0)).current;
   const selectedLabel = useMemo(
     () => options.find((opt) => opt.value === selectedRange)?.label ?? "",
     [options, selectedRange]
@@ -33,18 +36,47 @@ export default function RangeSelector({
   const sheetBackground = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
   const sheetBorder = isDark ? DarkTheme.colors.border : "rgba(169, 124, 255, 0.5)";
   const blurIntensity = 35;
+  const overlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
+
+  const openSheet = useCallback(() => {
+    setModalVisible(true);
+    requestAnimationFrame(() => {
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [anim]);
+
+  const closeSheet = useCallback(() => {
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setModalVisible(false);
+      }
+    });
+  }, [anim]);
+
+  const sheetTranslateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [64, 0],
+  });
 
   return (
     <>
       <Pressable
-        onPress={() => setOpen(true)}
+        onPress={openSheet}
         hitSlop={6}
         style={({ pressed }) => [
           styles.selectorRow,
           !showLabel && styles.selectorRowCompact,
           {
-            borderColor: tokens.colors.glassBorder,
-            backgroundColor: tokens.colors.glassBg,
+            borderColor: tokens.colors.accent,
+            backgroundColor: "transparent",
             opacity: pressed ? 0.92 : 1,
           },
         ]}
@@ -52,48 +84,58 @@ export default function RangeSelector({
         accessibilityLabel={`Periodo: ${selectedLabel}`}
       >
         {showLabel ? (
-          <Text style={[styles.selectorLabel, { color: tokens.colors.muted }]}>Periodo</Text>
+          <Text style={[styles.selectorLabel, { color: tokens.colors.muted }]}>
+            {t("dashboard.range.label")}
+          </Text>
         ) : null}
         <View style={styles.selectorValue}>
           <Text
             style={[
               styles.selectorValueText,
               !showLabel && styles.selectorValueTextCompact,
-              { color: tokens.colors.text },
+              { color: tokens.colors.accent },
             ]}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
             {selectedLabel}
           </Text>
-          <MaterialCommunityIcons name="chevron-down" size={18} color={tokens.colors.muted} />
+          <MaterialCommunityIcons name="chevron-down" size={18} color={tokens.colors.accent} />
         </View>
       </Pressable>
       <Modal
-        visible={open}
+        visible={modalVisible}
         transparent
-        animationType="slide"
+        animationType="none"
         presentationStyle="overFullScreen"
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={closeSheet}
       >
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)} pointerEvents="auto">
-          <View style={styles.overlayDim} pointerEvents="none" />
-            <Pressable
-              onPress={() => undefined}
+        <View style={styles.overlay} pointerEvents="box-none">
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet}>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.overlayDim, { backgroundColor: overlayTint, opacity: anim }]}
+            />
+          </Pressable>
+            <Animated.View
+              pointerEvents="auto"
               style={[
                 styles.sheet,
                 {
                   backgroundColor: sheetBackground,
                   borderColor: sheetBorder,
                   paddingBottom: insets.bottom + 12,
+                  transform: [{ translateY: sheetTranslateY }],
+                  opacity: anim,
                 },
               ]}
             >
             <BlurView intensity={blurIntensity} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} pointerEvents="none" />
-            <Text style={[styles.sheetTitle, { color: tokens.colors.text }]}>Cambia intervallo</Text>
+            <Text style={[styles.sheetTitle, { color: tokens.colors.text }]}>
+              {t("dashboard.range.title")}
+            </Text>
             <Text style={[styles.sheetSubtitle, { color: tokens.colors.muted }]}>
-              Scegli l’intervallo per il confronto dei KPI. Esempio: con “Ultimi 7 giorni” confronti
-              il tuo ultimo snapshot con quello di 7 giorni fa, se esistente, altrimenti con il più vicino disponibile.
+              {t("dashboard.range.subtitle")}
             </Text>
             <View style={styles.sheetList}>
               {options.map((option, index) => {
@@ -104,7 +146,6 @@ export default function RangeSelector({
                     key={option.value}
                     onPress={() => {
                       onChangeRange(option.value);
-                      setOpen(false);
                     }}
                     hitSlop={6}
                     accessibilityRole="button"
@@ -130,8 +171,8 @@ export default function RangeSelector({
                 );
               })}
             </View>
-          </Pressable>
-        </Pressable>
+          </Animated.View>
+        </View>
       </Modal>
     </>
   );
@@ -141,39 +182,37 @@ const styles = StyleSheet.create({
   selectorRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    minHeight: 36,
-    minWidth: 180,
+    minWidth: 72,
     maxWidth: "100%",
     alignSelf: "flex-start",
+    gap: 6,
   },
   selectorRowCompact: {
-    minHeight: 34,
-    minWidth: 150,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    minWidth: 72,
   },
   selectorLabel: {
     fontSize: 12,
     fontWeight: "600",
+    color: "transparent",
   },
   selectorValue: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    maxWidth: "70%",
+    maxWidth: "80%",
     flexShrink: 1,
   },
   selectorValueText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
   },
   selectorValueTextCompact: {
-    fontSize: 11,
+    fontSize: 13,
   },
   overlay: {
     flex: 1,
@@ -181,7 +220,6 @@ const styles = StyleSheet.create({
   },
   overlayDim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent",
   },
   sheet: {
     borderTopLeftRadius: 18,

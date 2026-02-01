@@ -39,7 +39,7 @@ export type OnboardingDraft = {
   expenses: OnboardingExpenseForm[];
 };
 
-const DRAFT_STORAGE_KEY = "@openmoney/onboardingDraft";
+const DRAFT_STORAGE_KEY = "@balance/onboardingDraft";
 
 type OnboardingContextValue = {
   draft: OnboardingDraft;

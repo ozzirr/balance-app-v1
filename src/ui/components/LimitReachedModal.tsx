@@ -27,7 +27,7 @@ export default function LimitReachedModal({
   benefits,
   ctaLabel,
 }: Props): JSX.Element {
-  const { tokens, shadows } = useDashboardTheme();
+  const { tokens, shadows, isDark } = useDashboardTheme();
   const { t } = useTranslation();
 
   const opacity = useRef(new Animated.Value(0)).current;
@@ -102,39 +102,37 @@ export default function LimitReachedModal({
     );
   };
 
-  const overlayTint = `${tokens.colors.accentPurple}22`;
+  const iconTint = `${tokens.colors.accentPurple}22`;
+  const overlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
+  const cardBackground = isDark ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
+  const cardBorder = isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
+  const blurTint = isDark ? "dark" : "light";
+  const blurIntensity = 35;
 
   return (
     <Portal>
-      {visible ? (
-        <BlurView
-          pointerEvents="none"
-          intensity={40}
-          tint={tokens.colors.bg === "#0A0C11" ? "dark" : "light"}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : null}
       <Modal
         visible={visible}
         onDismiss={onClose}
         dismissable
         style={styles.modal}
         contentContainerStyle={styles.content}
-        theme={{ colors: { backdrop: "rgba(8,12,24,0.55)" } }}
+        theme={{ colors: { backdrop: overlayTint } }}
       >
         <Animated.View
           style={[
             styles.card,
             {
-              backgroundColor: tokens.colors.modalGlassBg,
-              borderColor: tokens.colors.modalBorder,
+              backgroundColor: cardBackground,
+              borderColor: cardBorder,
               opacity,
               transform: [{ scale }],
               ...shadows.card,
             },
           ]}
         >
-          <View style={[styles.iconWrap, { backgroundColor: overlayTint }]}>
+          <BlurView intensity={blurIntensity} tint={blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <View style={[styles.iconWrap, { backgroundColor: iconTint }]}>
             <View style={[styles.iconInner, { backgroundColor: tokens.colors.modalBorder }]}>
               <MaterialCommunityIcons name="wallet-outline" size={32} color={tokens.colors.accent} />
             </View>
@@ -185,6 +183,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 390,
     borderRadius: 28,
+    overflow: "hidden",
     borderWidth: 1,
     padding: 24,
     alignItems: "center",

@@ -20,7 +20,7 @@ const VARIANT_LIMITS: Record<AppVariant, VariantLimits> = {
   },
 };
 
-const GLOBAL_SLUG = "openmoney";
+const GLOBAL_SLUG = "balance";
 
 const VARIANT_CONFIG: Record<AppVariant, {
   name: string;

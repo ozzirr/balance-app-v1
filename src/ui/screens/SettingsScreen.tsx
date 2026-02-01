@@ -1,6 +1,6 @@
 /// <reference types="react" />
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Keyboard, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { Switch, Text, TextInput } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
@@ -319,9 +319,40 @@ export default function SettingsScreen(): JSX.Element {
     useCallback(() => {
       void load();
       void refreshSecurityState();
-      return undefined;
+      return () => {
+        Keyboard.dismiss();
+      };
     }, [load, refreshSecurityState])
   );
+
+  const maxNicknameLength = 7;
+  const limitNickname = (value: string, max: number) => {
+    try {
+      // Prefer grapheme segmentation when available (emoji-safe).
+      const Seg = (Intl as typeof Intl & { Segmenter?: any }).Segmenter;
+      if (Seg) {
+        const segmenter = new Seg(undefined, { granularity: "grapheme" });
+        const parts = Array.from(segmenter.segment(value), (part: { segment: string }) => part.segment);
+        return parts.slice(0, max).join("");
+      }
+    } catch {
+      // ignore and fallback
+    }
+    return Array.from(value).slice(0, max).join("");
+  };
+  const countGraphemes = (value: string) => {
+    try {
+      const Seg = (Intl as typeof Intl & { Segmenter?: any }).Segmenter;
+      if (Seg) {
+        const segmenter = new Seg(undefined, { granularity: "grapheme" });
+        return Array.from(segmenter.segment(value)).length;
+      }
+    } catch {
+      // ignore and fallback
+    }
+    return Array.from(value).length;
+  };
+  const nicknameCount = countGraphemes(profileName);
 
   const inputProps = {
     mode: "outlined" as const,
@@ -342,11 +373,14 @@ export default function SettingsScreen(): JSX.Element {
             <SectionHeader title={t("settings.profile.title")} />
             <TextInput
               label={t("settings.profile.nameLabel")}
+              placeholder={t("settings.profile.nameLabel")}
               value={profileName}
               {...inputProps}
+              right={<TextInput.Affix text={`${nicknameCount}/${maxNicknameLength}`} />}
               onChangeText={(value) => {
-                setProfileName(value);
-                void updatePreference("profile_name", value.trim());
+                const next = limitNickname(value, maxNicknameLength);
+                setProfileName(next);
+                void updatePreference("profile_name", next.trim());
               }}
             />
         </GlassCardContainer>

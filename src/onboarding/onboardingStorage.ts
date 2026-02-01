@@ -1,9 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const STORAGE_KEY = "@openmoney/onboardingCompleted";
-const NAME_KEY = "@openmoney/displayName";
-const HAS_INVESTMENTS_KEY = "@openmoney/hasInvestments";
-const INITIAL_SEED_KEY = "@openmoney/initialSeedDone";
+const STORAGE_KEY = "@balance/onboardingCompleted";
+const NAME_KEY = "@balance/displayName";
+const HAS_INVESTMENTS_KEY = "@balance/hasInvestments";
+const INITIAL_SEED_KEY = "@balance/initialSeedDone";
 
 export async function getOnboardingCompleted(): Promise<boolean> {
   const value = await AsyncStorage.getItem(STORAGE_KEY);

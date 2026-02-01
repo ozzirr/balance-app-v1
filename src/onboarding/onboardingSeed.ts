@@ -4,7 +4,7 @@ import { createExpenseCategory, listExpenseCategories } from "@/repositories/exp
 import { getInitialSeedDone, setInitialSeedDone } from "@/onboarding/onboardingStorage";
 
 const CATEGORY_COLOR = "#9B7BFF";
-const DEFAULT_CATEGORIES = ["Casa", "Spesa", "Trasporti", "Svago", "Salute", "Abbonamenti"];
+const DEFAULT_CATEGORIES = ["Casa", "Spesa", "Svago", "Salute", "Abbonamenti"];
 
 type WalletForm = {
   name: string;

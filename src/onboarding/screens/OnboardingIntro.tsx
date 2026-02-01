@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const slides: SlideData[] = [
   {
-    title: "Benvenuto in OpenMoney",
+    title: "Benvenuto in Balance",
     subtitle: "La tua finanza personale. In un unico posto. Gratis, per sempre.",
     bullets: [
       "Pieno controllo delle tue entrate e uscite ricorrenti",
@@ -42,7 +42,7 @@ const slides: SlideData[] = [
   },
   {
     title: "Iniziamo subito",
-    subtitle: "Pochi passaggi per configurare OpenMoney.",
+    subtitle: "Pochi passaggi per configurare Balance.",
     bullets: [],
     image: require("../../../assets/onboarding/onboarding-4.png"),
   },

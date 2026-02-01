@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import Chip from "@/ui/dashboard/components/Chip";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useTranslation } from "react-i18next";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 
 export type EntriesTableRow<M = unknown> = {
   id: string | number;
@@ -29,6 +31,7 @@ type EntriesTableProps = {
 const DEFAULT_MIN_WIDTH = 480;
 const CATEGORY_COLUMN_WIDTH = 96;
 const COLUMN_GAP = 12;
+const ROWS_PER_PAGE = 7;
 
 export default function EntriesTable({
   rows,
@@ -39,6 +42,7 @@ export default function EntriesTable({
 }: EntriesTableProps): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
+  const [pageIndex, setPageIndex] = useState(0);
   const amountColorForTone = (tone: "income" | "expense") =>
     tone === "income" ? tokens.colors.income : tokens.colors.expense;
   const clampName = (name: string) => {
@@ -46,6 +50,17 @@ export default function EntriesTable({
     return `${name.slice(0, 10).trimEnd()}…`;
   };
   const adjustedMinWidth = Math.max(minWidth - (showCategory ? 0 : CATEGORY_COLUMN_WIDTH), 340);
+  const totalPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+  const pageRows = useMemo(() => {
+    const start = pageIndex * ROWS_PER_PAGE;
+    return rows.slice(start, start + ROWS_PER_PAGE);
+  }, [rows, pageIndex]);
+
+  useEffect(() => {
+    if (pageIndex > totalPages - 1) {
+      setPageIndex(0);
+    }
+  }, [pageIndex, totalPages]);
 
   return (
     <ScrollView
@@ -73,7 +88,7 @@ export default function EntriesTable({
         </View>
         <View style={[styles.divider, { backgroundColor: tokens.colors.border }]} />
         <FlatList
-          data={rows}
+          data={pageRows}
           keyExtractor={(item) => `${item.id}`}
           scrollEnabled={false}
           contentContainerStyle={styles.entriesList}
@@ -108,6 +123,47 @@ export default function EntriesTable({
             </View>
           )}
         />
+        {totalPages > 1 ? (
+          <View style={styles.paginationWrap}>
+            <View style={styles.paginationRow}>
+            <SmallOutlinePillButton
+              label=""
+              onPress={
+                pageIndex > 0
+                  ? () => setPageIndex((prev) => Math.max(0, prev - 1))
+                  : () => undefined
+              }
+              color={pageIndex > 0 ? tokens.colors.accent : tokens.colors.muted}
+              icon={
+                <MaterialCommunityIcons
+                  name="chevron-left"
+                  size={18}
+                  color={pageIndex > 0 ? tokens.colors.accent : tokens.colors.muted}
+                />
+              }
+            />
+            <Text style={[styles.paginationText, { color: tokens.colors.muted }]}>
+              {pageIndex + 1}/{totalPages}
+            </Text>
+            <SmallOutlinePillButton
+              label=""
+              onPress={
+                pageIndex < totalPages - 1
+                  ? () => setPageIndex((prev) => Math.min(totalPages - 1, prev + 1))
+                  : () => undefined
+              }
+              color={pageIndex < totalPages - 1 ? tokens.colors.accent : tokens.colors.muted}
+              icon={
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={18}
+                  color={pageIndex < totalPages - 1 ? tokens.colors.accent : tokens.colors.muted}
+                />
+              }
+            />
+            </View>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -182,5 +238,19 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     width: "100%",
+  },
+  paginationWrap: {
+    alignItems: "center",
+  },
+  paginationRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  paginationText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

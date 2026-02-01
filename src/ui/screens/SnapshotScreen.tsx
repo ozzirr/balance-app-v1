@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
-import { Text, TextInput } from "react-native-paper";
+import { ActivityIndicator, Text, TextInput } from "react-native-paper";
 import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import {
@@ -140,6 +140,7 @@ export default function SnapshotScreen(): JSX.Element {
   const [editingSnapshotId, setEditingSnapshotId] = useState<number | null>(null);
   const [snapshotDate, setSnapshotDate] = useState(todayIso());
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
@@ -198,10 +199,13 @@ export default function SnapshotScreen(): JSX.Element {
   );
 
   useEffect(() => {
-    if (openNew) {
-      openNewSnapshot();
-    }
-  }, [openNew]);
+    if (!openNew) return;
+    void (async () => {
+      await refreshAll();
+      await openNewSnapshot(true);
+      navigation.setParams({ openNew: undefined });
+    })();
+  }, [navigation, openNew, refreshAll]);
 
   useEffect(() => {
     if (!showForm || editingSnapshotId !== null) return;
@@ -215,50 +219,65 @@ export default function SnapshotScreen(): JSX.Element {
     }
   }, [activeMonthKey, editingSnapshotId, showForm]);
 
-  const openNewSnapshot = async () => {
+  const openNewSnapshot = async (forceOpen = false) => {
     if (showForm) {
-      setShowForm(false);
-      setEditingSnapshotId(null);
-      return;
+      if (!forceOpen) {
+        setShowForm(false);
+        setEditingSnapshotId(null);
+        return;
+      }
     }
+    setDraftLoading(true);
     setError(null);
     setEditingSnapshotId(null);
-    const latest = snapshots[0];
-    let initialLines: DraftLine[] = [];
-    if (latest && prefillSnapshot) {
-      const latestLines = await listSnapshotLines(latest.id);
-      const latestMap = new Map<number, string>();
-      latestLines.forEach((line) => {
-        latestMap.set(line.wallet_id, formatAmount(line.amount));
-      });
-      initialLines = orderedWallets.map((wallet) => ({
-        walletId: wallet.id,
-        amount: latestMap.get(wallet.id) ?? formatAmount(0),
-      }));
-    }
+    try {
+      let walletsForDraft = orderedWallets;
+      if (walletsForDraft.length === 0) {
+        const walletList = await listWallets(true);
+        setWallets(walletList);
+        walletsForDraft = orderWalletsForUI(walletList);
+      }
+      const latest = snapshots[0];
+      let initialLines: DraftLine[] = [];
+      if (latest && prefillSnapshot) {
+        const latestLines = await listSnapshotLines(latest.id);
+        const latestMap = new Map<number, string>();
+        latestLines.forEach((line) => {
+          latestMap.set(line.wallet_id, formatAmount(line.amount));
+        });
+        initialLines = walletsForDraft.map((wallet) => ({
+          walletId: wallet.id,
+          amount: latestMap.get(wallet.id) ?? formatAmount(0),
+        }));
+      }
 
-    if (initialLines.length === 0) {
-      initialLines = orderedWallets.map((wallet) => ({
-        walletId: wallet.id,
-        amount: formatAmount(0),
-      }));
-    }
+      if (initialLines.length === 0) {
+        initialLines = walletsForDraft.map((wallet) => ({
+          walletId: wallet.id,
+          amount: formatAmount(0),
+        }));
+      }
 
-    setDraftLines(initialLines);
-    const currentKey = monthKeyFromDate(todayIso());
-    const targetKey = activeMonthKey ?? currentKey;
-    if (targetKey && targetKey !== currentKey) {
-      setSnapshotDate(lastDayIsoFromMonthKey(targetKey));
-    } else {
-      setSnapshotDate(todayIso());
+      setDraftLines(initialLines);
+      const currentKey = monthKeyFromDate(todayIso());
+      const targetKey = activeMonthKey ?? currentKey;
+      if (targetKey && targetKey !== currentKey) {
+        setSnapshotDate(lastDayIsoFromMonthKey(targetKey));
+      } else {
+        setSnapshotDate(todayIso());
+      }
+      setShowForm(true);
+    } finally {
+      setDraftLoading(false);
     }
-    setShowForm(true);
   };
 
   const openEditSnapshot = async (snapshotId: number) => {
+    setDraftLoading(true);
     setError(null);
     const snapshot = snapshots.find((item) => item.id === snapshotId);
     if (!snapshot) {
+      setDraftLoading(false);
       return;
     }
     const snapshotLines = await listSnapshotLines(snapshotId);
@@ -280,6 +299,7 @@ export default function SnapshotScreen(): JSX.Element {
     setSnapshotDate(targetDate);
     setEditingSnapshotId(snapshotId);
     setShowForm(true);
+    setDraftLoading(false);
   };
 
   const updateDraftLine = (index: number, patch: Partial<DraftLine>) => {
@@ -353,6 +373,22 @@ export default function SnapshotScreen(): JSX.Element {
     return wallet?.currency ?? null;
   }, [sortedLines, walletById]);
   const totalsCurrencySymbol = currencySymbol(totalsCurrency);
+
+  useEffect(() => {
+    if (!showForm || editingSnapshotId !== null) return;
+    if (orderedWallets.length === 0) return;
+    setDraftLines((prev) => {
+      const map = new Map(prev.map((line) => [line.walletId, line.amount]));
+      const next = orderedWallets.map((wallet) => ({
+        walletId: wallet.id,
+        amount: map.get(wallet.id) ?? formatAmount(0),
+      }));
+      const unchanged =
+        prev.length === next.length &&
+        prev.every((line, index) => line.walletId === next[index].walletId && line.amount === next[index].amount);
+      return unchanged ? prev : next;
+    });
+  }, [editingSnapshotId, orderedWallets, showForm]);
 
   const monthGroups = useMemo(() => {
     const map = new Map<string, Snapshot[]>();

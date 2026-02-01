@@ -74,7 +74,7 @@
     "title": "Impostazioni",
     "profile": {
       "title": "Profilo",
-      "nameLabel": "Nome"
+      "nameLabel": "Nickname"
     },
     "preferences": {
       "title": "Preferenze",
@@ -169,6 +169,18 @@
       "liquidity": "Liquidità",
       "investments": "Investimenti",
       "netWorth": "Patrimonio"
+    },
+    "range": {
+      "label": "Periodo",
+      "title": "Cambia intervallo",
+      "subtitle": "Scegli l’intervallo per il confronto dei KPI. Esempio: con “Ultimi 7 giorni” confronti il tuo ultimo snapshot con quello di 7 giorni fa, se esistente, altrimenti con il più vicino disponibile.",
+      "options": {
+        "last7Days": "Ultimi 7 giorni",
+        "last28Days": "Ultimi 28 giorni",
+        "last3Months": "Ultimi 3 mesi",
+        "last6Months": "Ultimi 6 mesi",
+        "last12Months": "Ultimi 12 mesi"
+      }
     },
     "mock": {
       "kpi": {

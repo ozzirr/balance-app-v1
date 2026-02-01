@@ -5,7 +5,13 @@ import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/nativ
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { listIncomeEntries, createIncomeEntry, updateIncomeEntry, deleteIncomeEntry } from "@/repositories/incomeEntriesRepo";
 import { listExpenseEntries, createExpenseEntry, updateExpenseEntry, deleteExpenseEntry } from "@/repositories/expenseEntriesRepo";
-import { listExpenseCategories } from "@/repositories/expenseCategoriesRepo";
+import {
+  listExpenseCategories,
+  createExpenseCategory,
+  updateExpenseCategory,
+  setExpenseCategoryActive,
+  deleteExpenseCategory,
+} from "@/repositories/expenseCategoriesRepo";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
 import { isIsoDate, todayIso } from "@/utils/dates";
 import { formatEUR, formatShortDate } from "@/ui/dashboard/formatters";
@@ -24,10 +30,17 @@ import {
   SmallOutlinePillButton,
 } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import SectionHeader from "@/ui/dashboard/components/SectionHeader";
+import PressScale from "@/ui/dashboard/components/PressScale";
+import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
 
 type EntryType = "income" | "expense";
 type FormMode = "create" | "edit";
 type CategoryFilter = "all" | number;
+type CategoryEdit = {
+  name: string;
+  color: string;
+};
 
 type EntriesRouteParams = {
   entryType?: EntryType;
@@ -57,6 +70,102 @@ const emptyForm: FormState = {
   frequency: "MONTHLY",
 };
 
+const presetColors = [
+  "#9B7BFF",
+  "#5C9DFF",
+  "#F6C177",
+  "#66D19E",
+  "#C084FC",
+  "#FF8FAB",
+  "#6EE7B7",
+  "#94A3B8",
+  "#F97316",
+  "#22D3EE",
+];
+
+function nextPresetColor(current: string): string {
+  const index = presetColors.indexOf(current);
+  if (index === -1) return presetColors[0];
+  return presetColors[(index + 1) % presetColors.length];
+}
+
+function sanitizeAmountInput(value: string): string {
+  const normalized = value.replace(/\./g, ",");
+  const cleaned = normalized.replace(/[^0-9,]/g, "");
+  const commaIndex = cleaned.indexOf(",");
+  if (commaIndex === -1) {
+    return cleaned;
+  }
+  const whole = cleaned.slice(0, commaIndex);
+  const fraction = cleaned.slice(commaIndex + 1).replace(/,/g, "");
+  const safeWhole = whole === "" ? "0" : whole;
+  return `${safeWhole},${fraction}`;
+}
+
+type AccordionItemProps = {
+  title: string;
+  subtitle?: string;
+  icon: string;
+  expanded: boolean;
+  onToggle: () => void;
+  color?: string;
+  children: React.ReactNode;
+};
+
+const AccordionItem = ({
+  title,
+  subtitle,
+  icon,
+  expanded,
+  onToggle,
+  color,
+  children,
+}: AccordionItemProps) => {
+  const { tokens, isDark } = useDashboardTheme();
+  return (
+    <GlassCardContainer contentStyle={{ gap: 12, padding: 12 }}>
+      <PressScale onPress={onToggle} style={[styles.walletRow, { paddingVertical: 6 }]}>
+        <View
+          style={[
+            styles.walletIconBadge,
+            {
+              borderColor: tokens.colors.glassBorder,
+              backgroundColor: color ?? tokens.colors.glassBg,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={icon}
+            size={18}
+            color={isDark ? tokens.colors.background : "#FFFFFF"}
+          />
+        </View>
+        <View style={styles.walletText}>
+          <Text style={[styles.walletTitle, { color: tokens.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={[styles.walletSubtitle, { color: tokens.colors.muted }]} numberOfLines={1} ellipsizeMode="tail">
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        <MaterialCommunityIcons
+          name="chevron-down"
+          size={20}
+          color={tokens.colors.muted}
+          style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
+        />
+      </PressScale>
+      {expanded ? (
+        <View style={[styles.accordionBody, { backgroundColor: tokens.colors.glassBg, borderColor: tokens.colors.glassBorder }]}>
+          {children}
+        </View>
+      ) : null}
+    </GlassCardContainer>
+  );
+};
+
 export default function EntriesScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
@@ -74,11 +183,17 @@ export default function EntriesScreen(): JSX.Element {
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [expenseEntries, setExpenseEntries] = useState<ExpenseEntry[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [categoryEdits, setCategoryEdits] = useState<Record<number, CategoryEdit>>({});
+  const [newCategory, setNewCategory] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState(presetColors[0]);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showNewEntry, setShowNewEntry] = useState(routeParams.formMode === "edit");
+  const categoriesOffsetY = useRef(0);
 
   const load = useCallback(async () => {
     const [income, expense, cats] = await Promise.all([
@@ -189,7 +304,7 @@ export default function EntriesScreen(): JSX.Element {
       setError(t("entries.validation.invalidDate"));
       return;
     }
-    const amount = Number(form.amount);
+    const amount = Number(form.amount.replace(",", "."));
     if (!Number.isFinite(amount)) {
       setError(t("entries.validation.amountInvalid"));
       return;
@@ -252,7 +367,7 @@ export default function EntriesScreen(): JSX.Element {
     }
 
     resetToCreateMode();
-    setShowNewEntry(true);
+    setShowNewEntry(false);
     await load();
   };
 
@@ -272,6 +387,57 @@ export default function EntriesScreen(): JSX.Element {
   const { width } = useWindowDimensions();
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
+  const inputProps = createStandardTextInputProps(tokens);
+
+  useEffect(() => {
+    const edits: Record<number, CategoryEdit> = {};
+    categories.forEach((cat) => {
+      edits[cat.id] = { name: cat.name, color: cat.color };
+    });
+    setCategoryEdits(edits);
+  }, [categories]);
+
+  const addCategory = async () => {
+    if (!newCategory.trim()) return;
+    await createExpenseCategory(newCategory.trim(), newCategoryColor);
+    setNewCategory("");
+    setNewCategoryColor(presetColors[0]);
+    setShowAddCategory(false);
+    await refreshAll();
+  };
+
+  const persistCategoryEdit = useCallback(
+    async (categoryId: number, updates: Partial<CategoryEdit>) => {
+      const category = categories.find((cat) => cat.id === categoryId);
+      if (!category) return;
+      const current = categoryEdits[categoryId] ?? { name: category.name, color: category.color };
+      const merged = { ...current, ...updates };
+      setCategoryEdits((prev) => ({ ...prev, [categoryId]: merged }));
+      setCategories((prev) =>
+        prev.map((item) => (item.id === categoryId ? { ...item, ...merged } : item))
+      );
+      const trimmedName = merged.name.trim();
+      if (!trimmedName) return;
+      try {
+        await updateExpenseCategory(categoryId, trimmedName, merged.color);
+      } catch (error) {
+        console.warn("Failed to auto-save category", error);
+      }
+    },
+    [categories, categoryEdits]
+  );
+
+  const removeCategory = async (id: number) => {
+    await deleteExpenseCategory(id);
+    await refreshAll();
+  };
+
+  const openCategorySection = useCallback(() => {
+    setShowAddCategory(true);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(categoriesOffsetY.current - 16, 0), animated: true });
+    });
+  }, []);
   const categoryById = useMemo(() => {
     const map = new Map<number, ExpenseCategory>();
     categories.forEach((cat) => map.set(cat.id, cat));
@@ -419,7 +585,7 @@ export default function EntriesScreen(): JSX.Element {
                   activeOutlineColor={entryAccent}
                   textColor={tokens.colors.text}
                   style={[styles.glassInput, styles.flex, { backgroundColor: tokens.colors.glassBg }]}
-                  onChangeText={(text) => setForm((prev) => ({ ...prev, amount: text }))}
+                  onChangeText={(text) => setForm((prev) => ({ ...prev, amount: sanitizeAmountInput(text) }))}
                 />
                 <TextInput
                   label={t("entries.form.date")}
@@ -439,11 +605,15 @@ export default function EntriesScreen(): JSX.Element {
                   value={datePickerValue}
                   mode="date"
                   display={Platform.OS === "ios" ? "spinner" : "default"}
+                  textColor={tokens.colors.text}
+                  themeVariant="dark"
                   onChange={(_, selected) => {
                     if (selected) {
                       setForm((prev) => ({ ...prev, startDate: toIsoDate(selected) }));
                     }
-                    setShowDatePicker(false);
+                    if (Platform.OS !== "ios") {
+                      setShowDatePicker(false);
+                    }
                   }}
                 />
               )}
@@ -459,7 +629,7 @@ export default function EntriesScreen(): JSX.Element {
                         <Text
                           style={[styles.categoryLink, { color: tokens.colors.accent }]}
                           onPress={() => {
-                            navigation.navigate("Wallet", { startCategory: true });
+                            openCategorySection();
                           }}
                         >
                           {t("entries.empty.noCategoriesActiveLink")}
@@ -591,6 +761,127 @@ export default function EntriesScreen(): JSX.Element {
             }
           />
         </GlassCardContainer>
+        {entryType === "expense" ? (
+          <View
+            onLayout={(event) => {
+              categoriesOffsetY.current = event.nativeEvent.layout.y;
+            }}
+          >
+            <GlassCardContainer contentStyle={{ gap: 12, padding: 12 }}>
+              <SectionHeader title={t("wallets.list.categoriesTitle")} />
+              {!showAddCategory && (
+                <PrimaryPillButton
+                  label={t("wallets.list.addCategory", { defaultValue: t("common.add") })}
+                  onPress={() => setShowAddCategory(true)}
+                  color={tokens.colors.accent}
+                />
+              )}
+              {showAddCategory && (
+                <View style={{ gap: 10 }}>
+                  <View style={[styles.colorLine, { paddingVertical: 2 }]}>
+                    <TextInput
+                      label={t("wallets.list.newCategoryLabel")}
+                      value={newCategory}
+                      {...inputProps}
+                      style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
+                      onChangeText={setNewCategory}
+                    />
+                    <PressScale
+                      onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: newCategoryColor, borderColor: tokens.colors.glassBorder },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.actionsRow}>
+                    <PrimaryPillButton label={t("common.add")} onPress={addCategory} color={tokens.colors.accent} />
+                    <SmallOutlinePillButton
+                      label={t("common.cancel")}
+                      onPress={() => {
+                        setShowAddCategory(false);
+                        setNewCategory("");
+                        setNewCategoryColor(presetColors[0]);
+                      }}
+                      color={tokens.colors.text}
+                    />
+                  </View>
+                </View>
+              )}
+              {categories.length === 0 ? (
+                <Text style={{ color: tokens.colors.muted }}>{t("wallets.list.noCategories")}</Text>
+              ) : null}
+              <View style={{ gap: 10 }}>
+                {categories.map((cat) => {
+                  const isActive = cat.active === 1;
+                  const subtitle = isActive
+                    ? t("wallets.list.categoryActive")
+                    : t("wallets.list.categoryInactive");
+                  return (
+                    <AccordionItem
+                      key={cat.id}
+                      title={categoryEdits[cat.id]?.name ?? cat.name}
+                      subtitle={subtitle}
+                      icon="tag"
+                      expanded={expandedCategoryId === cat.id}
+                      onToggle={() => setExpandedCategoryId((prev) => (prev === cat.id ? null : cat.id))}
+                      color={categoryEdits[cat.id]?.color ?? cat.color}
+                    >
+                      <View style={[styles.sectionContent, styles.accordionInner]}>
+                        <View style={[styles.colorLine, { paddingVertical: 0 }]}>
+                          <TextInput
+                            label={t("wallets.list.newCategoryLabel")}
+                            value={categoryEdits[cat.id]?.name ?? cat.name}
+                            {...inputProps}
+                            style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
+                            onChangeText={(value) =>
+                              void persistCategoryEdit(cat.id, { name: value })
+                            }
+                          />
+                          <PressScale
+                            onPress={() => {
+                              const currentColor = categoryEdits[cat.id]?.color ?? cat.color;
+                              void persistCategoryEdit(cat.id, { color: nextPresetColor(currentColor) });
+                            }}
+                            style={[
+                              styles.colorSwatch,
+                              {
+                                backgroundColor: categoryEdits[cat.id]?.color ?? cat.color,
+                                borderColor: tokens.colors.glassBorder,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <View style={styles.actionsRow}>
+                          <SmallOutlinePillButton
+                            label={
+                              isActive
+                                ? t("wallets.list.categoryDeactivate")
+                                : t("wallets.list.categoryActivate")
+                            }
+                            onPress={async () => {
+                              await setExpenseCategoryActive(cat.id, isActive ? 0 : 1);
+                              await refreshAll();
+                            }}
+                            color={isActive ? tokens.colors.red : tokens.colors.accent}
+                          />
+                          <SmallOutlinePillButton
+                            label={t("common.delete")}
+                            onPress={async () => {
+                              await removeCategory(cat.id);
+                              setExpandedCategoryId(null);
+                            }}
+                            color={tokens.colors.red}
+                          />
+                        </View>
+                      </View>
+                    </AccordionItem>
+                  );
+                })}
+              </View>
+            </GlassCardContainer>
+          </View>
+        ) : null}
       </ScrollView>
     </AppBackground>
   );
@@ -621,8 +912,61 @@ const styles = StyleSheet.create({
     marginTop: 4,
     flexWrap: "wrap",
   },
+  sectionContent: {
+    gap: 12,
+  },
   flex: {
     flex: 1,
+  },
+  colorLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  colorSwatch: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+  },
+  categoryNameInput: {
+    flex: 1,
+    minWidth: 160,
+  },
+  walletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  walletIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  walletText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  walletTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  walletSubtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  accordionBody: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 12,
+  },
+  accordionInner: {
+    gap: 12,
   },
   categoryChip: {
     paddingHorizontal: 12,
