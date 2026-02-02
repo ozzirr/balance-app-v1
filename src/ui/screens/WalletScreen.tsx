@@ -213,7 +213,8 @@ export default function WalletScreen(): JSX.Element {
     if (showAddWallet.LIQUIDITY) return;
     setTab("LIQUIDITY");
     setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: true }));
-  }, [startSetup, wallets.length, showAddWallet.LIQUIDITY]);
+    navigation.setParams({ startSetup: undefined });
+  }, [navigation, startSetup, wallets.length, showAddWallet.LIQUIDITY]);
 
   const load = useCallback(async () => {
     const walletList = await listWallets();
@@ -1123,6 +1124,7 @@ const styles = StyleSheet.create({
   },
   reorderList: {
     paddingVertical: 4,
+    gap: 10,
   },
   reorderRow: {
     flexDirection: "row",

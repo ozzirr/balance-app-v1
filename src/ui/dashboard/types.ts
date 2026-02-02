@@ -30,6 +30,19 @@ export type PortfolioPoint = {
   investments: number;
 };
 
+export type WalletSeriesPoint = {
+  date: string;
+  value: number;
+};
+
+export type WalletSeries = {
+  walletId: number;
+  name: string;
+  type: WalletType;
+  color: string;
+  points: WalletSeriesPoint[];
+};
+
 export type DistributionItem = {
   id: string;
   label: string;
@@ -74,8 +87,10 @@ export type RecurrenceRow = {
 export type DashboardData = {
   kpis: KPIItem[];
   portfolioSeries: PortfolioPoint[];
+  walletSeries: WalletSeries[];
   distributions: DistributionItem[];
   cashflow: CashflowSummary;
   categories: CategoryRow[];
   recurrences: RecurrenceRow[];
 };
+import type { WalletType } from "@/repositories/types";

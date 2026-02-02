@@ -1,21 +1,22 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Animated, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { DarkTheme } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
-import type { KpiDeltaRange } from "@/ui/dashboard/types";
 import GlassBlur from "@/ui/components/GlassBlur";
+import { useIsFocused } from "@react-navigation/native";
 
-type Option = { value: KpiDeltaRange; label: string };
+type Option<T extends string> = { value: T; label: string };
 
-type Props = {
-  selectedRange: KpiDeltaRange;
-  onChangeRange: (range: KpiDeltaRange) => void;
-  options: Option[];
+type Props<T extends string> = {
+  selectedRange: T;
+  onChangeRange: (range: T) => void;
+  options: Option<T>[];
   showLabel?: boolean;
+  label?: string;
+  accessibilityLabel?: string;
+  dropdownMinWidth?: number;
 };
 
 export default function RangeSelector({
@@ -23,37 +24,32 @@ export default function RangeSelector({
   onChangeRange,
   options,
   showLabel = true,
-}: Props): JSX.Element {
+  label,
+  accessibilityLabel,
+  dropdownMinWidth,
+}: Props<string>): JSX.Element {
   const { tokens, isDark } = useDashboardTheme();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const [modalVisible, setModalVisible] = useState(false);
+  const [open, setOpen] = useState(false);
+  const isFocused = useIsFocused();
+  const [triggerSize, setTriggerSize] = useState({ width: 0, height: 0 });
   const anim = useRef(new Animated.Value(0)).current;
   const selectedLabel = useMemo(
     () => options.find((opt) => opt.value === selectedRange)?.label ?? "",
     [options, selectedRange]
   );
-  const sheetBackground =
-    Platform.OS === "android"
-      ? tokens.colors.surface2
-      : isDark
-      ? "rgba(15, 18, 30, 0.55)"
-      : "rgba(169, 124, 255, 0.32)";
-  const sheetBorder =
-    Platform.OS === "android"
-      ? tokens.colors.border
-      : isDark
-      ? DarkTheme.colors.border
-      : "rgba(169, 124, 255, 0.5)";
-  const blurIntensity = 35;
-  const overlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
+  const dropdownBackground =
+    Platform.OS === "android" ? tokens.colors.surface2 : tokens.colors.modalGlassBg;
+  const dropdownBorder =
+    Platform.OS === "android" ? tokens.colors.border : tokens.colors.modalBorder;
+  const resolvedDropdownMinWidth = dropdownMinWidth ?? 168;
 
   const openSheet = useCallback(() => {
-    setModalVisible(true);
+    setOpen(true);
     requestAnimationFrame(() => {
       Animated.timing(anim, {
         toValue: 1,
-        duration: 220,
+        duration: 200,
         useNativeDriver: true,
       }).start();
     });
@@ -66,125 +62,166 @@ export default function RangeSelector({
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {
-        setModalVisible(false);
+        setOpen(false);
       }
     });
   }, [anim]);
 
-  const sheetTranslateY = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [64, 0],
-  });
+  const toggleSheet = useCallback(() => {
+    if (open) {
+      closeSheet();
+      return;
+    }
+    openSheet();
+  }, [closeSheet, open, openSheet]);
+
+  useEffect(() => {
+    if (!isFocused && open) {
+      closeSheet();
+    }
+  }, [closeSheet, isFocused, open]);
+
+  const dropdownStyle = {
+    opacity: anim,
+    transform: [
+      {
+        translateY: anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-6, 0],
+        }),
+      },
+      {
+        scaleY: anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.92, 1],
+        }),
+      },
+    ],
+  };
+  const dropdownTop = triggerSize.height + 6;
+  const dropdownWidth = Math.max(resolvedDropdownMinWidth, triggerSize.width);
 
   return (
     <>
-      <Pressable
-        onPress={openSheet}
-        hitSlop={6}
-        style={({ pressed }) => [
-          styles.selectorRow,
-          !showLabel && styles.selectorRowCompact,
-          { opacity: pressed ? 0.7 : 1 },
-        ]}
+      <View
+        style={styles.wrapper}
+        onLayout={(event) =>
+          setTriggerSize({
+            width: event.nativeEvent.layout.width,
+            height: event.nativeEvent.layout.height,
+          })
+        }
+      >
+        <Pressable
+          onPress={toggleSheet}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.selectorRow,
+            !showLabel && styles.selectorRowCompact,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
         accessibilityRole="button"
-        accessibilityLabel={`Periodo: ${selectedLabel}`}
+        accessibilityLabel={
+          accessibilityLabel ??
+          t("dashboard.range.accessibility", {
+            defaultValue: "Seleziona intervallo KPI",
+          })
+        }
+        accessibilityState={{ expanded: open }}
       >
         {showLabel ? (
           <Text style={[styles.selectorLabel, { color: tokens.colors.muted }]}>
-            {t("dashboard.range.label")}
+            {label ?? t("dashboard.range.label")}
           </Text>
         ) : null}
-        <View style={styles.selectorValue}>
-          <Text
-            style={[
-              styles.selectorValueText,
-              !showLabel && styles.selectorValueTextCompact,
-              { color: tokens.colors.accent },
-            ]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {selectedLabel}
-          </Text>
-          <MaterialCommunityIcons name="chevron-down" size={18} color={tokens.colors.accent} />
-        </View>
-      </Pressable>
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="none"
-        presentationStyle="overFullScreen"
-        onRequestClose={closeSheet}
-      >
-        <View style={styles.overlay} pointerEvents="box-none">
-          <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet}>
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.overlayDim, { backgroundColor: overlayTint, opacity: anim }]}
-            />
-          </Pressable>
-            <Animated.View
-              pointerEvents="auto"
+          <View style={styles.selectorValue}>
+            <Text
               style={[
-                styles.sheet,
-                {
-                  backgroundColor: sheetBackground,
-                  borderColor: sheetBorder,
-                  paddingBottom: insets.bottom + 12,
-                  transform: [{ translateY: sheetTranslateY }],
-                  opacity: anim,
-                },
+                styles.selectorValueText,
+                !showLabel && styles.selectorValueTextCompact,
+                { color: tokens.colors.accent },
               ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
-            <GlassBlur intensity={blurIntensity} tint={isDark ? "dark" : "light"} fallbackColor="transparent" />
-            <Text style={[styles.sheetTitle, { color: tokens.colors.text }]}>
-              {t("dashboard.range.title")}
+              {selectedLabel}
             </Text>
-            <Text style={[styles.sheetSubtitle, { color: tokens.colors.muted }]}>
-              {t("dashboard.range.subtitle")}
-            </Text>
-            <View style={styles.sheetList}>
-              {options.map((option, index) => {
-                const selected = option.value === selectedRange;
-                const isLast = index === options.length - 1;
-                return (
-                  <Pressable
-                    key={option.value}
-                    onPress={() => {
-                      onChangeRange(option.value);
-                    }}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    style={({ pressed }) => [
-                      styles.sheetRow,
-                      {
-                        borderColor: tokens.colors.glassBorder,
-                        backgroundColor: selected
-                          ? `${tokens.colors.accent}22`
-                          : pressed
-                          ? `${tokens.colors.glassBorder}33`
-                          : "transparent",
-                        borderBottomWidth: isLast ? 0 : 1,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.sheetLabel, { color: tokens.colors.text }]}>{option.label}</Text>
-                    {selected ? (
-                      <MaterialCommunityIcons name="check" size={18} color={tokens.colors.accent} style={styles.checkIcon} />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
+            <MaterialCommunityIcons name="chevron-down" size={18} color={tokens.colors.accent} />
+          </View>
+        </Pressable>
+      </View>
+      {open ? (
+        <Animated.View
+          pointerEvents="auto"
+          style={[
+            styles.dropdown,
+            {
+              top: dropdownTop,
+              right: 0,
+              backgroundColor: dropdownBackground,
+              borderColor: dropdownBorder,
+              width: dropdownWidth,
+            },
+            dropdownStyle,
+          ]}
+        >
+          <GlassBlur intensity={35} tint={isDark ? "dark" : "light"} fallbackColor="transparent" />
+          {options.map((option, index) => {
+            const selected = option.value === selectedRange;
+            const isLast = index === options.length - 1;
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => {
+                  onChangeRange(option.value);
+                  closeSheet();
+                }}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                style={({ pressed }) => [
+                  styles.dropdownRow,
+                  {
+                    borderColor: tokens.colors.glassBorder,
+                    backgroundColor: selected
+                      ? `${tokens.colors.accent}22`
+                      : pressed
+                      ? `${tokens.colors.glassBorder}33`
+                      : "transparent",
+                    borderBottomWidth: isLast ? 0 : 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.dropdownLabel, { color: tokens.colors.text }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {option.label}
+                </Text>
+                {selected ? (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={18}
+                    color={tokens.colors.accent}
+                    style={styles.checkIcon}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </Animated.View>
+      ) : null}
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: "relative",
+    alignSelf: "flex-start",
+    overflow: "visible",
+  },
   selectorRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -195,6 +232,8 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     alignSelf: "flex-start",
     gap: 4,
+    position: "relative",
+    zIndex: 1,
   },
   selectorRowCompact: {
     minWidth: 0,
@@ -218,52 +257,27 @@ const styles = StyleSheet.create({
   selectorValueTextCompact: {
     fontSize: 13,
   },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  overlayDim: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  sheet: {
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+  dropdown: {
+    position: "absolute",
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 18,
+    paddingVertical: 4,
     overflow: "hidden",
-    elevation: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -6 },
+    zIndex: 2,
   },
-  sheetTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  sheetSubtitle: {
-    fontSize: 12,
-    fontWeight: "500",
-    marginTop: -6,
-    marginBottom: 8,
-  },
-  sheetList: {
-    gap: 0,
-  },
-  sheetRow: {
+  dropdownRow: {
     position: "relative",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 54,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    minHeight: 40,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
     borderWidth: 0,
   },
-  sheetLabel: {
-    fontSize: 14,
+  dropdownLabel: {
+    fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
     flex: 1,

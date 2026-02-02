@@ -14,7 +14,8 @@
     "confirm": "Conferma",
     "create": "Crea",
     "update": "Aggiorna",
-    "reset": "Reset"
+    "reset": "Reset",
+    "all": "Tutti"
   },
   "onboardingV2": {
     "common": {
@@ -85,7 +86,8 @@
       "languageLabel": "Lingua",
       "language": {
         "it": "Italiano",
-        "en": "English"
+        "en": "English",
+        "pt": "Português"
       }
     },
     "data": {
@@ -182,6 +184,12 @@
         "last12Months": "Ultimi 12 mesi"
       }
     },
+    "reorder": {
+      "edit": "Modifica ordine",
+      "title": "Modifica ordine",
+      "done": "Fatto",
+      "hint": "Tocca la freccia per portare in alto."
+    },
     "mock": {
       "kpi": {
         "liquidity": "Liquidità",
@@ -271,6 +279,7 @@
       "tabIncome": "Entrate",
       "tabExpense": "Uscite",
       "sectionTitle": "Lista",
+      "filterByCategory": "Filtra per categoria",
       "table": {
         "date": "Data",
         "name": "Nome",
@@ -288,6 +297,8 @@
       "amount": "Importo",
       "date": "Data",
       "newEntryTitle": "Nuova voce",
+      "newIncomeTitle": "Nuova voce in entrata",
+      "newExpenseTitle": "Nuova voce in uscita",
       "categoryHint": "Seleziona una categoria.",
       "categoryTitle": "Categoria spesa",
       "recurringLabel": "Ricorrente",

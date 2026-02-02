@@ -1,5 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, LayoutAnimation, Linking, Platform, ScrollView, StyleSheet, UIManager, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  LayoutAnimation,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  UIManager,
+  View,
+} from "react-native";
 import { Text } from "react-native-paper";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,7 +26,7 @@ import type { SnapshotLineDetail } from "@/repositories/types";
 import { todayIso } from "@/utils/dates";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import type { DashboardData, KpiDeltaRange } from "@/ui/dashboard/types";
-import { buildDashboardData, createMockDashboardData } from "@/ui/dashboard/adapter";
+import { buildDashboardData, buildKpiDeltaForRange, createMockDashboardData } from "@/ui/dashboard/adapter";
 import KPIStrip from "@/ui/dashboard/components/KPIStrip";
 import RangeSelector from "@/ui/dashboard/components/RangeSelector";
 import PortfolioLineChartCard from "@/ui/dashboard/components/PortfolioLineChartCard";
@@ -26,8 +38,9 @@ import PressScale from "@/ui/dashboard/components/PressScale";
 import Skeleton from "@/ui/dashboard/components/Skeleton";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import AppBackground from "@/ui/components/AppBackground";
-import { GlassCardContainer } from "@/ui/components/EntriesUI";
+import { GlassCardContainer, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import CoachTipCard from "@/ui/components/CoachTipCard";
+import GlassBlur from "@/ui/components/GlassBlur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
@@ -43,6 +56,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const SECTION_STATE_KEY = "dashboard.section.states";
+const SECTION_ORDER_KEY = "dashboard.section.order";
 const DEFAULT_SECTION_STATES: Record<string, boolean> = {
   andamento: true,
   distribuzione: false,
@@ -117,7 +131,7 @@ const SectionAccordion = ({
 
 export default function DashboardScreen(): JSX.Element {
   const navigation = useNavigation<Nav>();
-  const { tokens } = useDashboardTheme();
+  const { tokens, isDark } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -128,8 +142,13 @@ export default function DashboardScreen(): JSX.Element {
   const [profileName, setProfileName] = useState("");
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>(DEFAULT_SECTION_STATES);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
+  const [sectionOrder, setSectionOrder] = useState<SectionId[]>(SECTION_ORDER);
+  const [orderLoaded, setOrderLoaded] = useState(false);
+  const [reorderVisible, setReorderVisible] = useState(false);
+  const reorderAnim = useRef(new Animated.Value(0)).current;
   const [showPrivacyCard, setShowPrivacyCard] = useState(false);
   const [kpiDeltaRange, setKpiDeltaRange] = useState<KpiDeltaRange>("28D");
+  const [availableRanges, setAvailableRanges] = useState<KpiDeltaRange[]>([]);
   const [sectionAvailability, setSectionAvailability] = useState<Record<SectionId, boolean>>({
     andamento: true,
     distribuzione: true,
@@ -140,16 +159,27 @@ export default function DashboardScreen(): JSX.Element {
   const [orderedSections, setOrderedSections] = useState<SectionId[]>(SECTION_ORDER);
   const { t } = useTranslation();
   const { showInvestments } = useSettings();
-  const kpiRangeOptions = useMemo(
-    () => ([
-      { value: "7D", label: t("dashboard.range.options.last7Days") },
-      { value: "28D", label: t("dashboard.range.options.last28Days") },
-      { value: "3M", label: t("dashboard.range.options.last3Months") },
-      { value: "6M", label: t("dashboard.range.options.last6Months") },
-      { value: "12M", label: t("dashboard.range.options.last12Months") },
-    ] as const),
-    [t]
-  );
+  const kpiRangeOptions = useMemo(() => {
+    const labels: Record<KpiDeltaRange, string> = {
+      "7D": t("dashboard.range.options.last7Days"),
+      "28D": t("dashboard.range.options.last28Days"),
+      "3M": t("dashboard.range.options.last3Months"),
+      "6M": t("dashboard.range.options.last6Months"),
+      "12M": t("dashboard.range.options.last12Months"),
+    };
+    return availableRanges.map((value) => ({ value, label: labels[value] }));
+  }, [availableRanges, t]);
+
+  const normalizeSectionOrder = useCallback((value?: unknown): SectionId[] => {
+    const base = Array.isArray(value)
+      ? (value.filter((id) => SECTION_ORDER.includes(id as SectionId)) as SectionId[])
+      : [];
+    const unique = base.filter((id, index) => base.indexOf(id) === index);
+    SECTION_ORDER.forEach((id) => {
+      if (!unique.includes(id)) unique.push(id);
+    });
+    return unique;
+  }, []);
 
   const load = useCallback(async () => {
     setError(null);
@@ -197,6 +227,15 @@ export default function DashboardScreen(): JSX.Element {
         kpiDeltaRange
       );
       setDashboard(data);
+      const rangeCandidates: KpiDeltaRange[] = ["7D", "28D", "3M", "6M", "12M"];
+      const rangesWithData = rangeCandidates.filter((range) => {
+        const result = buildKpiDeltaForRange(range, snapshots, data.portfolioSeries, snapshotLines);
+        return result.status === "OK";
+      });
+      setAvailableRanges(rangesWithData);
+      if (rangesWithData.length > 0 && !rangesWithData.includes(kpiDeltaRange)) {
+        setKpiDeltaRange(rangesWithData[0]);
+      }
       const hasRecurring =
         incomeEntries.some((entry) => entry.recurrence_frequency && entry.one_shot === 0) ||
         expenseEntries.some((entry) => entry.recurrence_frequency && entry.one_shot === 0);
@@ -223,6 +262,7 @@ export default function DashboardScreen(): JSX.Element {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore durante il caricamento.");
       setDashboard(createMockDashboardData(showInvestments));
+      setAvailableRanges([]);
     }
   }, [kpiDeltaRange, navigation, prompted, showInvestments]);
 
@@ -251,9 +291,33 @@ export default function DashboardScreen(): JSX.Element {
   }, []);
 
   useEffect(() => {
+    let canceled = false;
+    getPreference(SECTION_ORDER_KEY).then((pref) => {
+      if (canceled) return;
+      if (pref?.value) {
+        try {
+          const parsed = JSON.parse(pref.value);
+          setSectionOrder(normalizeSectionOrder(parsed));
+        } catch {
+          // ignore invalid value
+        }
+      }
+      setOrderLoaded(true);
+    });
+    return () => {
+      canceled = true;
+    };
+  }, [normalizeSectionOrder]);
+
+  useEffect(() => {
     if (!sectionsLoaded) return;
     setPreference(SECTION_STATE_KEY, JSON.stringify(sectionStates)).catch(() => {});
   }, [sectionStates, sectionsLoaded]);
+
+  useEffect(() => {
+    if (!orderLoaded) return;
+    setPreference(SECTION_ORDER_KEY, JSON.stringify(sectionOrder)).catch(() => {});
+  }, [orderLoaded, sectionOrder]);
 
   const handleToggleSection = useCallback((key: string) => {
     setSectionStates((prev) => ({
@@ -308,10 +372,75 @@ export default function DashboardScreen(): JSX.Element {
 
   useEffect(() => {
     if (loading || !dashboard) return;
-    const available = SECTION_ORDER.filter((key) => sectionAvailability[key]);
-    const locked = SECTION_ORDER.filter((key) => !sectionAvailability[key]);
+    const baseOrder = normalizeSectionOrder(sectionOrder);
+    const available = baseOrder.filter((key) => sectionAvailability[key]);
+    const locked = baseOrder.filter((key) => !sectionAvailability[key]);
     setOrderedSections([...available, ...locked]);
-  }, [dashboard, loading, sectionAvailability]);
+  }, [dashboard, loading, normalizeSectionOrder, sectionAvailability, sectionOrder]);
+
+  const openReorderSheet = useCallback(() => {
+    setReorderVisible(true);
+    requestAnimationFrame(() => {
+      Animated.timing(reorderAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [reorderAnim]);
+
+  const closeReorderSheet = useCallback(() => {
+    Animated.timing(reorderAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setReorderVisible(false);
+      }
+    });
+  }, [reorderAnim]);
+
+  const reorderTranslateY = reorderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [64, 0],
+  });
+
+  const bringSectionToTop = useCallback(
+    (sectionId: SectionId) => {
+      setSectionOrder((prev) => {
+        const next = normalizeSectionOrder(prev);
+        const index = next.indexOf(sectionId);
+        if (index <= 0) return next;
+        const item = next[index];
+        return [item, ...next.slice(0, index), ...next.slice(index + 1)];
+      });
+    },
+    [normalizeSectionOrder]
+  );
+
+  const sectionLabels: Record<SectionId, string> = useMemo(
+    () => ({
+      andamento: t("dashboard.section.trend"),
+      distribuzione: t("dashboard.section.distribution"),
+      cashflow: t("dashboard.section.cashflow"),
+      categories: t("dashboard.section.categories"),
+      prossimi: t("dashboard.section.recurrences"),
+    }),
+    [t]
+  );
+
+  const canReorderSections = sectionOrder.length > 1;
+  const reorderSheetBackground =
+    Platform.OS === "android"
+      ? tokens.colors.surface2
+      : isDark
+      ? "rgba(15, 18, 30, 0.55)"
+      : "rgba(169, 124, 255, 0.32)";
+  const reorderSheetBorder =
+    Platform.OS === "android" ? tokens.colors.border : isDark ? tokens.colors.border : "rgba(169, 124, 255, 0.5)";
+  const reorderBlurIntensity = 35;
+  const reorderOverlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
 
   const handleLockedPress = useCallback(
     (message: string) => {
@@ -376,14 +505,18 @@ export default function DashboardScreen(): JSX.Element {
                     : t("dashboard.greeting")}
                 </Text>
               </View>
-              <KPIStrip items={dashboard.kpis} />
-              <View style={styles.rangeRow}>
-                <RangeSelector
-                  selectedRange={kpiDeltaRange}
-                  onChangeRange={setKpiDeltaRange}
-                  options={kpiRangeOptions}
-                  showLabel={false}
-                />
+              <View style={styles.kpiBlock}>
+                <KPIStrip items={dashboard.kpis} />
+                {kpiRangeOptions.length > 1 ? (
+                  <View style={styles.rangeRow}>
+                    <RangeSelector
+                      selectedRange={kpiDeltaRange}
+                      onChangeRange={setKpiDeltaRange}
+                      options={kpiRangeOptions}
+                      showLabel={false}
+                    />
+                  </View>
+                ) : null}
               </View>
             </View>
             {showPrivacyCard && (
@@ -431,6 +564,7 @@ export default function DashboardScreen(): JSX.Element {
                   >
                     <PortfolioLineChartCard
                       data={dashboard.portfolioSeries}
+                      walletSeries={dashboard.walletSeries}
                       hideHeader
                       noCard
                       modes={showInvestments ? undefined : ["total"]}
@@ -536,9 +670,95 @@ export default function DashboardScreen(): JSX.Element {
                 </SectionAccordion>
               );
             })}
+            {canReorderSections && (
+              <View style={styles.orderToggleRow}>
+                <PressScale onPress={openReorderSheet} style={styles.orderToggleLink}>
+                  <Text style={[styles.orderToggleText, { color: tokens.colors.accent }]}>
+                    {t("dashboard.reorder.edit", { defaultValue: "Modifica ordine" })}
+                  </Text>
+                </PressScale>
+              </View>
+            )}
           </>
         ) : null}
         </ScrollView>
+        <Modal
+          visible={reorderVisible && canReorderSections}
+          transparent
+          animationType="none"
+          presentationStyle="overFullScreen"
+          onRequestClose={closeReorderSheet}
+        >
+          <View style={styles.reorderOverlay} pointerEvents="box-none">
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeReorderSheet}>
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.reorderOverlayDim, { backgroundColor: reorderOverlayTint, opacity: reorderAnim }]}
+              />
+            </Pressable>
+            <Animated.View
+              pointerEvents="auto"
+              style={[
+                styles.reorderSheet,
+                {
+                  backgroundColor: reorderSheetBackground,
+                  borderColor: reorderSheetBorder,
+                  paddingBottom: insets.bottom + 12,
+                  transform: [{ translateY: reorderTranslateY }],
+                  opacity: reorderAnim,
+                },
+              ]}
+            >
+              <GlassBlur intensity={reorderBlurIntensity} tint={isDark ? "dark" : "light"} fallbackColor="transparent" />
+              <View style={styles.reorderSheetHeader}>
+                <Text style={[styles.reorderSheetTitle, { color: tokens.colors.text }]}>
+                  {t("dashboard.reorder.title", { defaultValue: "Modifica ordine" })}
+                </Text>
+                <SmallOutlinePillButton
+                  label={t("dashboard.reorder.done", { defaultValue: "Fatto" })}
+                  onPress={closeReorderSheet}
+                  color={tokens.colors.accent}
+                />
+              </View>
+              <Text style={[styles.orderHint, { color: tokens.colors.muted }]}>
+                {t("dashboard.reorder.hint", { defaultValue: "Tocca la freccia per portare in alto." })}
+              </Text>
+              <ScrollView
+                style={styles.reorderScroll}
+                contentContainerStyle={styles.reorderList}
+                showsVerticalScrollIndicator={false}
+              >
+                {normalizeSectionOrder(sectionOrder).map((sectionId, index) => (
+                  <View
+                    key={sectionId}
+                    style={[
+                      styles.reorderRow,
+                      {
+                        borderColor: tokens.colors.glassBorder,
+                        backgroundColor: tokens.colors.glassBg,
+                      },
+                    ]}
+                  >
+                    <View style={styles.reorderRowContent}>
+                      <Text style={[styles.reorderRowLabel, { color: tokens.colors.text }]} numberOfLines={1}>
+                        {sectionLabels[sectionId]}
+                      </Text>
+                    </View>
+                    <PressScale
+                      onPress={() => {
+                        if (index > 0) bringSectionToTop(sectionId);
+                      }}
+                      style={[styles.reorderAction, { opacity: index === 0 ? 0.4 : 1 }]}
+                      disabled={index === 0}
+                    >
+                      <MaterialCommunityIcons name="arrow-up" size={18} color={tokens.colors.accent} />
+                    </PressScale>
+                  </View>
+                ))}
+              </ScrollView>
+            </Animated.View>
+          </View>
+        </Modal>
       </AppBackground>
     </View>
   );
@@ -559,6 +779,9 @@ const styles = StyleSheet.create({
   greetingBlock: {
     gap: 10,
   },
+  kpiBlock: {
+    gap: 0,
+  },
   greetingRow: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -567,6 +790,8 @@ const styles = StyleSheet.create({
   },
   rangeRow: {
     alignItems: "flex-end",
+    alignSelf: "flex-end",
+    marginBottom: 6,
   },
   privacyActions: {
     flexDirection: "row",
@@ -583,6 +808,19 @@ const styles = StyleSheet.create({
   },
   privacyDismiss: {
     fontSize: 12,
+    fontWeight: "600",
+  },
+  orderToggleRow: {
+    alignItems: "flex-end",
+    paddingTop: 4,
+    paddingRight: 6,
+  },
+  orderToggleLink: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  orderToggleText: {
+    fontSize: 13,
     fontWeight: "600",
   },
 
@@ -629,6 +867,68 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: "700",
+  },
+  reorderOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  reorderOverlayDim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  reorderSheet: {
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    elevation: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -6 },
+    gap: 12,
+  },
+  reorderSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  reorderSheetTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+  },
+  orderHint: {
+    fontSize: 12,
+  },
+  reorderScroll: {
+    maxHeight: 420,
+  },
+  reorderList: {
+    paddingVertical: 4,
+    gap: 10,
+  },
+  reorderRow: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+  },
+  reorderRowContent: {
+    flex: 1,
+    flexDirection: "column",
+  },
+  reorderRowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  reorderAction: {
+    padding: 6,
+    borderRadius: 6,
   },
   errorBody: {
     marginTop: 6,

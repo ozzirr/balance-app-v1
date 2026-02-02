@@ -2,6 +2,7 @@ import { breakdownByWallet, totalsByWalletType } from "@/domain/calculations";
 import { averageMonthlyTotals, totalsForMonth } from "@/domain/finance";
 import { listOccurrencesInRange, upcomingOccurrences } from "@/domain/recurrence";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, Snapshot, SnapshotLineDetail, Wallet } from "@/repositories/types";
+import { DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 import { orderWalletsForUI } from "@/domain/walletOrdering";
 import { addDays, addMonthsClamped, getFrequencyKey } from "@/utils/recurrence";
 import i18n from "i18next";
@@ -15,6 +16,7 @@ import type {
   KpiDeltaRange,
   PortfolioPoint,
   RecurrenceRow,
+  WalletSeries,
 } from "./types";
 
 type DashboardInput = {
@@ -86,6 +88,59 @@ function buildPortfolioSeries(
   return points;
 }
 
+function buildWalletSeries(
+  portfolio: PortfolioPoint[],
+  snapshots: Snapshot[],
+  snapshotLines: Record<number, SnapshotLineDetail[]>,
+  latestLines: SnapshotLineDetail[],
+  wallets: Wallet[]
+): WalletSeries[] {
+  const activeWallets = wallets.filter((wallet) => wallet.active !== 0);
+  if (activeWallets.length === 0 || portfolio.length === 0) return [];
+
+  const snapshotByMonth = new Map<string, Snapshot>();
+  snapshots.forEach((snapshot) => {
+    const monthKey = snapshot.date.slice(0, 7);
+    const existing = snapshotByMonth.get(monthKey);
+    if (!existing || snapshot.date > existing.date) {
+      snapshotByMonth.set(monthKey, snapshot);
+    }
+  });
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const linesByMonth = new Map<string, SnapshotLineDetail[]>();
+  const getLinesForMonth = (monthKey: string): SnapshotLineDetail[] => {
+    const cached = linesByMonth.get(monthKey);
+    if (cached) return cached;
+    const snapshot = snapshotByMonth.get(monthKey);
+    if (snapshot) {
+      const lines = snapshotLines[snapshot.id] ?? [];
+      linesByMonth.set(monthKey, lines);
+      return lines;
+    }
+    if (monthKey === currentMonthKey && latestLines.length > 0) {
+      linesByMonth.set(monthKey, latestLines);
+      return latestLines;
+    }
+    linesByMonth.set(monthKey, []);
+    return [];
+  };
+
+  return activeWallets.map((wallet) => ({
+    walletId: wallet.id,
+    name: wallet.name,
+    type: wallet.type,
+    color: wallet.color ?? DEFAULT_WALLET_COLOR,
+    points: portfolio.map((point) => {
+      const monthKey = point.date.slice(0, 7);
+      const lines = getLinesForMonth(monthKey);
+      const value = lines.reduce((sum, line) => (line.wallet_id === wallet.id ? sum + line.amount : sum), 0);
+      return { date: point.date, value };
+    }),
+  }));
+}
+
 function buildKpis(
   latestLines: SnapshotLineDetail[],
   portfolio: PortfolioPoint[],
@@ -143,7 +198,7 @@ function buildKpis(
   if (showInvestments) {
     items.push(liquidityItem, investItem, netWorthItem);
   } else {
-    items.push(netWorthItem);
+    items.push(liquidityItem);
   }
   return items;
 }
@@ -388,13 +443,29 @@ export function buildDashboardData(
   showInvestments = true,
   range: KpiDeltaRange = "28D"
 ): DashboardData {
+  const hasInvestmentWallets = input.wallets.some((wallet) => wallet.type === "INVEST");
+  const shouldShowInvestments = showInvestments && hasInvestmentWallets;
   const portfolio = buildPortfolioSeries(
     input.snapshots,
     input.snapshotLines,
     input.latestLines,
     input.chartPoints
   );
-  const kpis = buildKpis(input.latestLines, portfolio, showInvestments, range, input.snapshots, input.snapshotLines);
+  const walletSeries = buildWalletSeries(
+    portfolio,
+    input.snapshots,
+    input.snapshotLines,
+    input.latestLines,
+    input.wallets
+  );
+  const kpis = buildKpis(
+    input.latestLines,
+    portfolio,
+    shouldShowInvestments,
+    range,
+    input.snapshots,
+    input.snapshotLines
+  );
   const distributions = buildDistribution(input.latestLines, input.wallets);
   const cashflowMonths = buildCashflow(input.incomeEntries, input.expenseEntries);
   const averages = averageMonthlyTotals(
@@ -407,6 +478,7 @@ export function buildDashboardData(
   return {
     kpis,
     portfolioSeries: portfolio,
+    walletSeries,
     distributions,
     cashflow: {
       avgIncome: averages.income,
@@ -427,12 +499,28 @@ export function createMockDashboardData(showInvestments = true): DashboardData {
   ];
   const kpis = showInvestments
     ? baseKpis
-    : baseKpis.filter((item) => item.id === "netWorth");
+    : baseKpis.filter((item) => item.id === "liquidity");
   const portfolioSeries: PortfolioPoint[] = [
     { date: "2024-11-01", total: 46800, liquidity: 15800, investments: 31000 },
     { date: "2024-12-01", total: 47200, liquidity: 16050, investments: 31150 },
     { date: "2025-01-01", total: 48500, liquidity: 16400, investments: 32100 },
     { date: "2025-02-01", total: 49250, liquidity: 16450, investments: 32800 },
+  ];
+  const walletSeries: WalletSeries[] = [
+    {
+      walletId: 1,
+      name: "Liquidità",
+      type: "LIQUIDITY",
+      color: palette[0],
+      points: portfolioSeries.map((point) => ({ date: point.date, value: point.liquidity })),
+    },
+    {
+      walletId: 2,
+      name: "Investimenti",
+      type: "INVEST",
+      color: palette[1],
+      points: portfolioSeries.map((point) => ({ date: point.date, value: point.investments })),
+    },
   ];
   const distributions: DistributionItem[] = [
     { id: "cash", label: i18n.t("dashboard.mock.distributions.cash"), value: 4200, color: palette[0] },
@@ -490,6 +578,7 @@ export function createMockDashboardData(showInvestments = true): DashboardData {
   return {
     kpis,
     portfolioSeries,
+    walletSeries,
     distributions,
     cashflow,
     categories,

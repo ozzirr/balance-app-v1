@@ -1,0 +1,410 @@
+{
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "continue": "Continuar",
+    "start": "Começar",
+    "skip": "Saltar",
+    "add": "Adicionar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "close": "Fechar",
+    "done": "Concluído",
+    "confirm": "Confirmar",
+    "create": "Criar",
+    "update": "Atualizar",
+    "reset": "Repor",
+    "all": "Todos"
+  },
+  "onboardingV2": {
+    "common": {
+      "continue": "Continuar",
+      "skip": "Saltar"
+    },
+    "welcome": {
+      "title": "Bem-vindo ao Balance",
+      "subtitle": "As tuas finanças pessoais. Simples, privadas, sob controlo.",
+      "bullet1": "Acompanha entradas e despesas com clareza",
+      "bullet2": "Vê o teu património líquido ao longo do tempo",
+      "bullet3": "Sem conta. Sem cloud. Sem rastreio"
+    },
+    "name": {
+      "title": "Como te chamas?",
+      "subtitle": "Vamos usar o teu nome para te dar as boas-vindas ao Balance.",
+      "placeholder": "O teu nome"
+    },
+    "investments": {
+      "title": "Tens investimentos?",
+      "subtitle": "Isto ajuda-nos a configurar a tua dashboard da melhor forma.",
+      "optionYes": "Sim, tenho investimentos",
+      "optionNo": "Não, apenas liquidez",
+      "helper": "Podes alterar isto a qualquer momento.",
+      "cta": "Começar"
+    }
+  },
+  "errors": {
+    "genericTitle": "Erro",
+    "generic": "Algo correu mal"
+  },
+  "alerts": {
+    "settings": {
+      "export": {
+        "title": "Exportar dados",
+        "body": "A partilha irá incluir todos os teus dados em JSON."
+      },
+      "import": {
+        "title": "Confirmar importação",
+        "body": "A importação irá substituir todos os dados existentes. Continuar?"
+      },
+      "pasteJson": {
+        "title": "Confirmar colagem",
+        "body": "Ao colar o JSON, substituirás todos os dados existentes. Continuar?"
+      },
+      "loadTestData": {
+        "title": "Carregar dados de teste",
+        "body": "Os dados de exemplo irão substituir a tua base de dados atual. Continuar?"
+      },
+      "reset": {
+        "title": "Confirmar reposição",
+        "body": "Isto irá apagar todos os dados. Continuar?"
+      }
+    }
+  },
+  "settings": {
+    "title": "Definições",
+    "profile": {
+      "title": "Perfil",
+      "nameLabel": "Nome"
+    },
+    "preferences": {
+      "title": "Preferências",
+      "darkTheme": "Tema escuro",
+      "prefillSnapshot": "Pré-preencher snapshot",
+      "showInvestments": "Mostrar investimentos",
+      "monthsInChart": "Meses no gráfico",
+      "languageLabel": "Idioma",
+      "language": {
+        "it": "Italiano",
+        "en": "English",
+        "pt": "Português"
+      }
+    },
+    "data": {
+      "title": "Dados",
+      "export": "Exportar",
+      "import": "Importar",
+      "loadTestData": "Carregar dados de teste"
+    },
+    "onboarding": {
+      "title": "Onboarding",
+      "subtitle": "Revê a configuração guiada",
+      "reviewAction": "Rever"
+    },
+    "reset": "Repor"
+  },
+  "dashboard": {
+    "errorTitle": "Não foi possível carregar a dashboard",
+    "emptyTitle": "Sem dados disponíveis",
+    "emptyBody": "Cria pelo menos uma carteira para começar.",
+    "emptyCta": "Configurar Balance",
+    "greeting": "Olá",
+    "greetingWithName": "Olá {{name}}",
+    "section": {
+      "trend": "Evolução no tempo",
+      "distribution": "Distribuição do património",
+      "cashflow": "Cash Flow. Visão geral",
+      "categories": "Despesas por categoria",
+      "recurrences": "Próximos movimentos"
+    },
+    "portfolio": {
+      "header": "A tua evolução no tempo",
+      "toggle": {
+        "total": "Total",
+        "liquidity": "Liquidez",
+        "investments": "Investimentos"
+      },
+      "empty": "Sem dados disponíveis."
+    },
+    "privacy": {
+      "title": "Privacy by design",
+      "body": "Offline-first. Dados apenas no teu dispositivo. Código open source e verificável no GitHub.",
+      "dismiss": "Percebi",
+      "learnMore": "Saber mais"
+    },
+    "distribution": {
+      "empty": "Sem dados disponíveis.",
+      "totalLabel": "Total",
+      "totalPercent": "100%"
+    },
+    "cashflow": {
+      "header": "Cash Flow. Visão geral",
+      "empty": "Sem dados disponíveis.",
+      "avgIncome": "Entradas médias mensais",
+      "avgExpense": "Despesas médias mensais",
+      "avgSavings": "Poupança média mensal",
+      "annualLabel": "Anual",
+      "chartLegendIncome": "Entradas",
+      "chartLegendExpense": "Despesas"
+    },
+    "categories": {
+      "header": "Despesas por categoria",
+      "empty": "Sem dados disponíveis.",
+      "uncategorized": "Sem categoria"
+    },
+    "recurrences": {
+      "header": "Próximos movimentos programados",
+      "empty": "Sem movimentos programados.",
+      "table": {
+        "date": "Data",
+        "amount": "Montante",
+        "name": "Nome",
+        "category": "Categoria"
+      },
+      "action": "Editar",
+      "category": {
+        "expense": "Despesa",
+        "income": "Entrada"
+      }
+    },
+    "kpi": {
+      "liquidity": "Liquidez",
+      "investments": "Investimentos",
+      "netWorth": "Património líquido"
+    },
+    "range": {
+      "label": "Período",
+      "title": "Alterar intervalo",
+      "subtitle": "Escolhe o intervalo para a comparação dos KPI. Exemplo: com “Últimos 7 dias” comparamos o teu último snapshot com o mais próximo de há 7 dias (se disponível).",
+      "options": {
+        "last7Days": "Últimos 7 dias",
+        "last28Days": "Últimos 28 dias",
+        "last3Months": "Últimos 3 meses",
+        "last6Months": "Últimos 6 meses",
+        "last12Months": "Últimos 12 meses"
+      }
+    },
+    "reorder": {
+      "edit": "Editar ordem",
+      "title": "Editar ordem",
+      "done": "Concluído",
+      "hint": "Toca na seta para colocar no topo."
+    },
+    "mock": {
+      "kpi": {
+        "liquidity": "Liquidez",
+        "investments": "Investimentos",
+        "netWorth": "Património líquido"
+      },
+      "distributions": {
+        "cash": "Dinheiro",
+        "bank": "Banco",
+        "broker": "Broker"
+      },
+      "categories": {
+        "home": "Casa",
+        "food": "Alimentação",
+        "transport": "Transportes",
+        "other": "Outros"
+      },
+      "recurrences": {
+        "incomeCategory": "Entrada",
+        "homeCategory": "Casa",
+        "foodCategory": "Alimentação",
+        "salary": "Salário",
+        "rent": "Renda",
+        "expense": "Despesa"
+      }
+    }
+  },
+  "navigation": {
+    "blockedNoWalletTitle": "Ainda não há carteiras",
+    "blockedNoWalletBody": "Cria a tua primeira carteira para começar.",
+    "blockedNoWalletCta": "Ir para carteiras"
+  },
+  "recurrences": {
+    "frequency": {
+      "weekly": "Semanal",
+      "monthly": "Mensal",
+      "yearly": "Anual"
+    }
+  },
+  "wallets": {
+    "list": {
+      "tabLiquidity": "Liquidez",
+      "tabInvest": "Investimentos",
+      "reorderTitle": "Ordenar carteiras",
+      "reorderHint": "Toca na seta para colocar uma carteira no topo",
+      "editOrder": "Editar ordem",
+      "doneOrder": "Concluído",
+      "addWallet": "Adicionar carteira",
+      "newLiquidityTitle": "Nova carteira de liquidez",
+      "newInvestTitle": "Nova carteira de investimentos",
+      "categoriesTitle": "Categorias de despesa",
+      "newCategoryLabel": "Nome da categoria",
+      "addCategory": "Adicionar categoria",
+      "noCategories": "Sem categorias configuradas.",
+      "categoryActive": "Ativa",
+      "categoryInactive": "Inativa",
+      "categoryActivate": "Ativar",
+      "categoryDeactivate": "Desativar"
+    },
+    "form": {
+      "name": "Nome",
+      "brokerLabel": "Broker",
+      "investmentTypeLabel": "Tipo de investimento",
+      "colorLabel": "Cor"
+    },
+    "actions": {
+      "limitTitle": "Balance Pro está a chegar",
+      "limitBody": "Queres mais carteiras e funcionalidades avançadas? Entra na lista de espera e recebe uma notificação quando o Balance Pro estiver disponível.",
+      "limitModalTitle": "Balance Pro está a chegar",
+      "limitModalSubtitle": "Queres mais carteiras e funcionalidades avançadas? Entra na lista de espera e recebe uma notificação quando o Balance Pro estiver disponível.",
+      "limitBenefitUnlimited": "Carteiras ilimitadas",
+      "limitBenefitInsights": "Insights avançados",
+      "limitBenefitControl": "Controlo total das tuas finanças",
+      "limitUpgradeCta": "Entrar na lista de espera",
+      "limitMaybeLater": "Agora não",
+      "downloadPro": "Entrar na lista de espera",
+      "storeError": "Não foi possível abrir o link."
+    },
+    "snapshot": {
+      "investmentTypeFallback": "Tipo de investimento",
+      "walletFallback": "Carteira #{{id}}",
+      "unknown": "Desconhecido"
+    }
+  },
+  "entries": {
+    "list": {
+      "tabIncome": "Entradas",
+      "tabExpense": "Despesas",
+      "sectionTitle": "Lista",
+      "filterByCategory": "Filtrar por categoria",
+      "table": {
+        "date": "Data",
+        "name": "Nome",
+        "amount": "Montante",
+        "annual": "Montante anual",
+        "category": "Categoria",
+        "action": "Editar"
+      },
+      "empty": "Sem registos.",
+      "categoryFallback": "Sem categoria",
+      "incomeLabel": "Entrada"
+    },
+    "form": {
+      "name": "Nome",
+      "amount": "Montante",
+      "date": "Data",
+      "newEntryTitle": "Nova entrada",
+      "newIncomeTitle": "Nova entrada de receita",
+      "newExpenseTitle": "Nova entrada de despesa",
+      "categoryHint": "Seleciona uma categoria.",
+      "categoryTitle": "Categoria de despesa",
+      "recurringLabel": "Recorrente",
+      "intervalLabel": "Intervalo",
+      "frequency": {
+        "weekly": "Semanal",
+        "monthly": "Mensal",
+        "yearly": "Anual"
+      }
+    },
+    "actions": {
+      "toggleForm": "Adicionar entrada"
+    },
+    "empty": {
+      "noEntries": "Adiciona a tua primeira entrada para começar.",
+      "noCategoriesActivePrefix": "Sem categorias ativas.",
+      "noCategoriesActiveLink": "Adiciona uma aqui."
+    },
+    "validation": {
+      "nameRequired": "O nome é obrigatório.",
+      "invalidDate": "Data inválida (YYYY-MM-DD).",
+      "amountInvalid": "Montante inválido.",
+      "amountTooSmall": "Montante mínimo: 0,01.",
+      "categoryRequired": "A categoria é obrigatória.",
+      "removeIdBeforeCreate": "Remove o ID antes de criar uma nova entrada.",
+      "noEntryForEdit": "Nenhuma entrada selecionada para editar."
+    }
+  },
+  "security": {
+    "lock": {
+      "enterPinLabel": "Introduzir PIN",
+      "forgotPin": "Esqueceste o PIN?",
+      "biometryHint": "Podes ativar {{biometryName}} nas definições",
+      "invalidPin": "PIN incorreto",
+      "pinCheckFailed": "Não foi possível verificar o PIN",
+      "biometryUnavailable": "Autenticação biométrica indisponível",
+      "biometryLockout": "{{biometryName}} bloqueado após demasiadas tentativas, usa o teu PIN",
+      "biometryFailed": "A autenticação biométrica falhou",
+      "biometryError": "Erro durante a autenticação biométrica"
+    },
+    "pin": {
+      "setTitle": "Definir PIN",
+      "changeTitle": "Alterar PIN",
+      "enterNew": "Introduzir novo PIN",
+      "repeatNew": "Repetir novo PIN",
+      "mismatchError": "Os PINs não coincidem",
+      "verifyTitle": "Verificar PIN",
+      "wrongPin": "PIN incorreto"
+    },
+    "settings": {
+      "title": "Segurança",
+      "requirePin": "Exigir PIN ao iniciar",
+      "useFaceId": "Usar Face ID",
+      "autoLockTitle": "Bloqueio automático",
+      "autoLockSubtitle": "Após 1 minuto de inatividade",
+      "faceIdRequiresPinHint": "Ativa primeiro o PIN para usar o Face ID",
+      "disablePin": "Desativar PIN"
+    }
+  },
+  "snapshot": {
+    "title": "Snapshot",
+    "hero": {
+      "currentMonth": "Mês atual",
+      "recentMonths": "Meses recentes",
+      "saved": "Guardado",
+      "missing": "Por adicionar"
+    },
+    "summary": {
+      "title": "Resumo"
+    },
+    "actions": {
+      "new": "Novo snapshot",
+      "edit": "Editar snapshot",
+      "loadMore": "Carregar mais"
+    },
+    "filter": {
+      "byMonth": "Filtrar por mês"
+    },
+    "detail": {
+      "title": "Detalhe",
+      "emptyLines": "Adiciona o teu primeiro snapshot para começar."
+    },
+    "delete": {
+      "title": "Eliminar snapshot?",
+      "body": "Esta ação não pode ser anulada."
+    },
+    "empty": {
+      "noSnapshots": "Ainda não há snapshots.",
+      "firstHint": "Depois de configurares as carteiras, adiciona aqui o teu primeiro snapshot."
+    },
+    "guide": {
+      "title": "Adiciona o teu primeiro snapshot",
+      "bodyLine1": "Um snapshot é o saldo da tua carteira numa data específica.",
+      "bodyLine2": "Começa por inserir o saldo de hoje.",
+      "cta": "Adicionar snapshot"
+    },
+    "form": {
+      "dateLabel": "Data"
+    },
+    "totals": {
+      "liquidity": "Liquidez",
+      "investments": "Investimentos",
+      "netWorth": "Património líquido"
+    }
+  },
+  "navigation": {
+    "tabEntries": "Balance"
+  }
+}

@@ -1,6 +1,6 @@
 /// <reference types="react" />
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert, Keyboard, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Keyboard, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Switch, Text, TextInput } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
@@ -11,14 +11,12 @@ import { exportToJson, importFromFile, importFromJson } from "@/importExport";
 import type { ExportPayload } from "@/importExport/types";
 import { runMigrations, withTransaction } from "@/db/db";
 import { emitDataReset } from "@/app/dataEvents";
-import { loadSampleData as seedSampleData } from "@/seed/sampleData";
 import { getPreference, setPreference } from "@/repositories/preferencesRepo";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { ThemeContext } from "@/ui/theme";
-import { useOnboardingFlow } from "@/onboarding/flowContext";
 import type { StorageAccessFrameworkIO } from "expo-file-system";
 import SecuritySettingsSection from "@/security/SecuritySettingsSection";
 import {
@@ -35,8 +33,9 @@ import { disableSecurityFlow } from "@/security/securityFlowsDisableOnly";
 import { handleBiometryToggle as handleBiometryToggleFlow } from "@/security/securityFlowsBiometryOnly";
 import type { SecurityModalStackParamList } from "@/security/securityFlowsTypes";
 import { useTranslation } from "react-i18next";
-import { STORAGE_KEY, SupportedLanguage } from "@/i18n";
+import { STORAGE_KEY, SUPPORTED_LANGUAGES, SupportedLanguage } from "@/i18n";
 import { useSettings } from "@/settings/useSettings";
+import { useOnboardingFlow } from "@/onboarding/flowContext";
 import {
   setDisplayName,
   setHasInvestments,
@@ -44,7 +43,7 @@ import {
   setOnboardingCompleted,
 } from "@/onboarding/onboardingStorage";
 import AppBackground from "@/ui/components/AppBackground";
-import { GlassCardContainer, PrimaryPillButton, SegmentedControlPill, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
+import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 function findSecurityModalNavigation(
@@ -84,6 +83,16 @@ export default function SettingsScreen(): JSX.Element {
   const { showInvestments, setShowInvestments } = useSettings();
 
   const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? "it") as SupportedLanguage;
+  const languageOptions = useMemo(
+    () =>
+      SUPPORTED_LANGUAGES.map((lang) => ({
+        value: lang,
+        label: t(`settings.preferences.language.${lang}`, {
+          defaultValue: lang.toUpperCase(),
+        }),
+      })),
+    [t]
+  );
 
   const handleLanguageChange = useCallback(
     async (next: SupportedLanguage) => {
@@ -93,6 +102,12 @@ export default function SettingsScreen(): JSX.Element {
     },
     [currentLanguage, i18n]
   );
+
+  const cycleLanguage = useCallback(() => {
+    const index = SUPPORTED_LANGUAGES.indexOf(currentLanguage);
+    const next = SUPPORTED_LANGUAGES[(index + 1) % SUPPORTED_LANGUAGES.length];
+    void handleLanguageChange(next);
+  }, [currentLanguage, handleLanguageChange]);
 
   const load = useCallback(async () => {
     const [name, prefill, points] = await Promise.all([
@@ -243,14 +258,6 @@ export default function SettingsScreen(): JSX.Element {
     emitDataReset();
   };
 
-  const loadSampleDataHandler = useCallback(async () => {
-    try {
-      await seedSampleData();
-    } catch (error) {
-      console.warn(error);
-    }
-  }, []);
-
   useEffect(() => {
     load();
   }, [load]);
@@ -385,7 +392,7 @@ export default function SettingsScreen(): JSX.Element {
             />
         </GlassCardContainer>
 
-        <GlassCardContainer contentStyle={styles.cardContent}>
+        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
             <SectionHeader title={t("settings.preferences.title")} />
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.darkTheme")}</Text>
@@ -446,19 +453,23 @@ export default function SettingsScreen(): JSX.Element {
                 />
               </View>
             </View>
-            <View style={styles.languageRow}>
+            <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.languageLabel")}</Text>
               <View style={styles.segmentControl}>
-                <SegmentedControlPill
-                  value={currentLanguage}
-                  onChange={(value) => {
-                    void handleLanguageChange(value as SupportedLanguage);
-                  }}
-                  options={[
-                    { value: "it", label: t("settings.preferences.language.it") },
-                    { value: "en", label: t("settings.preferences.language.en") },
+                <Pressable
+                  onPress={cycleLanguage}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("settings.preferences.languageLabel")}
+                  style={({ pressed }) => [
+                    styles.languageSelector,
+                    { opacity: pressed ? 0.7 : 1 },
                   ]}
-                />
+                >
+                  <Text style={[styles.languageSelectorText, { color: tokens.colors.accent }]}>
+                    {languageOptions.find((option) => option.value === currentLanguage)?.label ?? currentLanguage}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={tokens.colors.accent} />
+                </Pressable>
               </View>
             </View>
         </GlassCardContainer>
@@ -480,33 +491,6 @@ export default function SettingsScreen(): JSX.Element {
             <SectionHeader title={t("settings.data.title")} />
             <PrimaryPillButton label={t("settings.data.export")} onPress={exportData} color={tokens.colors.accent} />
             <SmallOutlinePillButton label={t("settings.data.import")} onPress={importData} color={tokens.colors.text} fullWidth />
-            <SmallOutlinePillButton
-              label={t("settings.data.loadTestData")}
-              onPress={loadSampleDataHandler}
-              color={tokens.colors.text}
-              fullWidth
-            />
-        </GlassCardContainer>
-
-        <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader title={t("settings.onboarding.title")} />
-            <View
-              style={[
-                styles.onboardingRow,
-                { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
-              ]}
-            >
-              <View style={styles.onboardingText}>
-                <Text style={[styles.onboardingSubtitle, { color: tokens.colors.muted }]}>
-                  {t("settings.onboarding.subtitle")}
-                </Text>
-              </View>
-              <SmallOutlinePillButton
-                label={t("settings.onboarding.reviewAction")}
-                onPress={() => requestReplay({ seed: false })}
-                color={tokens.colors.accent}
-              />
-            </View>
         </GlassCardContainer>
 
         <View style={styles.resetContainer}>
@@ -527,6 +511,7 @@ const styles = StyleSheet.create({
   cardContent: {
     gap: 12,
   },
+
   resetContainer: {
     marginTop: 4,
     marginBottom: 24,
@@ -574,10 +559,18 @@ const styles = StyleSheet.create({
   onboardingSubtitle: {
     fontSize: 12,
   },
-  languageRow: {
-    gap: 10,
-  },
   segmentControl: {
-    width: "100%",
+    alignItems: "flex-end",
+  },
+  languageSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  languageSelectorText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

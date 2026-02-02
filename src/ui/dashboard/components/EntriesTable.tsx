@@ -26,12 +26,17 @@ type EntriesTableProps = {
   minWidth?: number;
   showCategory?: boolean;
   renderAction?: (row: EntriesTableRow) => React.ReactNode;
+  showPagination?: boolean;
 };
 
 const DEFAULT_MIN_WIDTH = 480;
 const CATEGORY_COLUMN_WIDTH = 96;
 const COLUMN_GAP = 12;
 const ROWS_PER_PAGE = 7;
+const DATE_COLUMN_WIDTH = 58;
+const AMOUNT_COLUMN_WIDTH = 72;
+const DESC_COLUMN_WIDTH = 110;
+const ACTION_COLUMN_WIDTH = 52;
 
 export default function EntriesTable({
   rows,
@@ -39,6 +44,7 @@ export default function EntriesTable({
   minWidth = DEFAULT_MIN_WIDTH,
   showCategory = true,
   renderAction,
+  showPagination = true,
 }: EntriesTableProps): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
@@ -49,19 +55,30 @@ export default function EntriesTable({
     if (name.length <= 10) return name;
     return `${name.slice(0, 10).trimEnd()}…`;
   };
-  const adjustedMinWidth = Math.max(minWidth - (showCategory ? 0 : CATEGORY_COLUMN_WIDTH), 340);
-  const totalPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+  const columnCount = showCategory ? 5 : 4;
+  const gapTotal = (columnCount - 1) * COLUMN_GAP;
+  const baseTableWidth =
+    DATE_COLUMN_WIDTH +
+    AMOUNT_COLUMN_WIDTH +
+    DESC_COLUMN_WIDTH +
+    ACTION_COLUMN_WIDTH +
+    (showCategory ? CATEGORY_COLUMN_WIDTH : 0) +
+    gapTotal;
+  const adjustedMinWidth = Math.max(baseTableWidth, Math.min(minWidth, baseTableWidth));
+  const totalPages = showPagination ? Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE)) : 1;
   const pageRows = useMemo(() => {
+    if (!showPagination) return rows;
     const start = pageIndex * ROWS_PER_PAGE;
     return rows.slice(start, start + ROWS_PER_PAGE);
-  }, [rows, pageIndex]);
+  }, [pageIndex, rows, showPagination]);
   const displayRows = useMemo(() => {
+    if (!showPagination) return pageRows;
     const filled = [...pageRows];
     while (filled.length < ROWS_PER_PAGE) {
       filled.push(null);
     }
     return filled;
-  }, [pageRows]);
+  }, [pageRows, showPagination]);
 
   useEffect(() => {
     if (pageIndex > totalPages - 1) {
@@ -74,6 +91,8 @@ export default function EntriesTable({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
         contentContainerStyle={{ minWidth: adjustedMinWidth }}
       >
         <View style={{ minWidth: adjustedMinWidth }}>
@@ -150,7 +169,7 @@ export default function EntriesTable({
           />
         </View>
       </ScrollView>
-      {totalPages > 1 ? (
+      {showPagination && totalPages > 1 ? (
         <View style={styles.paginationWrap}>
           <View style={styles.paginationRow}>
             <SmallOutlinePillButton
@@ -230,19 +249,19 @@ const styles = StyleSheet.create({
     textAlign: "left",
   },
   cellDate: {
-    width: 58,
+    width: DATE_COLUMN_WIDTH,
     flexShrink: 0,
     marginRight: 4,
   },
   cellAmount: {
-    width: 72,
+    width: AMOUNT_COLUMN_WIDTH,
     flexShrink: 0,
     textAlign: "left",
   },
   cellDesc: {
     flex: 1,
-    minWidth: 110,
-    maxWidth: 110,
+    minWidth: DESC_COLUMN_WIDTH,
+    maxWidth: DESC_COLUMN_WIDTH,
     paddingLeft: 10,
   },
   entryDescription: {
@@ -259,11 +278,11 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
   cellCategory: {
-    width: 96,
+    width: CATEGORY_COLUMN_WIDTH,
     flexShrink: 0,
   },
   cellAction: {
-    width: 52,
+    width: ACTION_COLUMN_WIDTH,
     flexShrink: 0,
     alignItems: "flex-end",
   },

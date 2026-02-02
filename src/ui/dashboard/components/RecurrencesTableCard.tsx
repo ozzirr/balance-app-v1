@@ -37,7 +37,8 @@ export default function RecurrencesTableCard({
 }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
-  const tableRows: EntriesTableRow<RecurrenceRow>[] = rows.map((item) => ({
+  const visibleRows = rows.slice(0, 5);
+  const tableRows: EntriesTableRow<RecurrenceRow>[] = visibleRows.map((item) => ({
     id: item.id,
     dateLabel: formatShortDate(item.date),
     amountLabel: formatEUR(item.amount),
@@ -61,6 +62,7 @@ export default function RecurrencesTableCard({
         <EntriesTable
           rows={tableRows}
           emptyLabel={t("dashboard.recurrences.empty")}
+          showPagination={false}
           renderAction={(row) =>
             row.meta ? (
               <SmallOutlinePillButton

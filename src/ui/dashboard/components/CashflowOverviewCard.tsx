@@ -39,12 +39,16 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
   }));
   const savingsColor = cashflow.avgSavings >= 0 ? tokens.colors.green : tokens.colors.red;
   const visibleWidth = Math.max(width - 64, 0);
-  const perMonthWidth = 64;
+  const perMonthWidth = 50;
+  const chartPaddingLeft = 70;
+  const chartPaddingRight = 50;
   const showAllMonthsInline = cashflow.months.length <= 3;
-  const baseChartWidth = Math.max(cashflow.months.length * perMonthWidth, 230);
+  const baseChartWidth = Math.max(
+    Math.max(cashflow.months.length - 1, 0) * perMonthWidth + chartPaddingLeft + chartPaddingRight,
+    230
+  );
   const chartWidth = showAllMonthsInline ? baseChartWidth : Math.max(visibleWidth, baseChartWidth);
   const chartOffset = showAllMonthsInline ? 0 : Math.max(chartWidth - visibleWidth, 0);
-  const chartPaddingRight = showAllMonthsInline ? 80 : 70;
   const tooltipFlyout = { fill: tokens.colors.surface2, stroke: tokens.colors.border };
   const tooltipText = { fill: tokens.colors.text, fontSize: 11 };
   const tooltipSeriesLabel = (series: "income" | "expense" | undefined) => {
@@ -82,6 +86,8 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              bounces={false}
+              overScrollMode="never"
               contentContainerStyle={[styles.chartScroll, { justifyContent: "flex-start" }]}
               contentOffset={{ x: chartOffset }}
             >
@@ -89,7 +95,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
                 width={chartWidth}
                 height={200}
                 domainPadding={{ x: 6, y: 14 }}
-                padding={{ left: 40, right: chartPaddingRight, top: 10, bottom: 30 }}
+                padding={{ left: chartPaddingLeft, right: chartPaddingRight, top: 10, bottom: 30 }}
                 containerComponent={
                   <VictoryVoronoiContainer
                     labels={({ datum }) => {
@@ -121,7 +127,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
                   style={{
                     axis: { stroke: "transparent" },
                     grid: { stroke: tokens.colors.border },
-                    tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 6, dx: 8 },
+                    tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 10, dx: 12 },
                   }}
                 />
                 <VictoryGroup offset={6}>
@@ -182,7 +188,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   chartScroll: {
-    paddingRight: 28,
+    paddingRight: 4,
   },
   empty: {},
 });

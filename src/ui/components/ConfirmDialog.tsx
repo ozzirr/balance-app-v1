@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, Platform, StyleSheet, View } from "react-native";
 import { Button, Modal, Portal, Text } from "react-native-paper";
 import GlassBlur from "@/ui/components/GlassBlur";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
@@ -53,9 +53,17 @@ export default function ConfirmDialog({
     ]).start();
   }, [opacity, scale, visible]);
 
-  const overlayTint = isDark ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0.18)";
+  const overlayTint = isDark ? "rgba(0,0,0,0.28)" : "rgba(0,0,0,0.18)";
   const blurTint = isDark ? "dark" : "light";
   const blurIntensity = 35;
+  const cardBackground =
+    Platform.OS === "android"
+      ? tokens.colors.surface2
+      : isDark
+      ? "rgba(15, 18, 30, 0.55)"
+      : "rgba(169, 124, 255, 0.32)";
+  const cardBorder =
+    Platform.OS === "android" ? tokens.colors.border : isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
 
   return (
     <Portal>
@@ -71,8 +79,8 @@ export default function ConfirmDialog({
           style={[
             styles.card,
             {
-              backgroundColor: tokens.colors.modalGlassBg,
-              borderColor: tokens.colors.modalBorder,
+              backgroundColor: cardBackground,
+              borderColor: cardBorder,
               opacity,
               transform: [{ scale }],
               ...shadows.card,
@@ -93,7 +101,8 @@ export default function ConfirmDialog({
               textColor={tokens.colors.text}
               onPress={onCancel}
               disabled={loading}
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.actionSecondary]}
+              contentStyle={styles.actionContent}
             >
               {cancelLabel}
             </Button>
@@ -104,7 +113,8 @@ export default function ConfirmDialog({
               onPress={onConfirm}
               loading={loading}
               disabled={loading}
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.actionPrimary]}
+              contentStyle={styles.actionContent}
             >
               {confirmLabel}
             </Button>
@@ -122,15 +132,18 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
+    alignItems: "center",
   },
   card: {
     width: "100%",
-    maxWidth: 380,
+    maxWidth: 390,
     alignSelf: "center",
-    borderRadius: 20,
+    borderRadius: 28,
     borderWidth: 1,
-    padding: 20,
-    gap: 12,
+    padding: 24,
+    gap: 16,
+    alignItems: "center",
+    overflow: "hidden",
   },
   title: {
     fontWeight: "700",
@@ -144,11 +157,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   actions: {
+    width: "100%",
     flexDirection: "row",
     gap: 12,
     justifyContent: "space-between",
   },
   actionButton: {
     flex: 1,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  actionPrimary: {
+    borderRadius: 999,
+  },
+  actionSecondary: {
+    borderRadius: 999,
+  },
+  actionContent: {
+    paddingVertical: 10,
   },
 });

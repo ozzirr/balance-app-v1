@@ -5,7 +5,7 @@ import { isIsoDate } from "@/utils/dates";
 import type { SnapshotLine } from "@/repositories/types";
 import { DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 
-const REQUIRED_KEYS: (keyof ExportPayload)[] = [
+const REQUIRED_KEYS_V1: (keyof ExportPayload)[] = [
   "version",
   "wallets",
   "expense_categories",
@@ -14,10 +14,14 @@ const REQUIRED_KEYS: (keyof ExportPayload)[] = [
   "snapshots",
   "snapshot_lines",
 ];
+const REQUIRED_KEYS_V2: (keyof ExportPayload)[] = [...REQUIRED_KEYS_V1, "preferences"];
+const REQUIRED_KEYS_V3: (keyof ExportPayload)[] = [...REQUIRED_KEYS_V2, "wallet_order"];
 
 export function validateExportPayload(payload: ExportPayload): string[] {
   const errors: string[] = [];
-  for (const key of REQUIRED_KEYS) {
+  const requiredKeys =
+    payload.version >= 3 ? REQUIRED_KEYS_V3 : payload.version >= 2 ? REQUIRED_KEYS_V2 : REQUIRED_KEYS_V1;
+  for (const key of requiredKeys) {
     if (!(key in payload)) {
       errors.push(`Campo mancante: ${String(key)}`);
     }
@@ -31,6 +35,13 @@ export function validateExportPayload(payload: ExportPayload): string[] {
     { list: payload.snapshots ?? [], fields: ["id", "date"], label: "snapshots" },
     { list: payload.snapshot_lines ?? [], fields: ["id", "snapshot_id", "wallet_id", "amount"], label: "snapshot_lines" },
   ];
+  if (payload.preferences) {
+    requiredFields.push({
+      list: payload.preferences ?? [],
+      fields: ["key", "value"],
+      label: "preferences",
+    });
+  }
 
   requiredFields.forEach((group) => {
     group.list.forEach((row, index) => {
@@ -68,9 +79,15 @@ export async function exportToJson(): Promise<ExportPayload> {
     "expense_entries",
     "snapshots",
     "snapshot_lines",
+    "preferences",
   ] as const;
 
-  const payload: Partial<ExportPayload> = { version: 1 };
+  const payload: Partial<ExportPayload> = { version: 3 };
+
+  const isSensitivePreference = (key: string) => {
+    const lowered = key.toLowerCase();
+    return lowered.includes("pin") || lowered.includes("face") || lowered.includes("biometr");
+  };
 
   for (const table of tables) {
     const result = await executeSql(`SELECT * FROM ${table}`);
@@ -78,8 +95,29 @@ export async function exportToJson(): Promise<ExportPayload> {
     for (let i = 0; i < result.rows.length; i += 1) {
       rows.push(result.rows.item(i));
     }
-    (payload as Record<string, unknown>)[table] = rows;
+    if (table === "preferences") {
+      const filtered = (rows as Array<{ key?: string }>).filter(
+        (row) => (row.key ? !isSensitivePreference(row.key) : true)
+      );
+      (payload as Record<string, unknown>)[table] = filtered;
+    } else {
+      (payload as Record<string, unknown>)[table] = rows;
+    }
   }
+
+  const wallets = (payload.wallets ?? []) as Array<{ id: number; type?: string; sort_order?: number; sortOrder?: number }>;
+  const walletOrder = [...wallets]
+    .sort((a, b) => {
+      const typeA = String(a.type ?? "").toLowerCase() === "liquidity" ? 0 : 1;
+      const typeB = String(b.type ?? "").toLowerCase() === "liquidity" ? 0 : 1;
+      if (typeA !== typeB) return typeA - typeB;
+      const sortA = a.sort_order ?? a.sortOrder ?? 0;
+      const sortB = b.sort_order ?? b.sortOrder ?? 0;
+      if (sortA !== sortB) return sortA - sortB;
+      return (a.id ?? 0) - (b.id ?? 0);
+    })
+    .map((wallet) => wallet.id);
+  payload.wallet_order = walletOrder;
 
   return payload as ExportPayload;
 }
@@ -103,24 +141,44 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
       "expense_entries",
       "wallets",
       "expense_categories",
+      ...(payload.preferences ? ["preferences"] : []),
     ];
 
     for (const table of tables) {
       await db.runAsync(`DELETE FROM ${table}`);
     }
 
+    const walletOrderMap = new Map<number, number>();
+    if (payload.wallet_order?.length) {
+      payload.wallet_order.forEach((id, index) => walletOrderMap.set(id, index));
+    }
+
     for (const row of payload.wallets) {
+      const sortOrderFromPayload =
+        (row as unknown as { sort_order?: number; sortOrder?: number }).sort_order ??
+        (row as unknown as { sortOrder?: number }).sortOrder;
+      const sortOrder = sortOrderFromPayload ?? walletOrderMap.get(row.id) ?? 0;
       await db.runAsync(
-        "INSERT INTO wallets (id, name, type, currency, tag, active, color) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [row.id, row.name, row.type, row.currency, row.tag, row.active, row.color ?? DEFAULT_WALLET_COLOR]
+        "INSERT INTO wallets (id, name, type, currency, tag, active, color, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          row.id,
+          row.name,
+          row.type,
+          row.currency,
+          row.tag,
+          row.active,
+          row.color ?? DEFAULT_WALLET_COLOR,
+          sortOrder,
+        ]
       );
     }
 
     for (const row of payload.expense_categories) {
-      await db.runAsync("INSERT INTO expense_categories (id, name, active) VALUES (?, ?, ?)", [
+      await db.runAsync("INSERT INTO expense_categories (id, name, active, color) VALUES (?, ?, ?, ?)", [
         row.id,
         row.name,
         row.active ?? 1,
+        row.color ?? DEFAULT_WALLET_COLOR,
       ]);
     }
 
@@ -176,6 +234,15 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
         VALUES (?, ?, ?, ?)`,
         [row.id, row.snapshot_id, row.wallet_id, row.amount]
       );
+    }
+
+    if (payload.preferences) {
+      for (const row of payload.preferences) {
+        await db.runAsync("INSERT INTO preferences (key, value) VALUES (?, ?)", [
+          row.key,
+          row.value,
+        ]);
+      }
     }
   });
 }

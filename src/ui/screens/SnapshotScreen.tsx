@@ -587,29 +587,6 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        {displayMonthGroups.length > 0 && (
-          <GlassCardContainer contentStyle={{ gap: 12 }}>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.hero.recentMonths")}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
-              {visibleMonthGroups.map((group) => (
-                <PillChip
-                  key={group.key}
-                  label={monthLabelFromKey(group.key)}
-                  selected={group.key === activeMonthKey}
-                  onPress={() => {
-                    setActiveMonthKey(group.key);
-                    const nextId = group.snapshots[0]?.id ?? null;
-                    if (nextId) {
-                      setSelectedSnapshotId(nextId);
-                      void loadLines(nextId);
-                    }
-                  }}
-                />
-              ))}
-            </ScrollView>
-          </GlassCardContainer>
-        )}
-
         {shouldShowFirstSnapshotTip && (
           <CoachTipCard
             title={t("snapshot.guide.title", { defaultValue: "Aggiungi il tuo primo snapshot" })}
@@ -812,6 +789,29 @@ export default function SnapshotScreen(): JSX.Element {
                 );
               })}
             </View>
+          </GlassCardContainer>
+        )}
+
+        {displayMonthGroups.length > 0 && (
+          <GlassCardContainer contentStyle={{ gap: 12 }}>
+            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.hero.recentMonths")}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
+              {visibleMonthGroups.map((group) => (
+                <PillChip
+                  key={group.key}
+                  label={monthLabelFromKey(group.key)}
+                  selected={group.key === activeMonthKey}
+                  onPress={() => {
+                    setActiveMonthKey(group.key);
+                    const nextId = group.snapshots[0]?.id ?? null;
+                    if (nextId) {
+                      setSelectedSnapshotId(nextId);
+                      void loadLines(nextId);
+                    }
+                  }}
+                />
+              ))}
+            </ScrollView>
           </GlassCardContainer>
         )}
 

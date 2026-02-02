@@ -5,14 +5,16 @@ import * as Localization from "expo-localization";
 
 import it from "./locales/it.json";
 import en from "./locales/en.json";
+import pt from "./locales/pt.json";
 
 export const STORAGE_KEY = "appLanguage";
-export const SUPPORTED_LANGUAGES = ["it", "en"] as const;
+export const SUPPORTED_LANGUAGES = ["it", "en", "pt"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 const RESOURCES = {
   it: { translation: it },
   en: { translation: en },
+  pt: { translation: pt },
 };
 
 let initPromise: Promise<void> | null = null;
@@ -24,6 +26,9 @@ function resolveSupportedLanguage(language?: string | null): SupportedLanguage {
   const normalized = language.toLowerCase();
   if (normalized.startsWith("en")) {
     return "en";
+  }
+  if (normalized.startsWith("pt")) {
+    return "pt";
   }
   return "it";
 }

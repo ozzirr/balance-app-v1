@@ -14,7 +14,8 @@
     "confirm": "Confirm",
     "create": "Create",
     "update": "Update",
-    "reset": "Reset"
+    "reset": "Reset",
+    "all": "All"
   },
   "onboardingV2": {
     "common": {
@@ -85,7 +86,8 @@
       "languageLabel": "Language",
       "language": {
         "it": "Italiano",
-        "en": "English"
+        "en": "English",
+        "pt": "Português"
       }
     },
     "data": {
@@ -182,6 +184,12 @@
         "last12Months": "Last 12 months"
       }
     },
+    "reorder": {
+      "edit": "Edit order",
+      "title": "Edit order",
+      "done": "Done",
+      "hint": "Tap the arrow to move a card to the top."
+    },
     "mock": {
       "kpi": {
         "liquidity": "Liquidity",
@@ -271,6 +279,7 @@
       "tabIncome": "Incomes",
       "tabExpense": "Expenses",
       "sectionTitle": "List",
+      "filterByCategory": "Filter by category",
       "table": {
         "date": "Date",
         "name": "Name",
@@ -288,6 +297,8 @@
       "amount": "Amount",
       "date": "Date",
       "newEntryTitle": "New Entry",
+      "newIncomeTitle": "New income entry",
+      "newExpenseTitle": "New expense entry",
       "categoryHint": "Select a category.",
       "categoryTitle": "Expense category",
       "recurringLabel": "Recurring",

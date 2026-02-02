@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Pressable, Text, StyleSheet, type ViewStyle, type StyleProp } from "react-native";
+import { Platform, View, Pressable, Text, StyleSheet, type ViewStyle, type StyleProp } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -50,9 +50,14 @@ export default function NumberPad({
           {row.map((digit) => (
             <Pressable
               key={digit}
-              style={({ pressed }) => [styles.key, pressed && styles.keyPressed, disabled && styles.keyDisabled]}
+              style={({ pressed }) => [
+                styles.key,
+                pressed && (Platform.OS === "android" ? styles.keyPressedAndroid : styles.keyPressed),
+                disabled && styles.keyDisabled,
+              ]}
               onPress={() => handleDigit(digit)}
               disabled={disabled}
+              android_ripple={{ color: "transparent" }}
             >
               <Text style={styles.keyLabel}>{digit}</Text>
             </Pressable>
@@ -62,18 +67,28 @@ export default function NumberPad({
       <View style={[styles.row, styles.rowSpacing]}>
         <View style={[styles.key, styles.invisibleKey]} pointerEvents="none" />
         <Pressable
-          style={({ pressed }) => [styles.key, pressed && styles.keyPressed, disabled && styles.keyDisabled]}
+          style={({ pressed }) => [
+            styles.key,
+            pressed && (Platform.OS === "android" ? styles.keyPressedAndroid : styles.keyPressed),
+            disabled && styles.keyDisabled,
+          ]}
           onPress={() => handleDigit("0")}
           disabled={disabled}
+          android_ripple={{ color: "transparent" }}
         >
           <Text style={styles.keyLabel}>0</Text>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.key, pressed && styles.keyPressed, disabled && styles.keyDisabled]}
+          style={({ pressed }) => [
+            styles.key,
+            pressed && (Platform.OS === "android" ? styles.keyPressedAndroid : styles.keyPressed),
+            disabled && styles.keyDisabled,
+          ]}
           onPress={handleBackspacePress}
           onLongPress={handleBackspaceLongPress}
           hitSlop={10}
           disabled={disabled}
+          android_ripple={{ color: "transparent" }}
         >
           <MaterialCommunityIcons name="backspace-outline" size={26} color="#F8F8FF" />
         </Pressable>
@@ -102,15 +117,26 @@ const styles = StyleSheet.create({
     marginHorizontal: 9,
     borderRadius: 38,
     borderWidth: 1.4,
-    borderColor: "rgba(193, 164, 255, 0.75)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.03)",
-    shadowColor: "#B084FF",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
-    elevation: 10,
+    ...(Platform.OS === "android"
+      ? {
+          backgroundColor: "rgba(30, 32, 44, 0.85)",
+          borderColor: "rgba(170, 140, 255, 0.55)",
+          elevation: 0,
+          shadowOpacity: 0,
+          shadowRadius: 0,
+          shadowOffset: { width: 0, height: 0 },
+        }
+      : {
+          borderColor: "rgba(193, 164, 255, 0.75)",
+          backgroundColor: "rgba(255,255,255,0.03)",
+          shadowColor: "#B084FF",
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.22,
+          shadowRadius: 22,
+          elevation: 10,
+        }),
   },
   keyLabel: {
     fontSize: 29,
@@ -119,9 +145,16 @@ const styles = StyleSheet.create({
   },
   keyPressed: {
     transform: [{ scale: 0.965 }],
-    backgroundColor: "rgba(193, 164, 255, 0.12)",
-    borderColor: "#CBA8FF",
-    shadowOpacity: 0.45,
+    ...(Platform.OS === "android"
+      ? {}
+      : {
+          backgroundColor: "rgba(193, 164, 255, 0.12)",
+          borderColor: "#CBA8FF",
+          shadowOpacity: 0.45,
+        }),
+  },
+  keyPressedAndroid: {
+    transform: [{ scale: 0.965 }],
   },
   keyDisabled: {
     opacity: 0.35,

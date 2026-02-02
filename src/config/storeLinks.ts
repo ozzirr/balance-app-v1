@@ -3,10 +3,16 @@ import i18n from "i18next";
 
 export const PRO_WAITLIST_URL = "https://ozzirr.github.io/balance/pro-waitlist.html";
 
-function resolveLocaleParam(): "it" | "en" {
+function resolveLocaleParam(): "it" | "en" | "pt" {
   const language = i18n.resolvedLanguage ?? i18n.language ?? "it";
   const normalized = String(language).toLowerCase();
-  return normalized.startsWith("en") ? "en" : "it";
+  if (normalized.startsWith("en")) {
+    return "en";
+  }
+  if (normalized.startsWith("pt")) {
+    return "pt";
+  }
+  return "it";
 }
 
 function buildProWaitlistUrl(): string {

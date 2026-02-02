@@ -2,6 +2,7 @@ import type {
   ExpenseCategory,
   ExpenseEntry,
   IncomeEntry,
+  Preference,
   Snapshot,
   SnapshotLine,
   Wallet,
@@ -15,4 +16,6 @@ export type ExportPayload = {
   expense_entries: ExpenseEntry[];
   snapshots: Snapshot[];
   snapshot_lines: SnapshotLine[];
+  preferences?: Preference[];
+  wallet_order?: number[];
 };
