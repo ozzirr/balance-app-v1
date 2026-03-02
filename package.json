@@ -11,7 +11,11 @@
     "start:port": "EXPO_PACKAGER_PORT=8082 expo start --lan --clear --port 8082",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "ios:build:free": "eas build --platform ios --profile freeStore",
+    "ios:submit:free": "eas submit --platform ios --profile freeStore",
+    "ios:build:pro": "eas build --platform ios --profile proStore",
+    "ios:submit:pro": "eas submit --platform ios --profile proStore"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

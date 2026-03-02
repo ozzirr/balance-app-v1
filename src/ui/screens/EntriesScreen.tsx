@@ -12,7 +12,8 @@ import {
   deleteExpenseCategory,
 } from "@/repositories/expenseCategoriesRepo";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
-import { isIsoDate, todayIso } from "@/utils/dates";
+import { addMonths, compareIsoDates, isIsoDate, todayIso } from "@/utils/dates";
+import { listOccurrencesInRange } from "@/domain/recurrence";
 import { formatEUR, formatShortDate } from "@/ui/dashboard/formatters";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import AppBackground from "@/ui/components/AppBackground";
@@ -38,6 +39,12 @@ import { useSettings } from "@/settings/useSettings";
 type EntryType = "income" | "expense";
 type FormMode = "create" | "edit";
 type CategoryFilter = "all" | number;
+type SortOrder = "annual_desc" | "annual_asc";
+type EntryOccurrence = {
+  base: IncomeEntry | ExpenseEntry;
+  date: string;
+  occurrence: boolean;
+};
 type CategoryEdit = {
   name: string;
   color: string;
@@ -194,7 +201,7 @@ export default function EntriesScreen(): JSX.Element {
   const routeParams = (route.params ?? {}) as EntriesRouteParams;
   const { width } = useWindowDimensions();
   const lastFormModeRef = useRef<FormMode | undefined>(routeParams.formMode);
-  const [entryType, setEntryType] = useState<EntryType>(routeParams.entryType ?? "income");
+  const [entryType, setEntryType] = useState<EntryType>(routeParams.entryType ?? "expense");
   const [formMode, setFormMode] = useState<FormMode>(routeParams.formMode ?? "create");
   const [editingId, setEditingId] = useState<number | null>(
     routeParams.formMode === "edit" ? routeParams.entryId ?? null : null
@@ -211,9 +218,14 @@ export default function EntriesScreen(): JSX.Element {
   const [confirmCategoryLoading, setConfirmCategoryLoading] = useState(false);
   const [confirmCategoryError, setConfirmCategoryError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("annual_desc");
+  const [showCategoryFilters, setShowCategoryFilters] = useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const searchInputRef = useRef<any>(null);
   const [showNewEntry, setShowNewEntry] = useState(routeParams.formMode === "edit");
   const categoriesOffsetY = useRef(0);
 
@@ -551,21 +563,72 @@ export default function EntriesScreen(): JSX.Element {
     return `${dd}-${mm}-${yy}`;
   };
 
-  const filteredEntries = useMemo(() => {
-    if (entryType === "income") return entries;
-    return entries.filter((entry) => {
-      if (categoryFilter === "all") return true;
-      return entry.expense_category_id === categoryFilter;
+  const horizonStart = todayIso();
+  const horizonEnd = addMonths(horizonStart, 12);
+  const annualizeAmount = (entry: IncomeEntry | ExpenseEntry): number => {
+    const amount = Math.abs(entry.amount);
+    const frequency = entry.recurrence_frequency;
+    const interval = entry.recurrence_interval && entry.recurrence_interval > 0 ? entry.recurrence_interval : 1;
+    if (!frequency || entry.one_shot === 1) {
+      return amount;
+    }
+    switch (frequency) {
+      case "WEEKLY":
+        return amount * (52 / interval);
+      case "MONTHLY":
+        return amount * (12 / interval);
+      case "YEARLY":
+        return amount * (1 / interval);
+      default:
+        return amount;
+    }
+  };
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const expandedEntries = useMemo<EntryOccurrence[]>(() => {
+    const result: EntryOccurrence[] = [];
+    entries.forEach((entry) => {
+      const isRecurring = Boolean(entry.recurrence_frequency && entry.one_shot === 0);
+      if (isRecurring) {
+        const dates = listOccurrencesInRange(entry, horizonStart, horizonEnd);
+        dates.forEach((date) => {
+          result.push({ base: entry, date, occurrence: true });
+        });
+        return;
+      }
+      if (compareIsoDates(entry.start_date, horizonStart) >= 0 && compareIsoDates(entry.start_date, horizonEnd) <= 0) {
+        result.push({ base: entry, date: entry.start_date, occurrence: false });
+      }
     });
-  }, [entries, entryType, categoryFilter]);
+    return result;
+  }, [entries, horizonEnd, horizonStart]);
+
+  const filteredEntries = useMemo(() => {
+    let result = expandedEntries;
+    if (entryType === "expense") {
+      result = result.filter((entry) => {
+        if (categoryFilter === "all") return true;
+        return "expense_category_id" in entry.base && entry.base.expense_category_id === categoryFilter;
+      });
+    }
+    if (normalizedSearch) {
+      result = result.filter((entry) => entry.base.name.toLowerCase().includes(normalizedSearch));
+    }
+    return result;
+  }, [expandedEntries, entryType, categoryFilter, normalizedSearch]);
 
   const sortedEntries = useMemo(() => {
     return [...filteredEntries].sort((a, b) => {
-      if (a.start_date < b.start_date) return -1;
-      if (a.start_date > b.start_date) return 1;
+      const aAnnual = annualizeAmount(a.base);
+      const bAnnual = annualizeAmount(b.base);
+      if (aAnnual !== bAnnual) {
+        return sortOrder === "annual_asc" ? aAnnual - bAnnual : bAnnual - aAnnual;
+      }
+      if (a.date < b.date) return -1;
+      if (a.date > b.date) return 1;
       return 0;
     });
-  }, [filteredEntries]);
+  }, [filteredEntries, sortOrder]);
 
   const entryAccent = entryType === "income" ? tokens.colors.income : tokens.colors.expense;
   const expenseCategoryCount = useMemo(() => {
@@ -587,6 +650,8 @@ export default function EntriesScreen(): JSX.Element {
   const isCategorySelected = entryType !== "expense" || (Number.isFinite(categoryIdNumber) && categoryIdNumber > 0);
   const shouldShowCategoryHint = entryType === "expense" && !isCategorySelected;
   const isSaveDisabled = entryType === "expense" && !isCategorySelected;
+  const sortIsAsc = sortOrder === "annual_asc";
+  const categoryFiltersActive = showCategoryFilters || categoryFilter !== "all";
   const newEntryTitle =
     entryType === "income"
       ? t("entries.form.newIncomeTitle", { defaultValue: "Nuova voce in entrata" })
@@ -597,14 +662,37 @@ export default function EntriesScreen(): JSX.Element {
       setCategoryFilter("all");
     }
   }, [categoryFilter, shouldShowCategoryFilter]);
+
+  useEffect(() => {
+    if (showSearchInput) {
+      const handle = setTimeout(() => {
+        searchInputRef.current?.focus?.();
+      }, 60);
+      return () => clearTimeout(handle);
+    }
+    return undefined;
+  }, [showSearchInput]);
+
+  useEffect(() => {
+    if (!shouldShowCategoryFilter && showCategoryFilters) {
+      setShowCategoryFilters(false);
+    }
+  }, [shouldShowCategoryFilter, showCategoryFilters]);
+
+  useEffect(() => {
+    if (categoryFilter !== "all" && !showCategoryFilters) {
+      setShowCategoryFilters(true);
+    }
+  }, [categoryFilter, showCategoryFilters]);
   const tableRows = useMemo<EntriesTableRow<(IncomeEntry | ExpenseEntry) | null>[]>(
     () =>
       sortedEntries.map((item) => {
-        const amountAbs = Math.abs(item.amount);
+        const baseEntry = item.base;
+        const amountAbs = Math.abs(baseEntry.amount);
         const amountText = `${entryType === "income" ? "+" : "-"} ${formatEUR(amountAbs)}`;
-        const dateLabel = formatShortDate(item.start_date);
+        const dateLabel = formatShortDate(item.date);
         const category =
-          "expense_category_id" in item ? categoryById.get(item.expense_category_id) : null;
+          "expense_category_id" in baseEntry ? categoryById.get(baseEntry.expense_category_id) : null;
         const categoryLabel =
           entryType === "income"
             ? t("entries.list.incomeLabel")
@@ -612,21 +700,21 @@ export default function EntriesScreen(): JSX.Element {
         const categoryColor =
           entryType === "income" ? tokens.colors.income : category?.color ?? tokens.colors.expense;
         const frequencyKey =
-          item.recurrence_frequency && typeof item.recurrence_frequency === "string"
-            ? (`entries.form.frequency.${item.recurrence_frequency.toLowerCase()}` as const)
+          baseEntry.recurrence_frequency && typeof baseEntry.recurrence_frequency === "string"
+            ? (`entries.form.frequency.${baseEntry.recurrence_frequency.toLowerCase()}` as const)
             : null;
 
         return {
-          id: item.id,
+          id: `${baseEntry.id}-${item.date}`,
           dateLabel,
           amountLabel: amountText,
           amountTone: entryType,
           amountColor: entryType === "income" ? tokens.colors.income : tokens.colors.expense,
-          name: item.name,
+          name: baseEntry.name,
           subtitle: frequencyKey ? t(frequencyKey) : undefined,
           categoryLabel,
           categoryColor,
-          meta: item,
+          meta: baseEntry,
         };
       }),
     [sortedEntries, entryType, categoryById, tokens.colors.income, tokens.colors.expense, t]
@@ -835,11 +923,91 @@ export default function EntriesScreen(): JSX.Element {
 
         {shouldShowEntriesCard ? (
           <GlassCardContainer contentStyle={styles.entriesTableCard}>
-            {shouldShowCategoryFilter ? (
+            <View style={styles.filtersBar}>
+              <View style={styles.filtersLeft}>
+                {showSearchInput || searchQuery ? (
+                  <TextInput
+                    ref={searchInputRef}
+                    placeholder={t("entries.list.searchPlaceholder", { defaultValue: "Cerca..." })}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    dense
+                    right={
+                      <TextInput.Icon
+                        icon="close"
+                        color={tokens.colors.muted}
+                        onPress={() => {
+                          setSearchQuery("");
+                          setShowSearchInput(false);
+                        }}
+                      />
+                    }
+                    {...inputProps}
+                    style={[styles.glassInput, styles.filtersSearch, { backgroundColor: tokens.colors.glassBg }]}
+                  />
+                ) : (
+                  <Pressable
+                    onPress={() => setShowSearchInput(true)}
+                    style={[
+                      styles.filterIconButton,
+                      { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="magnify" size={16} color={tokens.colors.muted} />
+                  </Pressable>
+                )}
+              </View>
+              <View style={styles.filtersRight}>
+                <Pressable
+                  onPress={() =>
+                    setSortOrder((prev) => (prev === "annual_desc" ? "annual_asc" : "annual_desc"))
+                  }
+                  style={[
+                    styles.filterPill,
+                    {
+                      borderColor: entryAccent,
+                      backgroundColor: `${entryAccent}18`,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={sortIsAsc ? "arrow-up" : "arrow-down"}
+                    size={16}
+                    color={entryAccent}
+                  />
+                  <Text style={[styles.filterPillText, { color: entryAccent }]}>
+                    {t("entries.list.sortAnnualShort", { defaultValue: "Annua" })}
+                  </Text>
+                </Pressable>
+                {shouldShowCategoryFilter ? (
+                  <Pressable
+                    onPress={() => setShowCategoryFilters((prev) => !prev)}
+                    style={[
+                      styles.filterPill,
+                      categoryFiltersActive
+                        ? { borderColor: entryAccent, backgroundColor: `${entryAccent}18` }
+                        : { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="filter-variant"
+                      size={16}
+                      color={categoryFiltersActive ? entryAccent : tokens.colors.muted}
+                    />
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: categoryFiltersActive ? entryAccent : tokens.colors.muted },
+                      ]}
+                    >
+                      {t("entries.list.filterCategoryShort", { defaultValue: "Categorie" })}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+            {shouldShowCategoryFilter && showCategoryFilters ? (
               <View style={styles.filterSection}>
-                <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>
-                  {t("entries.list.filterByCategory", { defaultValue: "Filtra per categoria" })}
-                </Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -885,6 +1053,7 @@ export default function EntriesScreen(): JSX.Element {
               minWidth={entryType === "income" ? Math.max(420, width - 48) : Math.max(520, width - 48)}
               emptyLabel={t("entries.empty.noEntries")}
               showCategory={entryType !== "income"}
+              showPagination={false}
               renderAction={(row) =>
                 row.meta ? (
                   <SmallOutlinePillButton
@@ -1133,6 +1302,49 @@ const styles = StyleSheet.create({
   filterRow: {
     gap: 8,
     paddingLeft: 8,
+  },
+  filtersBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  filtersLeft: {
+    flex: 1,
+    minWidth: 44,
+  },
+  filtersRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 0,
+  },
+  filtersSearch: {
+    flex: 1,
+    minWidth: 160,
+    height: 40,
+    borderRadius: 999,
+  },
+  filterIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  filterPillText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   filterChip: {
     paddingHorizontal: 12,

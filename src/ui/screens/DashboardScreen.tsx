@@ -544,9 +544,6 @@ export default function DashboardScreen(): JSX.Element {
                       ? t("dashboard.greetingWithName", { name: profileName })
                       : t("dashboard.greeting")}
                   </Text>
-                </View>
-                <View style={styles.kpiBlock}>
-                  <KPIStrip items={dashboard.kpis} />
                   {kpiRangeOptions.length > 1 ? (
                     <View style={styles.rangeRow}>
                       <RangeSelector
@@ -557,6 +554,9 @@ export default function DashboardScreen(): JSX.Element {
                       />
                     </View>
                   ) : null}
+                </View>
+                <View style={styles.kpiBlock}>
+                  <KPIStrip items={dashboard.kpis} />
                 </View>
               </View>
               {showPrivacyCard && (
@@ -845,9 +845,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rangeRow: {
-    alignItems: "flex-end",
+    alignItems: "center",
     alignSelf: "flex-end",
-    marginBottom: 6,
   },
   privacyActions: {
     flexDirection: "row",

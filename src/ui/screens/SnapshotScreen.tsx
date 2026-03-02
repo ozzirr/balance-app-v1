@@ -760,13 +760,9 @@ export default function SnapshotScreen(): JSX.Element {
                 const currencySuffix = wallet ? currencySymbol(wallet.currency) : "";
                 const walletIcon = wallet?.type === "INVEST" ? "chart-line" : "wallet-outline";
                 return (
-                  <Pressable
+                  <View
                     key={line.id}
                     style={styles.accountRow}
-                    hitSlop={10}
-                    onPress={() => {
-                      navigation.navigate("Wallet", { walletId: line.wallet_id });
-                    }}
                   >
                     <View
                       style={[
@@ -785,10 +781,40 @@ export default function SnapshotScreen(): JSX.Element {
                       {formatAmount(line.amount)}
                       {currencySuffix ? ` ${currencySuffix}` : ""}
                     </Text>
-                    <MaterialCommunityIcons name="chevron-right" size={20} color={tokens.colors.muted} />
-                  </Pressable>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => {
+                        navigation.navigate("Wallet", { walletId: line.wallet_id });
+                      }}
+                      style={styles.accountChevron}
+                    >
+                      <MaterialCommunityIcons name="chevron-right" size={20} color={tokens.colors.muted} />
+                    </Pressable>
+                  </View>
                 );
               })}
+            </View>
+          </GlassCardContainer>
+        )}
+
+        {lines.length > 0 && (
+          <GlassCardContainer contentStyle={{ gap: 10 }}>
+            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.summary.title")}</Text>
+            <View style={styles.kpiRow}>
+              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.income}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
+                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.liquidity")}</Text>
+                <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.liquidity)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
+              </View>
+              {showInvestments && (
+                <View style={[styles.kpiChip, { borderColor: `${tokens.colors.accent}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
+                  <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.investments")}</Text>
+                  <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.investments)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
+                </View>
+              )}
+              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.green}66`, backgroundColor: `${tokens.colors.green}22` }]}>
+                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.netWorth")}</Text>
+                <Text style={[styles.kpiValue, { color: tokens.colors.green }]}>{formatAmount(totals.netWorth)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
+              </View>
             </View>
           </GlassCardContainer>
         )}
@@ -813,28 +839,6 @@ export default function SnapshotScreen(): JSX.Element {
                 />
               ))}
             </ScrollView>
-          </GlassCardContainer>
-        )}
-
-        {lines.length > 0 && (
-          <GlassCardContainer contentStyle={{ gap: 10 }}>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.summary.title")}</Text>
-            <View style={styles.kpiRow}>
-              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.income}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
-                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.liquidity")}</Text>
-                <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.liquidity)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
-              </View>
-              {showInvestments && (
-                <View style={[styles.kpiChip, { borderColor: `${tokens.colors.accent}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
-                  <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.investments")}</Text>
-                  <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.investments)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
-                </View>
-              )}
-              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.green}66`, backgroundColor: `${tokens.colors.green}22` }]}>
-                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.netWorth")}</Text>
-                <Text style={[styles.kpiValue, { color: tokens.colors.green }]}>{formatAmount(totals.netWorth)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
-              </View>
-            </View>
           </GlassCardContainer>
         )}
         </ScrollView>
@@ -952,6 +956,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+  },
+  accountChevron: {
+    padding: 4,
   },
   kpiRow: {
     flexDirection: "row",

@@ -292,6 +292,13 @@
       "tabExpense": "Despesas",
       "sectionTitle": "Lista",
       "filterByCategory": "Filtrar por categoria",
+      "searchLabel": "Pesquisar por nome",
+      "searchPlaceholder": "Pesquisar...",
+      "sortAnnualLabel": "Ordenar por valor anual",
+      "sortAnnualAsc": "Crescente",
+      "sortAnnualDesc": "Decrescente",
+      "sortAnnualShort": "Valor",
+      "filterCategoryShort": "Categorias",
       "table": {
         "date": "Data",
         "name": "Nome",

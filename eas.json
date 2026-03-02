@@ -29,6 +29,9 @@
       "env": {
         "APP_VARIANT": "free"
       },
+      "ios": {
+        "autoIncrement": "buildNumber"
+      },
       "android": {
         "buildType": "app-bundle",
         "credentialsSource": "remote"
@@ -39,6 +42,9 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "pro"
+      },
+      "ios": {
+        "autoIncrement": "buildNumber"
       },
       "android": {
         "buildType": "app-bundle",

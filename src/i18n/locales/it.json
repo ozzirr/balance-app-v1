@@ -292,6 +292,13 @@
       "tabExpense": "Uscite",
       "sectionTitle": "Lista",
       "filterByCategory": "Filtra per categoria",
+      "searchLabel": "Cerca per nome",
+      "searchPlaceholder": "Cerca...",
+      "sortAnnualLabel": "Ordina per importo annuo",
+      "sortAnnualAsc": "Crescente",
+      "sortAnnualDesc": "Decrescente",
+      "sortAnnualShort": "Valore",
+      "filterCategoryShort": "Categorie",
       "table": {
         "date": "Data",
         "name": "Nome",

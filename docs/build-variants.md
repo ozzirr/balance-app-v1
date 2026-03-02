@@ -13,3 +13,8 @@ Run the following to build each variant:
 - `eas build -p ios --profile pro`
 - `eas build -p android --profile free`
 - `eas build -p android --profile pro`
+
+## iOS buildNumber
+EAS build profiles `freeStore` and `proStore` auto-increment `buildNumber`.
+Each App Store submit must use a new buildNumber to avoid ASC collisions.
+`app.config.ts` keeps a dev-only fallback; store builds use EAS remote versioning.

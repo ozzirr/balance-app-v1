@@ -8,6 +8,7 @@ type VariantLimits = {
 };
 
 const APP_VARIANT: AppVariant = process.env.APP_VARIANT === "pro" ? "pro" : "free";
+const IS_STORE_PROFILE = process.env.EAS_BUILD_PROFILE === "freeStore" || process.env.EAS_BUILD_PROFILE === "proStore";
 
 const VARIANT_LIMITS: Record<AppVariant, VariantLimits> = {
   free: {
@@ -87,7 +88,8 @@ export default function ({ config }: ConfigContext): ExpoConfig {
       ...iosRest,
       supportsTablet: true,
       bundleIdentifier: variant.iosBundleIdentifier,
-      buildNumber: "1",
+      // Keep a dev fallback; store builds rely on EAS remote auto-increment.
+      ...(IS_STORE_PROFILE ? {} : { buildNumber: "1" }),
       infoPlist: {
         ...iosInfoPlistRest,
         NSFaceIDUsageDescription: FACE_ID_USAGE_DESCRIPTION,
