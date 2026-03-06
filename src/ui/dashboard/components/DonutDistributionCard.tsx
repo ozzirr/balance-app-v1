@@ -80,7 +80,11 @@ export default function DonutDistributionCard({ items, hideHeader = false, noCar
                 <PressScale key={item.id} onPress={() => setSelected(index)} style={styles.row}>
                   <View style={styles.rowTitle}>
                     <View style={[styles.dot, { backgroundColor: item.color }]} />
-                    <Text style={[styles.rowLabel, { color: tokens.colors.text }, isActive && styles.rowLabelActive]}>
+                    <Text
+                      style={[styles.rowLabel, { color: tokens.colors.text }, isActive && styles.rowLabelActive]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
                       {item.label}
                     </Text>
                   </View>
@@ -161,11 +165,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     flex: 1,
+    minWidth: 0,
   },
   rowMeta: {
     flexDirection: "column",
     alignItems: "flex-end",
     gap: 2,
+    flexShrink: 0,
   },
   dot: {
     width: 8,
@@ -174,6 +180,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 13,
+    flexShrink: 1,
   },
   rowLabelActive: {
     fontWeight: "600",

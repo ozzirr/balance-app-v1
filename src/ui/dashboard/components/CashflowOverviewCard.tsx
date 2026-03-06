@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Text } from "react-native-paper";
 import {
@@ -26,6 +26,8 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
+  const chartScrollRef = useRef<ScrollView | null>(null);
+  const [chartViewportWidth, setChartViewportWidth] = useState(0);
   const isCompact = width < 380;
   const incomeData = cashflow.months.map((month) => ({
     x: formatMonthLabel(month.month),
@@ -38,7 +40,8 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
     series: "expense" as const,
   }));
   const savingsColor = cashflow.avgSavings >= 0 ? tokens.colors.green : tokens.colors.red;
-  const visibleWidth = Math.max(width - 64, 0);
+  const fallbackVisibleWidth = Math.max(width - 64, 0);
+  const visibleWidth = Math.max(chartViewportWidth || fallbackVisibleWidth, 0);
   const perMonthWidth = 50;
   const chartPaddingLeft = 70;
   const chartPaddingRight = 50;
@@ -48,7 +51,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
     230
   );
   const chartWidth = showAllMonthsInline ? baseChartWidth : Math.max(visibleWidth, baseChartWidth);
-  const chartOffset = showAllMonthsInline ? 0 : Math.max(chartWidth - visibleWidth, 0);
+  const chartOffset = Math.max(chartWidth - visibleWidth, 0);
   const tooltipFlyout = { fill: tokens.colors.surface2, stroke: tokens.colors.border };
   const tooltipText = { fill: tokens.colors.text, fontSize: 11 };
   const tooltipSeriesLabel = (series: "income" | "expense" | undefined) => {
@@ -60,6 +63,18 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
     }
     return "";
   };
+
+  const scrollToLatest = useCallback(() => {
+    if (chartOffset <= 0) return;
+    chartScrollRef.current?.scrollToEnd({ animated: false });
+  }, [chartOffset]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      scrollToLatest();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollToLatest, cashflow.months.length, visibleWidth]);
 
   const content = (
     <>
@@ -82,14 +97,23 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
             <Text style={[styles.kpiValue, { color: savingsColor }]}>{formatEUR(cashflow.avgSavings)}</Text>
           </View>
           </View>
-          <View style={[styles.chartCol, isCompact && styles.chartColStacked]}>
+          <View
+            style={[styles.chartCol, isCompact && styles.chartColStacked]}
+            onLayout={(event) => {
+              const nextWidth = event.nativeEvent.layout.width;
+              if (Math.abs(nextWidth - chartViewportWidth) > 1) {
+                setChartViewportWidth(nextWidth);
+              }
+            }}
+          >
             <ScrollView
+              ref={chartScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               bounces={false}
               overScrollMode="never"
-              contentContainerStyle={[styles.chartScroll, { justifyContent: "flex-start" }]}
-              contentOffset={{ x: chartOffset }}
+              contentContainerStyle={[styles.chartScroll, { justifyContent: "flex-end" }]}
+              onContentSizeChange={scrollToLatest}
             >
               <VictoryChart
                 width={chartWidth}

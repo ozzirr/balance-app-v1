@@ -299,6 +299,8 @@
       "sortAnnualDesc": "Descending",
       "sortAnnualShort": "Value",
       "filterCategoryShort": "Categories",
+      "filterMonthShort": "Month",
+      "loadMore": "Load more",
       "table": {
         "date": "Date",
         "name": "Name",
@@ -381,7 +383,7 @@
     "title": "Snapshot",
     "hero": {
       "currentMonth": "Current Month",
-      "recentMonths": "Recent months",
+      "recentMonths": "Monthly history",
       "saved": "Saved",
       "missing": "To add"
     },
@@ -402,7 +404,9 @@
     },
     "delete": {
       "title": "Delete snapshot?",
-      "body": "This action cannot be undone."
+      "body": "This action cannot be undone.",
+      "confirm": "Delete snapshot",
+      "error": "Unable to delete snapshot. Please try again."
     },
     "empty": {
       "noSnapshots": "No snapshots yet.",

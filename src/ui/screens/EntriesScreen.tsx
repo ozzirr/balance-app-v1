@@ -14,7 +14,7 @@ import {
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
 import { addMonths, compareIsoDates, isIsoDate, todayIso } from "@/utils/dates";
 import { listOccurrencesInRange } from "@/domain/recurrence";
-import { formatEUR, formatShortDate } from "@/ui/dashboard/formatters";
+import { formatEUR, formatMonthLabel, formatShortDate } from "@/ui/dashboard/formatters";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import AppBackground from "@/ui/components/AppBackground";
 import { useTranslation } from "react-i18next";
@@ -39,7 +39,7 @@ import { useSettings } from "@/settings/useSettings";
 type EntryType = "income" | "expense";
 type FormMode = "create" | "edit";
 type CategoryFilter = "all" | number;
-type SortOrder = "annual_desc" | "annual_asc";
+type MonthFilter = "all" | string;
 type EntryOccurrence = {
   base: IncomeEntry | ExpenseEntry;
   date: string;
@@ -66,6 +66,8 @@ type FormState = {
   recurring: boolean;
   frequency: RecurrenceFrequency;
 };
+
+const ENTRIES_BATCH_SIZE = 10;
 
 const emptyForm: FormState = {
   id: null,
@@ -218,14 +220,17 @@ export default function EntriesScreen(): JSX.Element {
   const [confirmCategoryLoading, setConfirmCategoryLoading] = useState(false);
   const [confirmCategoryError, setConfirmCategoryError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [monthFilter, setMonthFilter] = useState<MonthFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("annual_desc");
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
+  const [showMonthFilters, setShowMonthFilters] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [visibleEntriesCount, setVisibleEntriesCount] = useState(ENTRIES_BATCH_SIZE);
   const searchInputRef = useRef<any>(null);
+  const filtersRowRef = useRef<ScrollView | null>(null);
   const [showNewEntry, setShowNewEntry] = useState(routeParams.formMode === "edit");
   const categoriesOffsetY = useRef(0);
 
@@ -250,6 +255,7 @@ export default function EntriesScreen(): JSX.Element {
 
   useFocusEffect(
     useCallback(() => {
+      setVisibleEntriesCount(ENTRIES_BATCH_SIZE);
       void refreshAll();
       return undefined;
     }, [refreshAll])
@@ -565,25 +571,6 @@ export default function EntriesScreen(): JSX.Element {
 
   const horizonStart = todayIso();
   const horizonEnd = addMonths(horizonStart, 12);
-  const annualizeAmount = (entry: IncomeEntry | ExpenseEntry): number => {
-    const amount = Math.abs(entry.amount);
-    const frequency = entry.recurrence_frequency;
-    const interval = entry.recurrence_interval && entry.recurrence_interval > 0 ? entry.recurrence_interval : 1;
-    if (!frequency || entry.one_shot === 1) {
-      return amount;
-    }
-    switch (frequency) {
-      case "WEEKLY":
-        return amount * (52 / interval);
-      case "MONTHLY":
-        return amount * (12 / interval);
-      case "YEARLY":
-        return amount * (1 / interval);
-      default:
-        return amount;
-    }
-  };
-
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const expandedEntries = useMemo<EntryOccurrence[]>(() => {
     const result: EntryOccurrence[] = [];
@@ -603,7 +590,7 @@ export default function EntriesScreen(): JSX.Element {
     return result;
   }, [entries, horizonEnd, horizonStart]);
 
-  const filteredEntries = useMemo(() => {
+  const entriesAfterCategoryAndSearch = useMemo(() => {
     let result = expandedEntries;
     if (entryType === "expense") {
       result = result.filter((entry) => {
@@ -617,18 +604,31 @@ export default function EntriesScreen(): JSX.Element {
     return result;
   }, [expandedEntries, entryType, categoryFilter, normalizedSearch]);
 
+  const availableMonthKeys = useMemo(() => {
+    const keys = Array.from(
+      new Set(
+        entriesAfterCategoryAndSearch
+          .map((entry) => entry.date.slice(0, 7))
+          .filter((key) => /^\d{4}-\d{2}$/.test(key))
+      )
+    );
+    return keys.sort((a, b) => (a > b ? -1 : a < b ? 1 : 0));
+  }, [entriesAfterCategoryAndSearch]);
+
+  const filteredEntries = useMemo(() => {
+    if (monthFilter === "all") {
+      return entriesAfterCategoryAndSearch;
+    }
+    return entriesAfterCategoryAndSearch.filter((entry) => entry.date.startsWith(monthFilter));
+  }, [entriesAfterCategoryAndSearch, monthFilter]);
+
   const sortedEntries = useMemo(() => {
     return [...filteredEntries].sort((a, b) => {
-      const aAnnual = annualizeAmount(a.base);
-      const bAnnual = annualizeAmount(b.base);
-      if (aAnnual !== bAnnual) {
-        return sortOrder === "annual_asc" ? aAnnual - bAnnual : bAnnual - aAnnual;
-      }
-      if (a.date < b.date) return -1;
-      if (a.date > b.date) return 1;
+      if (a.date > b.date) return -1;
+      if (a.date < b.date) return 1;
       return 0;
     });
-  }, [filteredEntries, sortOrder]);
+  }, [filteredEntries]);
 
   const entryAccent = entryType === "income" ? tokens.colors.income : tokens.colors.expense;
   const expenseCategoryCount = useMemo(() => {
@@ -645,13 +645,14 @@ export default function EntriesScreen(): JSX.Element {
   const shouldShowEntriesCard = entries.length > 0;
   const shouldShowCategoryFilter =
     entryType === "expense" && entries.length >= 5 && expenseCategoryCount >= 2;
+  const shouldShowMonthFilter = availableMonthKeys.length > 1;
   const canSubmitNewCategory = showAddCategory && newCategory.trim().length > 0;
   const categoryIdNumber = Number(form.categoryId);
   const isCategorySelected = entryType !== "expense" || (Number.isFinite(categoryIdNumber) && categoryIdNumber > 0);
   const shouldShowCategoryHint = entryType === "expense" && !isCategorySelected;
   const isSaveDisabled = entryType === "expense" && !isCategorySelected;
-  const sortIsAsc = sortOrder === "annual_asc";
   const categoryFiltersActive = showCategoryFilters || categoryFilter !== "all";
+  const monthFiltersActive = showMonthFilters || monthFilter !== "all";
   const newEntryTitle =
     entryType === "income"
       ? t("entries.form.newIncomeTitle", { defaultValue: "Nuova voce in entrata" })
@@ -664,6 +665,13 @@ export default function EntriesScreen(): JSX.Element {
   }, [categoryFilter, shouldShowCategoryFilter]);
 
   useEffect(() => {
+    if (monthFilter === "all") return;
+    if (!availableMonthKeys.includes(monthFilter)) {
+      setMonthFilter("all");
+    }
+  }, [availableMonthKeys, monthFilter]);
+
+  useEffect(() => {
     if (showSearchInput) {
       const handle = setTimeout(() => {
         searchInputRef.current?.focus?.();
@@ -671,6 +679,14 @@ export default function EntriesScreen(): JSX.Element {
       return () => clearTimeout(handle);
     }
     return undefined;
+  }, [showSearchInput]);
+
+  useEffect(() => {
+    if (!showSearchInput) return;
+    const handle = requestAnimationFrame(() => {
+      filtersRowRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => cancelAnimationFrame(handle);
   }, [showSearchInput]);
 
   useEffect(() => {
@@ -684,6 +700,23 @@ export default function EntriesScreen(): JSX.Element {
       setShowCategoryFilters(true);
     }
   }, [categoryFilter, showCategoryFilters]);
+
+  useEffect(() => {
+    if (!shouldShowMonthFilter && showMonthFilters) {
+      setShowMonthFilters(false);
+    }
+  }, [shouldShowMonthFilter, showMonthFilters]);
+
+  useEffect(() => {
+    if (monthFilter !== "all" && !showMonthFilters) {
+      setShowMonthFilters(true);
+    }
+  }, [monthFilter, showMonthFilters]);
+
+  useEffect(() => {
+    setVisibleEntriesCount(ENTRIES_BATCH_SIZE);
+  }, [entryType, categoryFilter, monthFilter, normalizedSearch]);
+
   const tableRows = useMemo<EntriesTableRow<(IncomeEntry | ExpenseEntry) | null>[]>(
     () =>
       sortedEntries.map((item) => {
@@ -719,6 +752,20 @@ export default function EntriesScreen(): JSX.Element {
       }),
     [sortedEntries, entryType, categoryById, tokens.colors.income, tokens.colors.expense, t]
   );
+
+  const visibleTableRows = useMemo(
+    () => tableRows.slice(0, visibleEntriesCount),
+    [tableRows, visibleEntriesCount]
+  );
+
+  const canLoadMoreRows = visibleEntriesCount < tableRows.length;
+  const visibleRows = Math.min(visibleEntriesCount, tableRows.length);
+  const totalRows = tableRows.length;
+  const loadMoreLabel = `${t("entries.list.loadMore", { defaultValue: "Carica altro" })} (${visibleRows}/${totalRows})`;
+
+  const handleLoadMoreRows = useCallback(() => {
+    setVisibleEntriesCount((prev) => Math.min(prev + ENTRIES_BATCH_SIZE, tableRows.length));
+  }, [tableRows.length]);
 
   const scrollToForm = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -923,62 +970,39 @@ export default function EntriesScreen(): JSX.Element {
 
         {shouldShowEntriesCard ? (
           <GlassCardContainer contentStyle={styles.entriesTableCard}>
-            <View style={styles.filtersBar}>
-              <View style={styles.filtersLeft}>
-                {showSearchInput || searchQuery ? (
-                  <TextInput
-                    ref={searchInputRef}
-                    placeholder={t("entries.list.searchPlaceholder", { defaultValue: "Cerca..." })}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    dense
-                    right={
-                      <TextInput.Icon
-                        icon="close"
-                        color={tokens.colors.muted}
-                        onPress={() => {
-                          setSearchQuery("");
-                          setShowSearchInput(false);
-                        }}
-                      />
-                    }
-                    {...inputProps}
-                    style={[styles.glassInput, styles.filtersSearch, { backgroundColor: tokens.colors.glassBg }]}
-                  />
-                ) : (
+            <ScrollView
+              ref={filtersRowRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              bounces={false}
+              overScrollMode="never"
+              contentContainerStyle={styles.filtersBar}
+            >
+                {shouldShowMonthFilter ? (
                   <Pressable
-                    onPress={() => setShowSearchInput(true)}
+                    onPress={() => setShowMonthFilters((prev) => !prev)}
                     style={[
-                      styles.filterIconButton,
-                      { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                      styles.filterPill,
+                      monthFiltersActive
+                        ? { borderColor: entryAccent, backgroundColor: `${entryAccent}18` }
+                        : { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
                     ]}
                   >
-                    <MaterialCommunityIcons name="magnify" size={16} color={tokens.colors.muted} />
+                    <MaterialCommunityIcons
+                      name="calendar-month-outline"
+                      size={16}
+                      color={monthFiltersActive ? entryAccent : tokens.colors.muted}
+                    />
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        { color: monthFiltersActive ? entryAccent : tokens.colors.muted },
+                      ]}
+                    >
+                      {t("entries.list.filterMonthShort", { defaultValue: "Mese" })}
+                    </Text>
                   </Pressable>
-                )}
-              </View>
-              <View style={styles.filtersRight}>
-                <Pressable
-                  onPress={() =>
-                    setSortOrder((prev) => (prev === "annual_desc" ? "annual_asc" : "annual_desc"))
-                  }
-                  style={[
-                    styles.filterPill,
-                    {
-                      borderColor: entryAccent,
-                      backgroundColor: `${entryAccent}18`,
-                    },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={sortIsAsc ? "arrow-up" : "arrow-down"}
-                    size={16}
-                    color={entryAccent}
-                  />
-                  <Text style={[styles.filterPillText, { color: entryAccent }]}>
-                    {t("entries.list.sortAnnualShort", { defaultValue: "Annua" })}
-                  </Text>
-                </Pressable>
+                ) : null}
                 {shouldShowCategoryFilter ? (
                   <Pressable
                     onPress={() => setShowCategoryFilters((prev) => !prev)}
@@ -1004,52 +1028,127 @@ export default function EntriesScreen(): JSX.Element {
                     </Text>
                   </Pressable>
                 ) : null}
-              </View>
-            </View>
-            {shouldShowCategoryFilter && showCategoryFilters ? (
-              <View style={styles.filterSection}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={[styles.filterRow, { paddingHorizontal: 4 }]}
-                >
+                {!showSearchInput && !searchQuery ? (
                   <Pressable
-                    onPress={() => setCategoryFilter("all")}
+                    onPress={() => setShowSearchInput(true)}
                     style={[
-                      styles.filterChip,
-                      {
-                        borderColor: categoryFilter === "all" ? tokens.colors.accent : tokens.colors.glassBorder,
-                        backgroundColor: categoryFilter === "all" ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
-                      },
+                      styles.filterIconButton,
+                      { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
                     ]}
                   >
-                    <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>
-                      {t("common.all", { defaultValue: "Tutti" })}
-                    </Text>
+                    <MaterialCommunityIcons name="magnify" size={16} color={tokens.colors.muted} />
                   </Pressable>
-                  {activeCategories.map((cat) => {
-                    const selected = categoryFilter === cat.id;
-                    return (
-                      <Pressable
-                        key={cat.id}
-                        onPress={() => setCategoryFilter(cat.id)}
-                        style={[
-                          styles.filterChip,
-                          {
-                            borderColor: selected ? cat.color : tokens.colors.glassBorder,
-                            backgroundColor: selected ? `${cat.color}33` : tokens.colors.glassBg,
-                          },
-                        ]}
-                      >
-                        <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{cat.name}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                ) : null}
+                {showSearchInput || searchQuery ? (
+                <TextInput
+                  ref={searchInputRef}
+                  placeholder={t("entries.list.searchPlaceholder", { defaultValue: "Cerca..." })}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  dense
+                  right={
+                    <TextInput.Icon
+                      icon="close"
+                      color={tokens.colors.muted}
+                      onPress={() => {
+                        setSearchQuery("");
+                        setShowSearchInput(false);
+                      }}
+                    />
+                  }
+                  {...inputProps}
+                  style={[styles.glassInput, styles.filtersSearch, { backgroundColor: tokens.colors.glassBg }]}
+                />
+                ) : null}
+            </ScrollView>
+            {(shouldShowMonthFilter && showMonthFilters) || (shouldShowCategoryFilter && showCategoryFilters) ? (
+              <View style={styles.filterSection}>
+                {shouldShowMonthFilter && showMonthFilters ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.filterRow, { paddingHorizontal: 4 }]}
+                  >
+                    <Pressable
+                      onPress={() => setMonthFilter("all")}
+                      style={[
+                        styles.filterChip,
+                        {
+                          borderColor: monthFilter === "all" ? tokens.colors.accent : tokens.colors.glassBorder,
+                          backgroundColor: monthFilter === "all" ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>
+                        {t("common.all", { defaultValue: "Tutti" })}
+                      </Text>
+                    </Pressable>
+                    {availableMonthKeys.map((monthKey) => {
+                      const selected = monthFilter === monthKey;
+                      return (
+                        <Pressable
+                          key={monthKey}
+                          onPress={() => setMonthFilter(monthKey)}
+                          style={[
+                            styles.filterChip,
+                            {
+                              borderColor: selected ? tokens.colors.accent : tokens.colors.glassBorder,
+                              backgroundColor: selected ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+                            },
+                          ]}
+                        >
+                          <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>
+                            {formatMonthLabel(monthKey)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                ) : null}
+                {shouldShowCategoryFilter && showCategoryFilters ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={[styles.filterRow, { paddingHorizontal: 4 }]}
+                  >
+                    <Pressable
+                      onPress={() => setCategoryFilter("all")}
+                      style={[
+                        styles.filterChip,
+                        {
+                          borderColor: categoryFilter === "all" ? tokens.colors.accent : tokens.colors.glassBorder,
+                          backgroundColor: categoryFilter === "all" ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>
+                        {t("common.all", { defaultValue: "Tutti" })}
+                      </Text>
+                    </Pressable>
+                    {activeCategories.map((cat) => {
+                      const selected = categoryFilter === cat.id;
+                      return (
+                        <Pressable
+                          key={cat.id}
+                          onPress={() => setCategoryFilter(cat.id)}
+                          style={[
+                            styles.filterChip,
+                            {
+                              borderColor: selected ? cat.color : tokens.colors.glassBorder,
+                              backgroundColor: selected ? `${cat.color}33` : tokens.colors.glassBg,
+                            },
+                          ]}
+                        >
+                          <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{cat.name}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                ) : null}
               </View>
             ) : null}
             <EntriesTable
-              rows={tableRows}
+              rows={visibleTableRows}
               minWidth={entryType === "income" ? Math.max(420, width - 48) : Math.max(520, width - 48)}
               emptyLabel={t("entries.empty.noEntries")}
               showCategory={entryType !== "income"}
@@ -1065,6 +1164,19 @@ export default function EntriesScreen(): JSX.Element {
                 ) : null
               }
             />
+            {canLoadMoreRows ? (
+              <View style={styles.loadMoreRow}>
+                <Button
+                  mode="outlined"
+                  onPress={handleLoadMoreRows}
+                  icon="chevron-down"
+                  textColor={tokens.colors.accent}
+                  style={[styles.loadMoreButton, { borderColor: tokens.colors.accent }]}
+                >
+                  {loadMoreLabel}
+                </Button>
+              </View>
+            ) : null}
           </GlassCardContainer>
         ) : null}
         {entryType === "expense" ? (
@@ -1307,20 +1419,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    flexWrap: "wrap",
-  },
-  filtersLeft: {
-    flex: 1,
-    minWidth: 44,
-  },
-  filtersRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexShrink: 0,
+    paddingRight: 4,
   },
   filtersSearch: {
-    flex: 1,
+    width: 180,
     minWidth: 160,
     height: 40,
     borderRadius: 999,
@@ -1360,5 +1462,12 @@ const styles = StyleSheet.create({
   entriesTableCard: {
     gap: 16,
     paddingBottom: 6,
+  },
+  loadMoreRow: {
+    alignItems: "center",
+    marginTop: 2,
+  },
+  loadMoreButton: {
+    borderRadius: 999,
   },
 });

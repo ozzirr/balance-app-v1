@@ -254,12 +254,12 @@ export default function App(): JSX.Element {
                                   >
                                     <Tab.Screen name="Dashboard" component={DashboardScreen} />
                                     <Tab.Screen name="Snapshot" component={SnapshotScreen} />
-                                    <Tab.Screen name="Wallet" component={WalletScreen} />
                                     <Tab.Screen
                                       name="Balance"
                                       component={EntriesScreen}
                                       options={{ tabBarLabel: "Balance" }}
                                     />
+                                    <Tab.Screen name="Wallet" component={WalletScreen} />
                                     <Tab.Screen
                                       name="Impostazioni"
                                       component={SettingsScreen}

@@ -606,7 +606,6 @@ export default function WalletScreen(): JSX.Element {
 
             {tab === "LIQUIDITY" && (
               <>
-                {orderToggle}
                 {liquidityWallets.map((wallet) => {
                   const subtitle = `${walletEdits[wallet.id]?.currency ?? wallet.currency}${wallet.tag ? ` · ${wallet.tag}` : ""}`;
                   const editColor = walletEdits[wallet.id]?.color ?? wallet.color ?? DEFAULT_WALLET_COLOR;
@@ -741,7 +740,6 @@ export default function WalletScreen(): JSX.Element {
 
             {showInvestments && tab === "INVEST" && (
               <>
-                {orderToggle}
                 {investmentWallets.map((wallet) => {
                   const subtitle = `${walletEdits[wallet.id]?.currency ?? wallet.currency}${
                     walletEdits[wallet.id]?.tag || wallet.tag ? ` · ${walletEdits[wallet.id]?.tag ?? wallet.tag}` : ""
@@ -889,6 +887,7 @@ export default function WalletScreen(): JSX.Element {
             )}
           </View>
         </GlassCardContainer>
+        {orderToggle}
 
         <ConfirmDialog
           visible={confirmWalletId !== null}
@@ -1070,13 +1069,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   orderToggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
+    alignItems: "flex-end",
+    paddingTop: 4,
+    paddingRight: 6,
   },
   orderToggleLink: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
   },
   orderToggleText: {
     fontSize: 13,

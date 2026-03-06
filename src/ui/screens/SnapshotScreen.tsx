@@ -33,6 +33,7 @@ import {
   SmallOutlinePillButton,
 } from "@/ui/components/EntriesUI";
 import CoachTipCard from "@/ui/components/CoachTipCard";
+import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 type DraftLine = {
@@ -149,10 +150,13 @@ export default function SnapshotScreen(): JSX.Element {
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
   const [draftLoading, setDraftLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAllMonths, setShowAllMonths] = useState(false);
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
   const [focusedLineId, setFocusedLineId] = useState<number | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+  const [confirmSnapshotDeleteVisible, setConfirmSnapshotDeleteVisible] = useState(false);
+  const [confirmSnapshotDeleteLoading, setConfirmSnapshotDeleteLoading] = useState(false);
+  const [confirmSnapshotDeleteError, setConfirmSnapshotDeleteError] = useState<string | null>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
   const inputRefs = useRef<Record<number, React.ComponentRef<typeof TextInput> | null>>({});
 
   const load = useCallback(async () => {
@@ -180,6 +184,12 @@ export default function SnapshotScreen(): JSX.Element {
     const data = await listSnapshotLines(targetId);
     setLines(data);
   }, [selectedSnapshotId]);
+
+  const scrollToTop = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+  }, []);
 
   useEffect(() => {
     load();
@@ -323,6 +333,43 @@ export default function SnapshotScreen(): JSX.Element {
     setDraftLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   };
 
+  const openConfirmDeleteSnapshot = useCallback(() => {
+    if (editingSnapshotId === null) return;
+    setConfirmSnapshotDeleteError(null);
+    setConfirmSnapshotDeleteVisible(true);
+  }, [editingSnapshotId]);
+
+  const closeConfirmDeleteSnapshot = useCallback(() => {
+    if (confirmSnapshotDeleteLoading) return;
+    setConfirmSnapshotDeleteVisible(false);
+    setConfirmSnapshotDeleteError(null);
+  }, [confirmSnapshotDeleteLoading]);
+
+  const handleConfirmDeleteSnapshot = useCallback(async () => {
+    if (editingSnapshotId === null) {
+      setConfirmSnapshotDeleteVisible(false);
+      return;
+    }
+    setConfirmSnapshotDeleteLoading(true);
+    setConfirmSnapshotDeleteError(null);
+    try {
+      await deleteSnapshot(editingSnapshotId);
+      setShowForm(false);
+      setEditingSnapshotId(null);
+      setSelectedSnapshotId(null);
+      await load();
+      setLines([]);
+      setConfirmSnapshotDeleteVisible(false);
+    } catch (deleteError) {
+      console.warn("Failed to delete snapshot", deleteError);
+      setConfirmSnapshotDeleteError(
+        t("snapshot.delete.error", { defaultValue: "Impossibile eliminare snapshot. Riprova." })
+      );
+    } finally {
+      setConfirmSnapshotDeleteLoading(false);
+    }
+  }, [editingSnapshotId, load, t]);
+
   const confirmOverwrite = () =>
     new Promise<boolean>((resolve) => {
       Alert.alert(
@@ -370,6 +417,7 @@ export default function SnapshotScreen(): JSX.Element {
     setSelectedSnapshotId(id);
     await load();
     await loadLines(id);
+    scrollToTop();
   };
 
   const selectedSnapshot = useMemo(
@@ -448,9 +496,7 @@ export default function SnapshotScreen(): JSX.Element {
   }, [activeMonthKey, displayMonthGroups]);
 
   const activeMonth = displayMonthGroups.find((group) => group.key === activeMonthKey) ?? displayMonthGroups[0];
-  const monthLimit = showAllMonths ? displayMonthGroups.length : 6;
-  const visibleMonthGroups = displayMonthGroups.slice(0, monthLimit);
-  const hasMoreMonths = displayMonthGroups.length > visibleMonthGroups.length;
+  const historyMonthGroups = [...monthGroups].reverse();
   const activeIndex = displayMonthGroups.findIndex((group) => group.key === activeMonthKey);
   const prevMonthKey =
     activeIndex >= 0 && activeIndex < displayMonthGroups.length - 1 ? displayMonthGroups[activeIndex + 1]?.key : null;
@@ -507,6 +553,7 @@ export default function SnapshotScreen(): JSX.Element {
     <View style={styles.screenRoot}>
       <AppBackground>
         <ScrollView
+          ref={scrollRef}
           keyboardShouldPersistTaps="handled"
           bounces={scrollBounceEnabled}
           alwaysBounceVertical={scrollBounceEnabled}
@@ -588,6 +635,29 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
+        {historyMonthGroups.length > 0 && (
+          <GlassCardContainer contentStyle={{ gap: 12 }}>
+            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.hero.recentMonths")}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
+              {historyMonthGroups.map((group) => (
+                <PillChip
+                  key={group.key}
+                  label={monthLabelFromKey(group.key)}
+                  selected={group.key === activeMonthKey}
+                  onPress={() => {
+                    setActiveMonthKey(group.key);
+                    const nextId = group.snapshots[0]?.id ?? null;
+                    if (nextId) {
+                      setSelectedSnapshotId(nextId);
+                      void loadLines(nextId);
+                    }
+                  }}
+                />
+              ))}
+            </ScrollView>
+          </GlassCardContainer>
+        )}
+
         {shouldShowFirstSnapshotTip && (
           <CoachTipCard
             title={t("snapshot.guide.title", { defaultValue: "Aggiungi il tuo primo snapshot" })}
@@ -649,7 +719,9 @@ export default function SnapshotScreen(): JSX.Element {
                         keyboardType="decimal-pad"
                         value={line.amount}
                         {...baseInputProps}
-                        style={[baseInputProps.style, { backgroundColor: tokens.colors.glassBg, flex: 1 }]}
+                        dense
+                        contentStyle={styles.amountInputContent}
+                        style={[baseInputProps.style, styles.amountInput, { backgroundColor: tokens.colors.glassBg, flex: 1 }]}
                         onChangeText={onAmountChange}
                         onFocus={() => setFocusedLineId(line.walletId)}
                         onBlur={() => setFocusedLineId((prev) => (prev === line.walletId ? null : prev))}
@@ -671,53 +743,49 @@ export default function SnapshotScreen(): JSX.Element {
               {error && <Text style={{ color: tokens.colors.red }}>{error}</Text>}
             </View>
             <View style={styles.actionsColumn}>
+              <PrimaryPillButton label={t("common.save")} onPress={saveSnapshot} color={tokens.colors.accent} />
               <View style={styles.actionsRow}>
                 <View style={styles.actionSlot}>
-                  <PrimaryPillButton label={t("common.save")} onPress={saveSnapshot} color={tokens.colors.accent} />
+                  <SmallOutlinePillButton
+                    label={t("common.close")}
+                    onPress={() => setShowForm(false)}
+                    color={tokens.colors.text}
+                    fullWidth
+                  />
                 </View>
-                {editingSnapshotId !== null ? (
+                {editingSnapshotId !== null && (
                   <View style={styles.actionSlot}>
                     <SmallOutlinePillButton
                       label={t("common.delete")}
-                      onPress={() => {
-                        Alert.alert(
-                          t("snapshot.delete.title", { defaultValue: "Elimina snapshot?" }),
-                          t("snapshot.delete.body", { defaultValue: "Questa operazione è irreversibile." }),
-                          [
-                            { text: t("common.cancel", { defaultValue: "Annulla" }), style: "cancel" },
-                            {
-                              text: t("common.delete", { defaultValue: "Elimina" }),
-                              style: "destructive",
-                              onPress: async () => {
-                                await deleteSnapshot(editingSnapshotId);
-                                setShowForm(false);
-                                setEditingSnapshotId(null);
-                                setSelectedSnapshotId(null);
-                                await load();
-                                setLines([]);
-                              },
-                            },
-                          ]
-                        );
-                      }}
+                      onPress={openConfirmDeleteSnapshot}
                       color={tokens.colors.red}
                       fullWidth
                     />
                   </View>
-                ) : (
-                  <View style={styles.actionSlot}>
-                    <SmallOutlinePillButton label={t("common.close")} onPress={() => setShowForm(false)} color={tokens.colors.text} />
-                  </View>
                 )}
               </View>
-              {editingSnapshotId !== null && (
-                <SmallOutlinePillButton
-                  label={t("common.close")}
-                  onPress={() => setShowForm(false)}
-                  color={tokens.colors.text}
-                  fullWidth
-                />
+            </View>
+          </GlassCardContainer>
+        )}
+
+        {lines.length > 0 && (
+          <GlassCardContainer contentStyle={{ gap: 10 }}>
+            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.summary.title")}</Text>
+            <View style={styles.kpiRow}>
+              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.income}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
+                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.liquidity")}</Text>
+                <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.liquidity)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
+              </View>
+              {showInvestments && (
+                <View style={[styles.kpiChip, { borderColor: `${tokens.colors.accent}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
+                  <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.investments")}</Text>
+                  <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.investments)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
+                </View>
               )}
+              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.green}66`, backgroundColor: `${tokens.colors.green}22` }]}>
+                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.netWorth")}</Text>
+                <Text style={[styles.kpiValue, { color: tokens.colors.green }]}>{formatAmount(totals.netWorth)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
+              </View>
             </View>
           </GlassCardContainer>
         )}
@@ -797,51 +865,19 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        {lines.length > 0 && (
-          <GlassCardContainer contentStyle={{ gap: 10 }}>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.summary.title")}</Text>
-            <View style={styles.kpiRow}>
-              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.income}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
-                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.liquidity")}</Text>
-                <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.liquidity)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
-              </View>
-              {showInvestments && (
-                <View style={[styles.kpiChip, { borderColor: `${tokens.colors.accent}66`, backgroundColor: `${tokens.colors.accent}22` }]}>
-                  <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.investments")}</Text>
-                  <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.investments)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
-                </View>
-              )}
-              <View style={[styles.kpiChip, { borderColor: `${tokens.colors.green}66`, backgroundColor: `${tokens.colors.green}22` }]}>
-                <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.netWorth")}</Text>
-                <Text style={[styles.kpiValue, { color: tokens.colors.green }]}>{formatAmount(totals.netWorth)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
-              </View>
-            </View>
-          </GlassCardContainer>
-        )}
-
-        {displayMonthGroups.length > 0 && (
-          <GlassCardContainer contentStyle={{ gap: 12 }}>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.hero.recentMonths")}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
-              {visibleMonthGroups.map((group) => (
-                <PillChip
-                  key={group.key}
-                  label={monthLabelFromKey(group.key)}
-                  selected={group.key === activeMonthKey}
-                  onPress={() => {
-                    setActiveMonthKey(group.key);
-                    const nextId = group.snapshots[0]?.id ?? null;
-                    if (nextId) {
-                      setSelectedSnapshotId(nextId);
-                      void loadLines(nextId);
-                    }
-                  }}
-                />
-              ))}
-            </ScrollView>
-          </GlassCardContainer>
-        )}
         </ScrollView>
+        <ConfirmDialog
+          visible={confirmSnapshotDeleteVisible}
+          title={t("snapshot.delete.title", { defaultValue: "Eliminare snapshot?" })}
+          message={t("snapshot.delete.body", { defaultValue: "Questa operazione è irreversibile." })}
+          confirmLabel={t("snapshot.delete.confirm", { defaultValue: "Elimina snapshot" })}
+          cancelLabel={t("common.cancel", { defaultValue: "Annulla" })}
+          onConfirm={handleConfirmDeleteSnapshot}
+          onCancel={closeConfirmDeleteSnapshot}
+          loading={confirmSnapshotDeleteLoading}
+          error={confirmSnapshotDeleteError}
+          confirmColor={tokens.colors.expense}
+        />
       </AppBackground>
     </View>
   );
@@ -938,6 +974,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
+  },
+  amountInput: {
+    height: 52,
+  },
+  amountInputContent: {
+    paddingVertical: 8,
+    fontSize: 16,
   },
   editButtonRow: {
     marginTop: 12,

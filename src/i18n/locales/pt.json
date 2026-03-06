@@ -381,7 +381,7 @@
     "title": "Snapshot",
     "hero": {
       "currentMonth": "Mês atual",
-      "recentMonths": "Meses recentes",
+      "recentMonths": "Histórico mensal",
       "saved": "Guardado",
       "missing": "Por adicionar"
     },
@@ -402,7 +402,9 @@
     },
     "delete": {
       "title": "Eliminar snapshot?",
-      "body": "Esta ação não pode ser anulada."
+      "body": "Esta ação não pode ser anulada.",
+      "confirm": "Eliminar snapshot",
+      "error": "Não foi possível eliminar o snapshot. Tenta novamente."
     },
     "empty": {
       "noSnapshots": "Ainda não há snapshots.",

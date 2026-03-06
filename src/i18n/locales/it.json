@@ -299,6 +299,8 @@
       "sortAnnualDesc": "Decrescente",
       "sortAnnualShort": "Valore",
       "filterCategoryShort": "Categorie",
+      "filterMonthShort": "Mese",
+      "loadMore": "Carica altro",
       "table": {
         "date": "Data",
         "name": "Nome",
@@ -381,7 +383,7 @@
     "title": "Snapshot",
     "hero": {
       "currentMonth": "Mese corrente",
-      "recentMonths": "Mesi recenti",
+      "recentMonths": "Storico mensile",
       "saved": "Salvato",
       "missing": "Da inserire"
     },
@@ -402,7 +404,9 @@
     },
     "delete": {
       "title": "Eliminare snapshot?",
-      "body": "Questa operazione è irreversibile."
+      "body": "Questa operazione è irreversibile.",
+      "confirm": "Elimina snapshot",
+      "error": "Impossibile eliminare snapshot. Riprova."
     },
     "empty": {
       "noSnapshots": "Nessuno snapshot.",

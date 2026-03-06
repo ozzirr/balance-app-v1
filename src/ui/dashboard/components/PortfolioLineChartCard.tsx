@@ -31,6 +31,7 @@ type Props = {
 const WALLET_FILTER_ALL = "all" as const;
 type WalletFilter = number | typeof WALLET_FILTER_ALL | null;
 type WalletFilterState = {
+  total: WalletFilter;
   liquidity: WalletFilter;
   investments: WalletFilter;
 };
@@ -52,21 +53,25 @@ export default function PortfolioLineChartCard({
   );
   const [mode, setMode] = useState<Mode>(availableModes[0]);
   const [walletFilterByMode, setWalletFilterByMode] = useState<WalletFilterState>({
-    liquidity: null,
-    investments: null,
+    total: WALLET_FILTER_ALL,
+    liquidity: WALLET_FILTER_ALL,
+    investments: WALLET_FILTER_ALL,
   });
   const [hasLoadedPrefs, setHasLoadedPrefs] = useState(false);
   const { width } = useWindowDimensions();
 
   const walletSeriesByMode = useMemo(() => {
     if (!walletSeries) return [];
+    if (mode === "total") return walletSeries;
     if (mode === "liquidity") return walletSeries.filter((item) => item.type === "LIQUIDITY");
     if (mode === "investments") return walletSeries.filter((item) => item.type === "INVEST");
     return [];
   }, [mode, walletSeries]);
 
   const walletFilter =
-    mode === "liquidity"
+    mode === "total"
+      ? walletFilterByMode.total
+      : mode === "liquidity"
       ? walletFilterByMode.liquidity
       : mode === "investments"
         ? walletFilterByMode.investments
@@ -94,6 +99,7 @@ export default function PortfolioLineChartCard({
           }
           if (parsed.walletFilterByMode) {
             setWalletFilterByMode((prev) => ({
+              total: parsed.walletFilterByMode?.total ?? prev.total,
               liquidity: parsed.walletFilterByMode?.liquidity ?? prev.liquidity,
               investments: parsed.walletFilterByMode?.investments ?? prev.investments,
             }));
@@ -122,7 +128,6 @@ export default function PortfolioLineChartCard({
   }, [hasLoadedPrefs, mode, walletFilterByMode]);
 
   useEffect(() => {
-    if (mode !== "liquidity" && mode !== "investments") return;
     if (!walletSeriesByMode.length) {
       return;
     }
@@ -132,7 +137,7 @@ export default function PortfolioLineChartCard({
     if (!exists) {
       setWalletFilterByMode((prev) => ({
         ...prev,
-        [mode === "liquidity" ? "liquidity" : "investments"]: walletSeriesByMode[0]?.walletId ?? null,
+        [mode]: WALLET_FILTER_ALL,
       }));
     }
   }, [mode, walletFilter, walletSeriesByMode]);
@@ -146,7 +151,7 @@ export default function PortfolioLineChartCard({
     [data, mode]
   );
 
-  const showWalletFilters = (mode === "liquidity" || mode === "investments") && walletSeriesByMode.length > 0;
+  const showWalletFilters = walletSeriesByMode.length > 0;
 
   const toAlpha = (color: string, alpha: string) => {
     if (color.startsWith("#") && color.length === 7) {
@@ -265,7 +270,7 @@ export default function PortfolioLineChartCard({
             onPress={() =>
               setWalletFilterByMode((prev) => ({
                 ...prev,
-                [mode === "liquidity" ? "liquidity" : "investments"]: WALLET_FILTER_ALL,
+                [mode]: WALLET_FILTER_ALL,
               }))
             }
           />
@@ -277,7 +282,7 @@ export default function PortfolioLineChartCard({
               onPress={() =>
                 setWalletFilterByMode((prev) => ({
                   ...prev,
-                  [mode === "liquidity" ? "liquidity" : "investments"]: wallet.walletId,
+                  [mode]: wallet.walletId,
                 }))
               }
             />
