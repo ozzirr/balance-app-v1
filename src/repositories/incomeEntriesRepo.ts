@@ -1,4 +1,5 @@
 import { executeSql } from "@/db/db";
+import { compareIsoDates, isIsoDate } from "@/utils/dates";
 import { fetchAll, fetchOne } from "./helpers";
 import type { IncomeEntry } from "./types";
 
@@ -6,18 +7,31 @@ export async function listIncomeEntries(): Promise<IncomeEntry[]> {
   return fetchAll<IncomeEntry>("SELECT * FROM income_entries ORDER BY start_date DESC");
 }
 
+function validateRecurringRange(entry: Omit<IncomeEntry, "id">): void {
+  const recurring = entry.one_shot === 0 && Boolean(entry.recurrence_frequency);
+  if (!recurring) return;
+  if (!entry.end_date || !isIsoDate(entry.end_date)) {
+    throw new Error("END_DATE_REQUIRED");
+  }
+  if (!isIsoDate(entry.start_date) || compareIsoDates(entry.end_date, entry.start_date) < 0) {
+    throw new Error("END_DATE_BEFORE_START");
+  }
+}
+
 export async function getIncomeEntry(id: number): Promise<IncomeEntry | null> {
   return fetchOne<IncomeEntry>("SELECT * FROM income_entries WHERE id = ?", [id]);
 }
 
 export async function createIncomeEntry(entry: Omit<IncomeEntry, "id">): Promise<number> {
+  validateRecurringRange(entry);
   const result = await executeSql(
-    `INSERT INTO income_entries (name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+    `INSERT INTO income_entries (name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
     [
       entry.name,
       entry.amount,
       entry.start_date,
+      entry.end_date,
       entry.recurrence_frequency,
       entry.recurrence_interval,
       entry.one_shot,
@@ -30,14 +44,16 @@ export async function createIncomeEntry(entry: Omit<IncomeEntry, "id">): Promise
 }
 
 export async function updateIncomeEntry(id: number, entry: Omit<IncomeEntry, "id">): Promise<void> {
+  validateRecurringRange(entry);
   await executeSql(
     `UPDATE income_entries
-     SET name = ?, amount = ?, start_date = ?, recurrence_frequency = ?, recurrence_interval = ?, one_shot = ?, note = ?, active = ?, wallet_id = ?
+     SET name = ?, amount = ?, start_date = ?, end_date = ?, recurrence_frequency = ?, recurrence_interval = ?, one_shot = ?, note = ?, active = ?, wallet_id = ?
      WHERE id = ?`,
     [
       entry.name,
       entry.amount,
       entry.start_date,
+      entry.end_date,
       entry.recurrence_frequency,
       entry.recurrence_interval,
       entry.one_shot,

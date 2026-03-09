@@ -237,4 +237,13 @@ export const migrations: Migration[] = [
       { sql: "ALTER TABLE wallets ADD COLUMN color TEXT NOT NULL DEFAULT '#9B7BFF'" },
     ],
   },
+  {
+    version: 9,
+    statements: [
+      { sql: "ALTER TABLE income_entries ADD COLUMN end_date TEXT" },
+      { sql: "ALTER TABLE expense_entries ADD COLUMN end_date TEXT" },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_income_end_date ON income_entries(end_date)" },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_expense_end_date ON expense_entries(end_date)" },
+    ],
+  },
 ];

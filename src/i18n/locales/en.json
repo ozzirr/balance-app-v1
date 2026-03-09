@@ -317,6 +317,7 @@
       "name": "Name",
       "amount": "Amount",
       "date": "Date",
+      "endDate": "End date",
       "newEntryTitle": "New Entry",
       "newIncomeTitle": "New income entry",
       "newExpenseTitle": "New expense entry",
@@ -341,6 +342,8 @@
     "validation": {
       "nameRequired": "Name is required.",
       "invalidDate": "Invalid date (YYYY-MM-DD).",
+      "endDateRequired": "End date is required for recurring entries.",
+      "endDateBeforeStart": "End date must be on or after start date.",
       "amountInvalid": "Invalid amount.",
       "amountTooSmall": "Minimum amount: 0.01.",
       "categoryRequired": "Category is required.",

@@ -29,7 +29,6 @@ type EntriesTableProps = {
   showPagination?: boolean;
 };
 
-const DEFAULT_MIN_WIDTH = 480;
 const CATEGORY_COLUMN_WIDTH = 96;
 const COLUMN_GAP = 12;
 const ROWS_PER_PAGE = 7;
@@ -41,7 +40,7 @@ const ACTION_COLUMN_WIDTH = 52;
 export default function EntriesTable({
   rows,
   emptyLabel,
-  minWidth = DEFAULT_MIN_WIDTH,
+  minWidth,
   showCategory = true,
   renderAction,
   showPagination = true,
@@ -51,9 +50,9 @@ export default function EntriesTable({
   const [pageIndex, setPageIndex] = useState(0);
   const amountColorForTone = (tone: "income" | "expense") =>
     tone === "income" ? tokens.colors.income : tokens.colors.expense;
-  const clampName = (name: string) => {
-    if (name.length <= 10) return name;
-    return `${name.slice(0, 10).trimEnd()}…`;
+  const clampName = (name: string, maxChars: number) => {
+    if (name.length <= maxChars) return name;
+    return `${name.slice(0, maxChars).trimEnd()}…`;
   };
   const columnCount = showCategory ? 5 : 4;
   const gapTotal = (columnCount - 1) * COLUMN_GAP;
@@ -64,7 +63,20 @@ export default function EntriesTable({
     ACTION_COLUMN_WIDTH +
     (showCategory ? CATEGORY_COLUMN_WIDTH : 0) +
     gapTotal;
-  const adjustedMinWidth = Math.max(baseTableWidth, Math.min(minWidth, baseTableWidth));
+  const adjustedMinWidth = typeof minWidth === "number" ? Math.max(baseTableWidth, minWidth) : baseTableWidth;
+  const isSpaciousLayout = adjustedMinWidth >= 720;
+  const nameMaxChars = isSpaciousLayout ? 24 : 10;
+  const dateColumnWidth = isSpaciousLayout ? 84 : DATE_COLUMN_WIDTH;
+  const amountColumnWidth = isSpaciousLayout ? 104 : AMOUNT_COLUMN_WIDTH;
+  const categoryColumnWidth = showCategory ? (isSpaciousLayout ? 148 : CATEGORY_COLUMN_WIDTH) : 0;
+  const actionColumnWidth = isSpaciousLayout ? 58 : ACTION_COLUMN_WIDTH;
+  const fixedWidthWithoutDescription =
+    dateColumnWidth +
+    amountColumnWidth +
+    actionColumnWidth +
+    (showCategory ? categoryColumnWidth : 0) +
+    gapTotal;
+  const descriptionColumnMinWidth = Math.max(DESC_COLUMN_WIDTH, adjustedMinWidth - fixedWidthWithoutDescription);
   const totalPages = showPagination ? Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE)) : 1;
   const pageRows = useMemo(() => {
     if (!showPagination) return rows;
@@ -97,21 +109,21 @@ export default function EntriesTable({
       >
         <View style={{ minWidth: adjustedMinWidth }}>
           <View style={styles.tableHeaderRow}>
-            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate]}>
+            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDate, { width: dateColumnWidth }]}>
               {t("entries.list.table.date", { defaultValue: "Data" })}
             </Text>
-            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount]}>
+            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellAmount, { width: amountColumnWidth }]}>
               {t("entries.list.table.amount", { defaultValue: "Importo" })}
             </Text>
-            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc]}>
+            <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellDesc, { minWidth: descriptionColumnMinWidth }]}>
               {t("entries.list.table.name", { defaultValue: "Nome" })}
             </Text>
             {showCategory ? (
-              <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory]}>
+              <Text style={[styles.headerCell, { color: tokens.colors.muted }, styles.cellCategory, { width: categoryColumnWidth }]}>
                 {t("entries.list.table.category", { defaultValue: "Categoria" })}
               </Text>
             ) : null}
-            <View style={[styles.headerCell, styles.cellAction]} />
+            <View style={[styles.headerCell, styles.cellAction, { width: actionColumnWidth }]} />
           </View>
           <View style={[styles.divider, { backgroundColor: tokens.colors.border }]} />
           <FlatList
@@ -128,13 +140,13 @@ export default function EntriesTable({
             renderItem={({ item }) => (
               item ? (
                 <View style={styles.entryRow}>
-                  <Text style={[styles.cell, styles.cellDate]}>{item.dateLabel}</Text>
-                  <Text style={[styles.cell, styles.cellAmount, { color: item.amountColor ?? amountColorForTone(item.amountTone) }]}>
+                  <Text style={[styles.cell, styles.cellDate, { width: dateColumnWidth }]}>{item.dateLabel}</Text>
+                  <Text style={[styles.cell, styles.cellAmount, { width: amountColumnWidth, color: item.amountColor ?? amountColorForTone(item.amountTone) }]}>
                     {item.amountLabel}
                   </Text>
-                  <View style={[styles.entryDescription, styles.cellDesc]}>
+                  <View style={[styles.entryDescription, styles.cellDesc, { minWidth: descriptionColumnMinWidth }]}>
                     <Text style={[styles.entryName, { color: tokens.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
-                      {clampName(item.name)}
+                      {clampName(item.name, nameMaxChars)}
                     </Text>
                     {item.subtitle ? (
                       <Text style={[styles.entrySubtitle, { color: tokens.colors.muted }]} numberOfLines={1}>
@@ -143,17 +155,17 @@ export default function EntriesTable({
                     ) : null}
                   </View>
                   {showCategory ? (
-                    <View style={[styles.cell, styles.cellCategory]}>
+                    <View style={[styles.cell, styles.cellCategory, { width: categoryColumnWidth }]}>
                       <Chip label={item.categoryLabel} color={item.categoryColor ?? tokens.colors.muted} />
                     </View>
                   ) : null}
-                  <View style={[styles.cell, styles.cellAction]}>{renderAction?.(item) ?? null}</View>
+                  <View style={[styles.cell, styles.cellAction, { width: actionColumnWidth }]}>{renderAction?.(item) ?? null}</View>
                 </View>
               ) : (
                 <View style={styles.entryRow}>
-                  <Text style={[styles.cell, styles.cellDate, styles.placeholderText]}> </Text>
-                  <Text style={[styles.cell, styles.cellAmount, styles.placeholderText]}> </Text>
-                  <View style={[styles.entryDescription, styles.cellDesc]}>
+                  <Text style={[styles.cell, styles.cellDate, { width: dateColumnWidth }, styles.placeholderText]}> </Text>
+                  <Text style={[styles.cell, styles.cellAmount, { width: amountColumnWidth }, styles.placeholderText]}> </Text>
+                  <View style={[styles.entryDescription, styles.cellDesc, { minWidth: descriptionColumnMinWidth }]}>
                     <Text style={[styles.entryName, styles.placeholderText]} numberOfLines={1}>
                       {" "}
                     </Text>
@@ -161,8 +173,8 @@ export default function EntriesTable({
                       {" "}
                     </Text>
                   </View>
-                  {showCategory ? <View style={[styles.cell, styles.cellCategory]} /> : null}
-                  <View style={[styles.cell, styles.cellAction]} />
+                  {showCategory ? <View style={[styles.cell, styles.cellCategory, { width: categoryColumnWidth }]} /> : null}
+                  <View style={[styles.cell, styles.cellAction, { width: actionColumnWidth }]} />
                 </View>
               )
             )}
@@ -261,7 +273,6 @@ const styles = StyleSheet.create({
   cellDesc: {
     flex: 1,
     minWidth: DESC_COLUMN_WIDTH,
-    maxWidth: DESC_COLUMN_WIDTH,
     paddingLeft: 10,
   },
   entryDescription: {

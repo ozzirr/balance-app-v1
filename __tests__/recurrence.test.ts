@@ -9,9 +9,13 @@ describe("recurrence", () => {
       name: "Stipendio",
       amount: 1000,
       start_date: "2025-01-31",
+      end_date: "2025-12-31",
       recurrence_frequency: "MONTHLY",
       recurrence_interval: 1,
       one_shot: 0,
+      note: null,
+      active: 1,
+      wallet_id: null,
     };
 
     const dates = listOccurrencesInRange(entry, "2025-02-01", "2025-03-31");
@@ -24,9 +28,13 @@ describe("recurrence", () => {
       name: "Bonus",
       amount: 500,
       start_date: "2025-06-15",
+      end_date: null,
       recurrence_frequency: null,
       recurrence_interval: null,
       one_shot: 1,
+      note: null,
+      active: 1,
+      wallet_id: null,
     };
 
     const dates = listOccurrencesInRange(entry, "2025-06-01", "2025-06-30");
@@ -44,5 +52,43 @@ describe("recurrence", () => {
       true
     );
     expect(occurrences.some((occurrence) => occurrence.name === "Affitto" && occurrence.type === "expense")).toBe(true);
+  });
+
+  test("recurring entries stop at end date", () => {
+    const entry: IncomeEntry = {
+      id: 3,
+      name: "Stipendio breve",
+      amount: 1000,
+      start_date: "2025-01-01",
+      end_date: "2025-03-01",
+      recurrence_frequency: "MONTHLY",
+      recurrence_interval: 1,
+      one_shot: 0,
+      note: null,
+      active: 1,
+      wallet_id: null,
+    };
+
+    const dates = listOccurrencesInRange(entry, "2025-01-01", "2025-06-30");
+    expect(dates).toEqual(["2025-01-01", "2025-02-01", "2025-03-01"]);
+  });
+
+  test("upcoming occurrences exclude recurring entries after end date", () => {
+    const entry: IncomeEntry = {
+      id: 4,
+      name: "Ricorrenza chiusa",
+      amount: 900,
+      start_date: "2025-01-15",
+      end_date: "2025-02-15",
+      recurrence_frequency: "MONTHLY",
+      recurrence_interval: 1,
+      one_shot: 0,
+      note: null,
+      active: 1,
+      wallet_id: null,
+    };
+
+    const occurrences = upcomingOccurrences([entry], [], 10, "2025-03-01");
+    expect(occurrences).toEqual([]);
   });
 });

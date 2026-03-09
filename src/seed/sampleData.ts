@@ -14,6 +14,7 @@ type SampleIncomeEntry = {
   name: string;
   amount: number;
   start_date: string;
+  end_date: string | null;
   recurrence_frequency: RecurrenceFrequency | null;
   recurrence_interval: number | null;
   one_shot: number;
@@ -52,6 +53,7 @@ const sampleIncomeEntries: SampleIncomeEntry[] = [
     name: "Stipendio",
     amount: 2400,
     start_date: "2024-01-31",
+    end_date: "2026-12-31",
     recurrence_frequency: "MONTHLY",
     recurrence_interval: 1,
     one_shot: 0,
@@ -62,6 +64,7 @@ const sampleIncomeEntries: SampleIncomeEntry[] = [
     name: "Freelance UX",
     amount: 800,
     start_date: "2024-02-15",
+    end_date: "2026-12-31",
     recurrence_frequency: "MONTHLY",
     recurrence_interval: 2,
     one_shot: 0,
@@ -72,6 +75,7 @@ const sampleIncomeEntries: SampleIncomeEntry[] = [
     name: "Bonus aziendale",
     amount: 1200,
     start_date: "2025-02-10",
+    end_date: null,
     recurrence_frequency: null,
     recurrence_interval: null,
     one_shot: 1,
@@ -85,6 +89,7 @@ const sampleExpenseEntries: SampleExpenseEntry[] = [
     name: "Affitto",
     amount: 700,
     start_date: "2024-01-01",
+    end_date: "2026-12-31",
     recurrence_frequency: "MONTHLY",
     recurrence_interval: 1,
     one_shot: 0,
@@ -96,6 +101,7 @@ const sampleExpenseEntries: SampleExpenseEntry[] = [
     name: "Spesa settimanale",
     amount: 120,
     start_date: "2024-01-05",
+    end_date: "2026-12-31",
     recurrence_frequency: "WEEKLY",
     recurrence_interval: 1,
     one_shot: 0,
@@ -107,6 +113,7 @@ const sampleExpenseEntries: SampleExpenseEntry[] = [
     name: "Assicurazione auto",
     amount: 240,
     start_date: "2024-07-20",
+    end_date: "2028-07-20",
     recurrence_frequency: "YEARLY",
     recurrence_interval: 1,
     one_shot: 0,
@@ -159,12 +166,13 @@ export async function loadSampleData(): Promise<void> {
     for (const entry of sampleIncomeEntries) {
       await db.runAsync(
         `INSERT INTO income_entries
-         (name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+         (name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
         [
           entry.name,
           entry.amount,
           entry.start_date,
+          entry.end_date,
           entry.recurrence_frequency,
           entry.recurrence_interval,
           entry.one_shot,
@@ -177,12 +185,13 @@ export async function loadSampleData(): Promise<void> {
     for (const entry of sampleExpenseEntries) {
       await db.runAsync(
         `INSERT INTO expense_entries
-         (name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+         (name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         [
           entry.name,
           entry.amount,
           entry.start_date,
+          entry.end_date,
           entry.recurrence_frequency,
           entry.recurrence_interval,
           entry.one_shot,
@@ -203,6 +212,7 @@ export async function loadSampleData(): Promise<void> {
         name: "Stipendio",
         amount: 2300 + offset * 100,
         start_date: dateIso,
+        end_date: null,
         recurrence_frequency: null,
         recurrence_interval: null,
         one_shot: 1,
@@ -213,6 +223,7 @@ export async function loadSampleData(): Promise<void> {
         name: "Spese mensili",
         amount: 900 + offset * 80,
         start_date: dateIso,
+        end_date: null,
         recurrence_frequency: null,
         recurrence_interval: null,
         one_shot: 1,
@@ -225,12 +236,13 @@ export async function loadSampleData(): Promise<void> {
     for (const entry of historicalIncomeEntries) {
       await db.runAsync(
         `INSERT INTO income_entries
-         (name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+         (name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
         [
           entry.name,
           entry.amount,
           entry.start_date,
+          entry.end_date,
           entry.recurrence_frequency,
           entry.recurrence_interval,
           entry.one_shot,
@@ -243,12 +255,13 @@ export async function loadSampleData(): Promise<void> {
     for (const entry of historicalExpenseEntries) {
       await db.runAsync(
         `INSERT INTO expense_entries
-         (name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+         (name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         [
           entry.name,
           entry.amount,
           entry.start_date,
+          entry.end_date,
           entry.recurrence_frequency,
           entry.recurrence_interval,
           entry.one_shot,

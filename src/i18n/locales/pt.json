@@ -315,6 +315,7 @@
       "name": "Nome",
       "amount": "Montante",
       "date": "Data",
+      "endDate": "Data de fim",
       "newEntryTitle": "Nova entrada",
       "newIncomeTitle": "Nova entrada de receita",
       "newExpenseTitle": "Nova entrada de despesa",
@@ -339,6 +340,8 @@
     "validation": {
       "nameRequired": "O nome é obrigatório.",
       "invalidDate": "Data inválida (YYYY-MM-DD).",
+      "endDateRequired": "A data de fim é obrigatória para entradas recorrentes.",
+      "endDateBeforeStart": "A data de fim deve ser igual ou posterior à data de início.",
       "amountInvalid": "Montante inválido.",
       "amountTooSmall": "Montante mínimo: 0,01.",
       "categoryRequired": "A categoria é obrigatória.",

@@ -25,6 +25,7 @@ export type IncomeEntry = {
   name: string;
   amount: number;
   start_date: string;
+  end_date: string | null;
   recurrence_frequency: RecurrenceFrequency | null;
   recurrence_interval: number | null;
   one_shot: number;
@@ -38,6 +39,7 @@ export type ExpenseEntry = {
   name: string;
   amount: number;
   start_date: string;
+  end_date: string | null;
   recurrence_frequency: RecurrenceFrequency | null;
   recurrence_interval: number | null;
   one_shot: number;

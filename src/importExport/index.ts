@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { executeSql, withTransaction } from "@/db/db";
 import type { ExportPayload } from "./types";
-import { isIsoDate } from "@/utils/dates";
+import { compareIsoDates, isIsoDate } from "@/utils/dates";
 import type { SnapshotLine } from "@/repositories/types";
 import { DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 
@@ -53,7 +53,7 @@ export function validateExportPayload(payload: ExportPayload): string[] {
     });
   });
 
-  const dateFields: { list: { date?: string; start_date?: string }[]; label: string; key: "date" | "start_date" }[] = [
+  const dateFields: { list: { date?: string; start_date?: string; end_date?: string | null }[]; label: string; key: "date" | "start_date" }[] = [
     { list: payload.income_entries ?? [], label: "income_entries", key: "start_date" },
     { list: payload.expense_entries ?? [], label: "expense_entries", key: "start_date" },
     { list: payload.snapshots ?? [], label: "snapshots", key: "date" },
@@ -64,6 +64,40 @@ export function validateExportPayload(payload: ExportPayload): string[] {
       const value = row[field.key];
       if (!value || !isIsoDate(value)) {
         errors.push(`Data non valida in ${field.label}[${index}]: ${value}`);
+      }
+    });
+  }
+
+  const optionalEndDateFields: { list: { end_date?: string | null }[]; label: string }[] = [
+    { list: payload.income_entries ?? [], label: "income_entries" },
+    { list: payload.expense_entries ?? [], label: "expense_entries" },
+  ];
+  for (const field of optionalEndDateFields) {
+    field.list.forEach((row, index) => {
+      const value = row.end_date;
+      if (value !== undefined && value !== null && value !== "" && !isIsoDate(value)) {
+        errors.push(`Data non valida in ${field.label}[${index}]: ${value}`);
+      }
+    });
+  }
+
+  const recurringGroups: {
+    list: Array<{ start_date: string; end_date?: string | null; recurrence_frequency?: string | null; one_shot?: number }>;
+    label: string;
+  }[] = [
+    { list: payload.income_entries ?? [], label: "income_entries" },
+    { list: payload.expense_entries ?? [], label: "expense_entries" },
+  ];
+  for (const group of recurringGroups) {
+    group.list.forEach((row, index) => {
+      const recurring = row.one_shot === 0 && Boolean(row.recurrence_frequency);
+      if (!recurring) return;
+      if (!row.end_date || !isIsoDate(row.end_date)) {
+        errors.push(`Data fine obbligatoria in ${group.label}[${index}] per voce ricorrente`);
+        return;
+      }
+      if (isIsoDate(row.start_date) && compareIsoDates(row.end_date, row.start_date) < 0) {
+        errors.push(`Data fine precedente alla data inizio in ${group.label}[${index}]`);
       }
     });
   }
@@ -185,13 +219,14 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
     for (const row of payload.income_entries) {
       await db.runAsync(
         `INSERT INTO income_entries
-        (id, name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           row.id,
           row.name,
           row.amount,
           row.start_date,
+          row.end_date ?? null,
           row.recurrence_frequency,
           row.recurrence_interval,
           row.one_shot,
@@ -205,13 +240,14 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
     for (const row of payload.expense_entries) {
       await db.runAsync(
         `INSERT INTO expense_entries
-        (id, name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           row.id,
           row.name,
           row.amount,
           row.start_date,
+          row.end_date ?? null,
           row.recurrence_frequency,
           row.recurrence_interval,
           row.one_shot,

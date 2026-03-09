@@ -1,4 +1,4 @@
-import { compareIsoDates, todayIso } from "@/utils/dates";
+import { compareIsoDates, isIsoDate, todayIso } from "@/utils/dates";
 import type { ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
 import type { RecurrenceRule } from "@/utils/recurrence";
 import { addDays, addMonthsClamped, addYearsClamped, nextOccurrence } from "@/utils/recurrence";
@@ -34,17 +34,28 @@ function isActiveEntry(entry: IncomeEntry | ExpenseEntry): boolean {
   return entry.active === 1;
 }
 
+function getEntryEndDate(entry: IncomeEntry | ExpenseEntry): string | null {
+  if (!entry.end_date || !isIsoDate(entry.end_date)) return null;
+  return compareIsoDates(entry.end_date, entry.start_date) < 0 ? null : entry.end_date;
+}
+
 export function nextOccurrenceForEntry(
   entry: IncomeEntry | ExpenseEntry,
   fromDateIso: string
 ): string | null {
   if (!isActiveEntry(entry)) return null;
+  const endDate = getEntryEndDate(entry);
+  if (endDate && compareIsoDates(endDate, fromDateIso) < 0) return null;
   if (!entry.recurrence_frequency || entry.one_shot === 1) {
-    return compareIsoDates(entry.start_date, fromDateIso) >= 0 ? entry.start_date : null;
+    if (compareIsoDates(entry.start_date, fromDateIso) < 0) return null;
+    if (endDate && compareIsoDates(entry.start_date, endDate) > 0) return null;
+    return entry.start_date;
   }
   const rule = toRule(entry.recurrence_frequency, entry.recurrence_interval);
   if (!rule) return null;
-  return nextOccurrence(entry.start_date, rule, fromDateIso);
+  const nextDate = nextOccurrence(entry.start_date, rule, fromDateIso);
+  if (endDate && compareIsoDates(nextDate, endDate) > 0) return null;
+  return nextDate;
 }
 
 export function listOccurrencesInRange(
@@ -53,8 +64,14 @@ export function listOccurrencesInRange(
   toDateIso: string
 ): string[] {
   if (!isActiveEntry(entry)) return [];
+  const endDate = getEntryEndDate(entry);
+  const effectiveTo = endDate && compareIsoDates(endDate, toDateIso) < 0 ? endDate : toDateIso;
+  if (compareIsoDates(effectiveTo, fromDateIso) < 0) return [];
   if (!entry.recurrence_frequency || entry.one_shot === 1) {
-    if (compareIsoDates(entry.start_date, fromDateIso) >= 0 && compareIsoDates(entry.start_date, toDateIso) <= 0) {
+    if (
+      compareIsoDates(entry.start_date, fromDateIso) >= 0 &&
+      compareIsoDates(entry.start_date, effectiveTo) <= 0
+    ) {
       return [entry.start_date];
     }
     return [];
@@ -65,7 +82,7 @@ export function listOccurrencesInRange(
   const dates: string[] = [];
   let cursor = nextOccurrence(entry.start_date, rule, fromDateIso);
   let safety = 0;
-  while (compareIsoDates(cursor, toDateIso) <= 0 && safety < 500) {
+  while (compareIsoDates(cursor, effectiveTo) <= 0 && safety < 500) {
     dates.push(cursor);
     cursor = advance(cursor, rule);
     safety += 1;
@@ -123,9 +140,14 @@ export function upcomingOccurrences(
   const occurrences: Occurrence[] = [];
   const pushOccurrences = (entry: IncomeEntry | ExpenseEntry, type: "income" | "expense") => {
     const rule = toRule(entry.recurrence_frequency, entry.recurrence_interval);
+    const endDate = getEntryEndDate(entry);
     if (!isActiveEntry(entry)) return;
+    if (endDate && compareIsoDates(endDate, fromDate) < 0) return;
     if (!rule || entry.one_shot === 1) {
-      if (compareIsoDates(entry.start_date, fromDate) >= 0) {
+      if (
+        compareIsoDates(entry.start_date, fromDate) >= 0 &&
+        (!endDate || compareIsoDates(entry.start_date, endDate) <= 0)
+      ) {
         occurrences.push({
           date: entry.start_date,
           type,
@@ -141,7 +163,7 @@ export function upcomingOccurrences(
     let cursor = nextOccurrence(entry.start_date, rule, fromDate);
     let added = 0;
     let safety = 0;
-    while (added < count && safety < 500) {
+    while (added < count && safety < 500 && (!endDate || compareIsoDates(cursor, endDate) <= 0)) {
       occurrences.push({
         date: cursor,
         type,

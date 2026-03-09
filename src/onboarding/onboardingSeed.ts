@@ -2,6 +2,7 @@ import { withTransaction } from "@/db/db";
 import { createWallet, listWallets, DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 import { createExpenseCategory, listExpenseCategories } from "@/repositories/expenseCategoriesRepo";
 import { getInitialSeedDone, setInitialSeedDone } from "@/onboarding/onboardingStorage";
+import { addMonths } from "@/utils/dates";
 
 const CATEGORY_COLOR = "#9B7BFF";
 const DEFAULT_CATEGORIES = ["Casa", "Spesa", "Svago", "Salute", "Abbonamenti"];
@@ -112,14 +113,16 @@ export async function seedOnboardingData(draft: OnboardingDraft): Promise<void> 
     }
     const recurringWallet =
       walletIds[draft.recurringIncome.walletName.trim()] ?? walletIds[liquidityName];
+    const recurringStartDate = normalizeDate(draft.recurringIncome.nextDate);
     await db.runAsync(
       `INSERT INTO income_entries
-       (name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
-       VALUES (?, ?, ?, 'MONTHLY', 1, 0, NULL, 1, ?)`,
+       (name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
+       VALUES (?, ?, ?, ?, 'MONTHLY', 1, 0, NULL, 1, ?)`,
       [
         draft.recurringIncome.name.trim() || "Stipendio",
         recurringAmount,
-        normalizeDate(draft.recurringIncome.nextDate),
+        recurringStartDate,
+        addMonths(recurringStartDate, 12),
         recurringWallet,
       ]
     );
@@ -134,14 +137,17 @@ export async function seedOnboardingData(draft: OnboardingDraft): Promise<void> 
       const recurrenceFrequency = expense.recurring ? "MONTHLY" : null;
       const recurrenceInterval = expense.recurring ? 1 : null;
       const oneShot = expense.recurring ? 0 : 1;
+      const startDate = normalizeDate(expense.date);
+      const endDate = expense.recurring ? addMonths(normalizeDate(expense.nextDate), 12) : null;
       await db.runAsync(
         `INSERT INTO expense_entries
-         (name, amount, start_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
-         VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?, ?)`,
+         (name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 1, ?, ?)`,
         [
           expense.title.trim() || "Spesa",
           amount,
-          normalizeDate(expense.date),
+          startDate,
+          endDate,
           recurrenceFrequency,
           recurrenceInterval,
           oneShot,

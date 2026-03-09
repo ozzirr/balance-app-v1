@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { Text } from "react-native-paper";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
@@ -37,6 +37,9 @@ export default function RecurrencesTableCard({
 }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
+  const { width } = useWindowDimensions();
+  const tabletLike = width >= 900;
+  const tableMinWidth = tabletLike ? Math.max(640, width - (noCard ? 96 : 128)) : undefined;
   const visibleRows = rows.slice(0, 5);
   const tableRows: EntriesTableRow<RecurrenceRow>[] = visibleRows.map((item) => ({
     id: item.id,
@@ -61,6 +64,7 @@ export default function RecurrencesTableCard({
       ) : (
         <EntriesTable
           rows={tableRows}
+          minWidth={tableMinWidth}
           emptyLabel={t("dashboard.recurrences.empty")}
           showPagination={false}
           renderAction={(row) =>

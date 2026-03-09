@@ -317,6 +317,7 @@
       "name": "Nome",
       "amount": "Importo",
       "date": "Data",
+      "endDate": "Data fine",
       "newEntryTitle": "Nuova voce",
       "newIncomeTitle": "Nuova voce in entrata",
       "newExpenseTitle": "Nuova voce in uscita",
@@ -341,6 +342,8 @@
     "validation": {
       "nameRequired": "Nome obbligatorio.",
       "invalidDate": "Data non valida (YYYY-MM-DD).",
+      "endDateRequired": "Data fine obbligatoria per ricorrenza.",
+      "endDateBeforeStart": "La data fine deve essere uguale o successiva alla data inizio.",
       "amountInvalid": "Importo non valido.",
       "amountTooSmall": "Importo minimo: 0,01.",
       "categoryRequired": "Categoria obbligatoria.",

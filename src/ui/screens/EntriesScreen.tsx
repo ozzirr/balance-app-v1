@@ -61,6 +61,7 @@ type FormState = {
   name: string;
   amount: string;
   startDate: string;
+  endDate: string;
   categoryId: string;
   active: boolean;
   recurring: boolean;
@@ -74,6 +75,7 @@ const emptyForm: FormState = {
   name: "",
   amount: "",
   startDate: todayIso(),
+  endDate: todayIso(),
   categoryId: "",
   active: true,
   recurring: false,
@@ -228,6 +230,7 @@ export default function EntriesScreen(): JSX.Element {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerTarget, setDatePickerTarget] = useState<"start" | "end">("start");
   const [visibleEntriesCount, setVisibleEntriesCount] = useState(ENTRIES_BATCH_SIZE);
   const searchInputRef = useRef<any>(null);
   const filtersRowRef = useRef<ScrollView | null>(null);
@@ -318,6 +321,7 @@ export default function EntriesScreen(): JSX.Element {
       name: entry.name,
       amount: String(entry.amount),
       startDate: entry.start_date,
+      endDate: entry.end_date ?? entry.start_date,
       categoryId:
         "expense_category_id" in entry && entry.expense_category_id
           ? String(entry.expense_category_id)
@@ -362,6 +366,18 @@ export default function EntriesScreen(): JSX.Element {
       setError(t("entries.validation.invalidDate"));
       return;
     }
+    if (form.recurring && !isIsoDate(form.endDate)) {
+      setError(t("entries.validation.endDateRequired", { defaultValue: "Data fine obbligatoria per ricorrenza." }));
+      return;
+    }
+    if (form.recurring && compareIsoDates(form.endDate, form.startDate) < 0) {
+      setError(
+        t("entries.validation.endDateBeforeStart", {
+          defaultValue: "La data fine deve essere uguale o successiva alla data inizio.",
+        })
+      );
+      return;
+    }
     const amount = Number(form.amount.replace(",", "."));
     if (!Number.isFinite(amount)) {
       setError(t("entries.validation.amountInvalid"));
@@ -391,6 +407,7 @@ export default function EntriesScreen(): JSX.Element {
         name: form.name.trim(),
         amount,
         start_date: form.startDate,
+        end_date: recurring ? form.endDate : null,
         recurrence_frequency: frequency,
         recurrence_interval: interval,
         one_shot: oneShot,
@@ -398,10 +415,26 @@ export default function EntriesScreen(): JSX.Element {
         active,
         wallet_id: null,
       };
-      if (formMode === "edit") {
-        await updateIncomeEntry(form.id!, payload);
-      } else {
-        await createIncomeEntry(payload);
+      try {
+        if (formMode === "edit") {
+          await updateIncomeEntry(form.id!, payload);
+        } else {
+          await createIncomeEntry(payload);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message === "END_DATE_REQUIRED") {
+          setError(t("entries.validation.endDateRequired", { defaultValue: "Data fine obbligatoria per ricorrenza." }));
+          return;
+        }
+        if (error instanceof Error && error.message === "END_DATE_BEFORE_START") {
+          setError(
+            t("entries.validation.endDateBeforeStart", {
+              defaultValue: "La data fine deve essere uguale o successiva alla data inizio.",
+            })
+          );
+          return;
+        }
+        throw error;
       }
     } else {
       const categoryId = Number(form.categoryId);
@@ -413,6 +446,7 @@ export default function EntriesScreen(): JSX.Element {
         name: form.name.trim(),
         amount,
         start_date: form.startDate,
+        end_date: recurring ? form.endDate : null,
         recurrence_frequency: frequency,
         recurrence_interval: interval,
         one_shot: oneShot,
@@ -430,6 +464,18 @@ export default function EntriesScreen(): JSX.Element {
             Alert.alert(t("entries.validation.categoryRequired"));
             return;
           }
+          if (error instanceof Error && error.message === "END_DATE_REQUIRED") {
+            setError(t("entries.validation.endDateRequired", { defaultValue: "Data fine obbligatoria per ricorrenza." }));
+            return;
+          }
+          if (error instanceof Error && error.message === "END_DATE_BEFORE_START") {
+            setError(
+              t("entries.validation.endDateBeforeStart", {
+                defaultValue: "La data fine deve essere uguale o successiva alla data inizio.",
+              })
+            );
+            return;
+          }
           throw error;
         }
       } else {
@@ -439,6 +485,18 @@ export default function EntriesScreen(): JSX.Element {
           if (error instanceof Error && error.message === "CATEGORY_REQUIRED") {
             setError(t("entries.validation.categoryRequired"));
             Alert.alert(t("entries.validation.categoryRequired"));
+            return;
+          }
+          if (error instanceof Error && error.message === "END_DATE_REQUIRED") {
+            setError(t("entries.validation.endDateRequired", { defaultValue: "Data fine obbligatoria per ricorrenza." }));
+            return;
+          }
+          if (error instanceof Error && error.message === "END_DATE_BEFORE_START") {
+            setError(
+              t("entries.validation.endDateBeforeStart", {
+                defaultValue: "La data fine deve essere uguale o successiva alla data inizio.",
+              })
+            );
             return;
           }
           throw error;
@@ -558,7 +616,17 @@ export default function EntriesScreen(): JSX.Element {
     return `${y}-${m}-${d}`;
   };
 
-  const datePickerValue = form.startDate && isIsoDate(form.startDate) ? new Date(form.startDate) : new Date();
+  const openDatePicker = (target: "start" | "end") => {
+    if (showDatePicker && datePickerTarget === target) {
+      setShowDatePicker(false);
+      return;
+    }
+    setDatePickerTarget(target);
+    setShowDatePicker(true);
+  };
+
+  const datePickerIso = datePickerTarget === "start" ? form.startDate : form.endDate;
+  const datePickerValue = datePickerIso && isIsoDate(datePickerIso) ? new Date(datePickerIso) : new Date();
 
   const formatIsoToDMY = (iso: string) => {
     if (!isIsoDate(iso)) return iso;
@@ -853,7 +921,7 @@ export default function EntriesScreen(): JSX.Element {
                   textColor={tokens.colors.text}
                   right={<TextInput.Icon icon="calendar" />}
                   style={[styles.glassInput, styles.flex, { backgroundColor: tokens.colors.glassBg }]}
-                  onPressIn={() => setShowDatePicker((prev) => !prev)}
+                  onPressIn={() => openDatePicker("start")}
                 />
               </View>
               {showDatePicker && (
@@ -865,7 +933,15 @@ export default function EntriesScreen(): JSX.Element {
                   themeVariant="dark"
                   onChange={(_, selected) => {
                     if (selected) {
-                      setForm((prev) => ({ ...prev, startDate: toIsoDate(selected) }));
+                      const isoDate = toIsoDate(selected);
+                      setForm((prev) => {
+                        if (datePickerTarget === "start") {
+                          const nextEndDate =
+                            prev.recurring && compareIsoDates(prev.endDate, isoDate) < 0 ? isoDate : prev.endDate;
+                          return { ...prev, startDate: isoDate, endDate: nextEndDate };
+                        }
+                        return { ...prev, endDate: isoDate };
+                      });
                     }
                     if (Platform.OS !== "ios") {
                       setShowDatePicker(false);
@@ -925,21 +1001,44 @@ export default function EntriesScreen(): JSX.Element {
                 <Text style={{ color: tokens.colors.text, flex: 1 }}>{t("entries.form.recurringLabel")}</Text>
                 <Switch
                   value={form.recurring}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, recurring: value }))}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      recurring: value,
+                      endDate:
+                        value && (!isIsoDate(prev.endDate) || compareIsoDates(prev.endDate, prev.startDate) < 0)
+                          ? prev.startDate
+                          : prev.endDate,
+                    }))
+                  }
                   color={entryAccent}
                 />
               </View>
 
               {form.recurring && (
-                <FrequencyPillGroup
-                  value={form.frequency}
-                  onChange={(next) => setForm((prev) => ({ ...prev, frequency: next as RecurrenceFrequency }))}
-                  options={[
-                    { value: "WEEKLY", label: t("entries.form.frequency.weekly"), tint: `${entryAccent}33` },
-                    { value: "MONTHLY", label: t("entries.form.frequency.monthly"), tint: `${entryAccent}33` },
-                    { value: "YEARLY", label: t("entries.form.frequency.yearly"), tint: `${entryAccent}33` },
-                  ]}
-                />
+                <>
+                  <FrequencyPillGroup
+                    value={form.frequency}
+                    onChange={(next) => setForm((prev) => ({ ...prev, frequency: next as RecurrenceFrequency }))}
+                    options={[
+                      { value: "WEEKLY", label: t("entries.form.frequency.weekly"), tint: `${entryAccent}33` },
+                      { value: "MONTHLY", label: t("entries.form.frequency.monthly"), tint: `${entryAccent}33` },
+                      { value: "YEARLY", label: t("entries.form.frequency.yearly"), tint: `${entryAccent}33` },
+                    ]}
+                  />
+                  <TextInput
+                    label={t("entries.form.endDate", { defaultValue: "Data fine" })}
+                    value={formatIsoToDMY(form.endDate)}
+                    editable={false}
+                    mode="outlined"
+                    outlineColor={tokens.colors.glassBorder}
+                    activeOutlineColor={tokens.colors.accent}
+                    textColor={tokens.colors.text}
+                    right={<TextInput.Icon icon="calendar" />}
+                    style={[styles.glassInput, { backgroundColor: tokens.colors.glassBg }]}
+                    onPressIn={() => openDatePicker("end")}
+                  />
+                </>
               )}
 
               {error && <Text style={{ color: tokens.colors.expense }}>{error}</Text>}
@@ -1149,7 +1248,7 @@ export default function EntriesScreen(): JSX.Element {
             ) : null}
             <EntriesTable
               rows={visibleTableRows}
-              minWidth={entryType === "income" ? Math.max(420, width - 48) : Math.max(520, width - 48)}
+              minWidth={entryType === "income" ? Math.max(420, width - 64) : Math.max(436, width - 64)}
               emptyLabel={t("entries.empty.noEntries")}
               showCategory={entryType !== "income"}
               showPagination={false}
