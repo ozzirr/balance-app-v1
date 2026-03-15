@@ -7,13 +7,21 @@ import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@
 import OnboardingScaffold, { ONBOARDING_CARD_MIN_HEIGHT } from "@/onboarding/components/OnboardingScaffold";
 
 type Props = {
+  variant?: "free" | "pro";
   onNext: () => void;
-  onSkip: () => void;
+  onSkip?: () => void;
+  onImport?: () => void;
 };
 
-export default function OnboardingWelcome({ onNext, onSkip }: Props): JSX.Element {
+export default function OnboardingWelcome({
+  variant = "free",
+  onNext,
+  onSkip,
+  onImport,
+}: Props): JSX.Element {
   const { t } = useTranslation();
   const { tokens } = useDashboardTheme();
+  const isProVariant = variant === "pro";
 
   const bullets = [
     t("onboardingV2.welcome.bullet1"),
@@ -34,29 +42,33 @@ export default function OnboardingWelcome({ onNext, onSkip }: Props): JSX.Elemen
               />
             </View>
             <View style={styles.header}>
-              <Text style={[styles.title, { color: tokens.colors.text }]}>{t("onboardingV2.welcome.title")}</Text>
+              <Text style={[styles.title, { color: tokens.colors.text }]}>
+                {isProVariant ? t("onboardingV2.proWelcome.title") : t("onboardingV2.welcome.title")}
+              </Text>
               <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>
-                {t("onboardingV2.welcome.subtitle")}
+                {isProVariant ? t("onboardingV2.proWelcome.subtitle") : t("onboardingV2.welcome.subtitle")}
               </Text>
             </View>
-            <View style={styles.list}>
-              {bullets.map((item, idx) => (
-                <Text key={idx} style={[styles.bullet, { color: tokens.colors.text }]}>
-                  • {item}
-                </Text>
-              ))}
-            </View>
+            {!isProVariant ? (
+              <View style={styles.list}>
+                {bullets.map((item, idx) => (
+                  <Text key={idx} style={[styles.bullet, { color: tokens.colors.text }]}>
+                    • {item}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
           </View>
           <View style={styles.actions}>
             <PrimaryPillButton
-              label={t("onboardingV2.common.continue")}
-              onPress={onNext}
+              label={isProVariant ? t("onboardingV2.proWelcome.ctaImport") : t("onboardingV2.common.continue")}
+              onPress={isProVariant ? onImport ?? onNext : onNext}
               color={tokens.colors.accent}
             />
             <View style={{ height: 12 }} />
             <SmallOutlinePillButton
-              label={t("onboardingV2.common.skip")}
-              onPress={onSkip}
+              label={isProVariant ? t("onboardingV2.proWelcome.ctaGuided") : t("onboardingV2.common.skip")}
+              onPress={isProVariant ? onNext : onSkip ?? onNext}
               color={tokens.colors.accent}
             />
           </View>

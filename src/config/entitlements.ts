@@ -1,43 +1,18 @@
-import Constants from "expo-constants";
+export const BALANCE_PRO_MONTHLY_PRODUCT_ID = "com.andrearizzo.balance.pro.monthly";
+export const BALANCE_PRO_YEARLY_PRODUCT_ID = "com.andrearizzo.balance.pro.yearly";
 
-type AppVariant = "free" | "pro";
+export const BALANCE_PRO_PRODUCT_IDS = [
+  BALANCE_PRO_YEARLY_PRODUCT_ID,
+  BALANCE_PRO_MONTHLY_PRODUCT_ID,
+] as const;
 
-type VariantLimits = {
-  liquidityWallets: number | null;
-  investmentWallets: number | null;
+export type BalanceProPlanId = "monthly" | "yearly";
+
+export const BALANCE_PRO_PRODUCT_ID_BY_PLAN: Record<BalanceProPlanId, (typeof BALANCE_PRO_PRODUCT_IDS)[number]> = {
+  monthly: BALANCE_PRO_MONTHLY_PRODUCT_ID,
+  yearly: BALANCE_PRO_YEARLY_PRODUCT_ID,
 };
 
-type LimitValue = number | null;
-type LimitKey = keyof VariantLimits;
+export const FREE_WALLET_LIMIT = 2;
 
-const FALLBACK_LIMITS: VariantLimits = {
-  liquidityWallets: 2,
-  investmentWallets: 1,
-};
-
-const configExtra = Constants.expoConfig?.extra;
-
-const resolvedVariant: AppVariant = configExtra?.appVariant === "pro" ? "pro" : "free";
-
-const configExtraLimits = (configExtra?.limits ?? {}) as Partial<Record<LimitKey, unknown>>;
-
-const isLimitValue = (value: unknown): value is LimitValue => typeof value === "number" || value === null;
-
-const isEmptyObject = (value: unknown): value is Record<string, never> =>
-  typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length === 0;
-
-const resolveLimit = (value: unknown, fallback: LimitValue): LimitValue => {
-  if (isLimitValue(value)) return value;
-  if (resolvedVariant === "pro" && isEmptyObject(value)) return null;
-  return fallback;
-};
-
-export const APP_VARIANT: AppVariant = resolvedVariant;
-
-export const LIMITS: VariantLimits = {
-  liquidityWallets: resolveLimit(configExtraLimits.liquidityWallets, FALLBACK_LIMITS.liquidityWallets),
-  investmentWallets: resolveLimit(
-    configExtraLimits.investmentWallets,
-    FALLBACK_LIMITS.investmentWallets
-  ),
-};
+export const IS_PRO_VARIANT = false;

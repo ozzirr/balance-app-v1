@@ -1,11 +1,14 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import OnboardingWelcome from "./screens/OnboardingWelcome";
+import OnboardingProImport from "./screens/OnboardingProImport";
 import OnboardingName from "./screens/OnboardingName";
 import OnboardingInvestments from "./screens/OnboardingInvestments";
+import { IS_PRO_VARIANT } from "@/config/entitlements";
 
 export type OnboardingStackParamList = {
   OnboardingWelcome: undefined;
+  OnboardingProImport: undefined;
   OnboardingName: undefined;
   OnboardingInvestments: undefined;
 };
@@ -21,13 +24,30 @@ export default function OnboardingNavigator({
   onComplete,
   shouldSeedOnComplete = true,
 }: Props): JSX.Element {
+  const isProVariant = IS_PRO_VARIANT;
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="OnboardingWelcome">
         {({ navigation }) => (
-          <OnboardingWelcome onNext={() => navigation.navigate("OnboardingName")} onSkip={onComplete} />
+          <OnboardingWelcome
+            variant={isProVariant ? "pro" : "free"}
+            onNext={() => navigation.navigate("OnboardingName")}
+            onSkip={onComplete}
+            onImport={isProVariant ? () => navigation.navigate("OnboardingProImport") : undefined}
+          />
         )}
       </Stack.Screen>
+      {isProVariant ? (
+        <Stack.Screen name="OnboardingProImport">
+          {({ navigation }) => (
+            <OnboardingProImport
+              onImportComplete={onComplete}
+              onContinueGuided={() => navigation.replace("OnboardingName")}
+            />
+          )}
+        </Stack.Screen>
+      ) : null}
       <Stack.Screen name="OnboardingName">
         {({ navigation }) => (
           <OnboardingName

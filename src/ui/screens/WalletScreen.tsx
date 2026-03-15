@@ -7,10 +7,7 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { createWallet, deleteWallet, listWallets, updateWallet, updateWalletSortOrders, DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
-import { getPreference } from "@/repositories/preferencesRepo";
 import type { Wallet, Currency, WalletType } from "@/repositories/types";
-import { APP_VARIANT, LIMITS } from "@/config/entitlements";
-import { openProWaitlistLink } from "@/config/storeLinks";
 import { DarkTheme, useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
@@ -29,6 +26,8 @@ import {
 } from "@/ui/components/EntriesUI";
 import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
 import { orderWalletsForUI, type WalletGroupOrder } from "@/domain/walletOrdering";
+import { useBalancePro } from "@/features/pro/BalanceProProvider";
+import type { BalanceProPlanId } from "@/config/entitlements";
 
 type WalletRouteParams = {
   walletId?: number;
@@ -57,8 +56,8 @@ function nextPresetColor(current: string): string {
 type AccordionItemProps = {
   title: string;
   subtitle?: string;
-  icon: string;
-  iconOverride?: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  iconOverride?: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   iconBackgroundOverride?: string;
   iconColorOverride?: string;
   onIconPress?: () => void;
@@ -86,7 +85,7 @@ const AccordionItem = ({
   const { tokens, isDark } = useDashboardTheme();
   const iconName = iconOverride ?? icon;
   const iconBg = iconBackgroundOverride ?? color ?? tokens.colors.glassBg;
-  const iconFg = iconColorOverride ?? (isDark ? tokens.colors.background : "#FFFFFF");
+  const iconFg = iconColorOverride ?? (isDark ? tokens.colors.bg : "#FFFFFF");
   return (
     <GlassCardContainer contentStyle={{ gap: 12, padding: 12 }}>
       <PressScale onPress={onToggle} style={[styles.walletRow, { paddingVertical: 6 }]}>
@@ -144,7 +143,7 @@ const AccordionItem = ({
   );
 };
 
-export default function WalletScreen(): JSX.Element {
+export default function WalletScreen(): React.ReactElement {
   const { tokens, isDark } = useDashboardTheme();
   const deleteIconColor = isDark ? tokens.colors.bg : tokens.colors.surface;
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
@@ -185,12 +184,28 @@ export default function WalletScreen(): JSX.Element {
   });
   const [expandedWalletId, setExpandedWalletId] = useState<number | null>(null);
   const [limitModalVisible, setLimitModalVisible] = useState(false);
-  const [storeErrorVisible, setStoreErrorVisible] = useState(false);
   const [confirmWalletId, setConfirmWalletId] = useState<number | null>(null);
   const [confirmWalletLoading, setConfirmWalletLoading] = useState(false);
   const [confirmWalletError, setConfirmWalletError] = useState<string | null>(null);
   const addWalletPulse = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef<ScrollView | null>(null);
+  const [pendingWalletType, setPendingWalletType] = useState<"LIQUIDITY" | "INVEST" | null>(null);
+  const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<BalanceProPlanId>("yearly");
+  const {
+    isPro,
+    activePlan,
+    isReady: isProReady,
+    isStoreAvailable,
+    isStoreLoading,
+    isPurchasePending,
+    isRestorePending,
+    availablePlans,
+    canCreateWallet,
+    prepareStore,
+    purchase,
+    restore,
+  } = useBalancePro();
   useEffect(() => {
     if (!showInvestments) {
       setTab("LIQUIDITY");
@@ -369,17 +384,41 @@ export default function WalletScreen(): JSX.Element {
     };
   }, [addWalletPulse, shouldPulseAdd]);
 
-  const getWalletCount = (type: "LIQUIDITY" | "INVEST") =>
-    type === "LIQUIDITY" ? liquidityWallets.length : investmentWallets.length;
-  const getLimitForType = (type: "LIQUIDITY" | "INVEST") =>
-    type === "LIQUIDITY" ? LIMITS.liquidityWallets : LIMITS.investmentWallets;
-  const hasReachedLimit = (type: "LIQUIDITY" | "INVEST") => {
-    const limit = getLimitForType(type);
-    if (limit === null) return false;
-    return getWalletCount(type) >= limit;
-  };
-  const canCreateWallet = (type: "LIQUIDITY" | "INVEST") => !hasReachedLimit(type);
-  const canReorder = getWalletCount(tab) > 1;
+  const walletCount = wallets.length;
+  const canCreateAnotherWallet = canCreateWallet(walletCount);
+  const canReorder = (tab === "LIQUIDITY" ? liquidityWallets.length : investmentWallets.length) > 1;
+
+  useEffect(() => {
+    const firstAvailablePlan = availablePlans.find((plan) => plan.product !== null)?.planId;
+    const selectedPlanAvailable = availablePlans.some((plan) => plan.planId === selectedPlanId && plan.product !== null);
+    if (!selectedPlanAvailable && firstAvailablePlan) {
+      setSelectedPlanId(firstAvailablePlan);
+    }
+  }, [availablePlans, selectedPlanId]);
+
+  useEffect(() => {
+    if (activePlan) {
+      setSelectedPlanId(activePlan);
+    }
+  }, [activePlan]);
+
+  useEffect(() => {
+    if (!isPro || !pendingWalletType) {
+      return;
+    }
+
+    setLimitModalVisible(false);
+    setShowAddWallet((prev) => ({ ...prev, [pendingWalletType]: true }));
+    setPendingWalletType(null);
+  }, [isPro, pendingWalletType]);
+
+  useEffect(() => {
+    if (!limitModalVisible) {
+      return;
+    }
+
+    void prepareStore();
+  }, [limitModalVisible, prepareStore]);
 
   useEffect(() => {
     if (!canReorder && reorderMode) {
@@ -394,16 +433,6 @@ export default function WalletScreen(): JSX.Element {
       INVEST: [...investmentWallets],
     });
   }, [reorderMode, liquidityWallets, investmentWallets]);
-
-  useEffect(() => {
-    if (reorderMode && canReorder) {
-      openReorderSheet();
-      return;
-    }
-    if (!reorderMode && reorderVisible) {
-      closeReorderSheet();
-    }
-  }, [reorderMode, canReorder, reorderVisible, openReorderSheet, closeReorderSheet]);
 
   const handleReorderEnd = useCallback(
     async (type: "LIQUIDITY" | "INVEST", data: Wallet[]) => {
@@ -485,7 +514,8 @@ export default function WalletScreen(): JSX.Element {
 
   const addWallet = async (type: "LIQUIDITY" | "INVEST") => {
     if (!newWalletDraft.name.trim()) return;
-    if (APP_VARIANT === "free" && !canCreateWallet(type)) {
+    if (!canCreateAnotherWallet) {
+      setPendingWalletType(type);
       setLimitModalVisible(true);
       return;
     }
@@ -509,12 +539,8 @@ export default function WalletScreen(): JSX.Element {
   };
 
   const handleRequestAddWallet = (type: "LIQUIDITY" | "INVEST") => {
-    if (APP_VARIANT === "pro") {
-      setShowAddWallet((prev) => ({ ...prev, [type]: true }));
-      return;
-    }
-
-    if (!canCreateWallet(type)) {
+    if (!canCreateAnotherWallet) {
+      setPendingWalletType(type);
       setLimitModalVisible(true);
       return;
     }
@@ -522,16 +548,89 @@ export default function WalletScreen(): JSX.Element {
     setShowAddWallet((prev) => ({ ...prev, [type]: true }));
   };
 
-  const handleOpenProWaitlist = useCallback(async () => {
-    try {
-      await openProWaitlistLink();
-      setLimitModalVisible(false);
-    } catch {
-      setStoreErrorVisible(true);
+  const handlePurchasePro = useCallback(async () => {
+    const result = await purchase(selectedPlanId);
+    switch (result.status) {
+      case "success":
+        setPurchaseNotice(t("wallets.actions.purchaseSuccess", { defaultValue: "Balance Pro attivato." }));
+        setLimitModalVisible(false);
+        return;
+      case "cancelled":
+        setPurchaseNotice(t("wallets.actions.purchaseCancelled", { defaultValue: "Acquisto annullato." }));
+        return;
+      case "pending":
+        setPurchaseNotice(
+          t("wallets.actions.purchasePending", {
+            defaultValue: "L'abbonamento è in attesa di conferma. Ti avviseremo appena Balance Pro sarà disponibile.",
+          })
+        );
+        return;
+      case "product-unavailable":
+        setPurchaseNotice(
+          t("wallets.actions.productUnavailable", {
+            defaultValue: "Questo piano non è disponibile al momento. Riprova tra poco.",
+          })
+        );
+        return;
+      case "store-unavailable":
+        setPurchaseNotice(t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." }));
+        return;
+      default:
+        setPurchaseNotice(
+          t("wallets.actions.purchaseError", {
+            defaultValue: "Impossibile completare l'acquisto ora. Riprova tra poco.",
+          })
+        );
+        return;
     }
-  }, []);
+  }, [purchase, selectedPlanId, t]);
+
+  const handleRestorePurchases = useCallback(async () => {
+    const result = await restore();
+    switch (result.status) {
+      case "restored":
+        setPurchaseNotice(t("wallets.actions.restoreSuccess", { defaultValue: "Abbonamento ripristinato." }));
+        setLimitModalVisible(false);
+        return;
+      case "nothing-to-restore":
+        setPurchaseNotice(t("wallets.actions.restoreEmpty", { defaultValue: "Nessun acquisto da ripristinare." }));
+        return;
+      case "store-unavailable":
+        setPurchaseNotice(t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." }));
+        return;
+      default:
+        setPurchaseNotice(
+          t("wallets.actions.restoreError", {
+            defaultValue: "Impossibile ripristinare gli acquisti ora. Riprova più tardi.",
+          })
+        );
+        return;
+    }
+  }, [restore, t]);
 
   const inputProps = createStandardTextInputProps(tokens);
+  const balanceProBenefits = useMemo(
+    () => [
+      t("wallets.actions.limitBenefitUnlimited"),
+      t("wallets.actions.limitBenefitInsights"),
+      t("wallets.actions.limitBenefitControl"),
+    ],
+    [t]
+  );
+  const selectedPlanLabel = selectedPlanId === "yearly"
+    ? t("wallets.actions.planYearly", { defaultValue: "Yearly" })
+    : t("wallets.actions.planMonthly", { defaultValue: "Monthly" });
+  const paywallStatusMessage = !isProReady
+    ? t("wallets.actions.limitStatusSyncing", {
+        defaultValue: "Sto verificando il tuo stato Balance Pro...",
+      })
+    : isStoreLoading
+    ? t("wallets.actions.limitStatusSyncing", {
+        defaultValue: "Sto verificando il tuo stato Balance Pro...",
+      })
+    : !isStoreAvailable
+    ? t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." })
+    : undefined;
   const closeReorderModal = useCallback(() => setReorderMode(false), []);
   const reorderSheetBackground =
     Platform.OS === "android"
@@ -564,6 +663,15 @@ export default function WalletScreen(): JSX.Element {
       }
     });
   }, [reorderAnim]);
+  useEffect(() => {
+    if (reorderMode && canReorder) {
+      openReorderSheet();
+      return;
+    }
+    if (!reorderMode && reorderVisible) {
+      closeReorderSheet();
+    }
+  }, [reorderMode, canReorder, reorderVisible, openReorderSheet, closeReorderSheet]);
   const reorderTranslateY = reorderAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [64, 0],
@@ -656,7 +764,9 @@ export default function WalletScreen(): JSX.Element {
                                 borderColor: tokens.colors.glassBorder,
                               },
                             ]}
-                          />
+                          >
+                            <View />
+                          </PressScale>
                         </View>
                         <SegmentedControlPill
                           value={walletEdits[wallet.id]?.currency ?? wallet.currency}
@@ -708,7 +818,9 @@ export default function WalletScreen(): JSX.Element {
                               borderColor: tokens.colors.glassBorder,
                             },
                           ]}
-                        />
+                        >
+                          <View />
+                        </PressScale>
                       </View>
                       <SegmentedControlPill
                         value={newWalletDraft.currency}
@@ -792,7 +904,9 @@ export default function WalletScreen(): JSX.Element {
                               borderColor: tokens.colors.glassBorder,
                             },
                           ]}
-                        />
+                        >
+                          <View />
+                        </PressScale>
                       </View>
                       <TextInput
                         label={t("wallets.form.investmentTypeLabel")}
@@ -850,7 +964,9 @@ export default function WalletScreen(): JSX.Element {
                               borderColor: tokens.colors.glassBorder,
                             },
                           ]}
-                        />
+                        >
+                          <View />
+                        </PressScale>
                       </View>
                       <TextInput
                         label={t("wallets.form.investmentTypeLabel")}
@@ -907,12 +1023,31 @@ export default function WalletScreen(): JSX.Element {
 
         <LimitReachedModal
           visible={limitModalVisible}
-          onClose={() => setLimitModalVisible(false)}
-          onUpgrade={handleOpenProWaitlist}
+          onClose={() => {
+            setLimitModalVisible(false);
+            setPendingWalletType(null);
+          }}
+          onUpgrade={handlePurchasePro}
+          plans={availablePlans}
+          selectedPlanId={selectedPlanId}
+          onSelectPlan={setSelectedPlanId}
+          onSecondaryAction={handleRestorePurchases}
+          title={t("wallets.actions.limitModalTitle")}
+          subtitle={t("wallets.actions.limitModalSubtitle")}
+          ctaLabel={t("wallets.actions.limitUpgradeCta", {
+            plan: selectedPlanLabel,
+            defaultValue: "Continua con {{plan}}",
+          })}
+          secondaryActionLabel={t("wallets.actions.restorePurchases")}
+          secondaryLabel={t("wallets.actions.limitMaybeLater")}
+          benefits={balanceProBenefits}
+          primaryLoading={isPurchasePending}
+          secondaryActionLoading={isRestorePending}
+          statusMessage={paywallStatusMessage}
         />
 
-        <Snackbar visible={storeErrorVisible} onDismiss={() => setStoreErrorVisible(false)} duration={4000}>
-          {t("wallets.actions.storeError")}
+        <Snackbar visible={purchaseNotice !== null} onDismiss={() => setPurchaseNotice(null)} duration={4000}>
+          {purchaseNotice}
         </Snackbar>
       </ScrollView>
       <Modal

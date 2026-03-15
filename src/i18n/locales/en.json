@@ -29,6 +29,20 @@
       "bullet2": "See your net worth over time",
       "bullet3": "No account. No cloud. No tracking"
     },
+    "proWelcome": {
+      "title": "Welcome to Balance Pro",
+      "subtitle": "If you are coming from Balance, open your old app and export your data. You can import it in the next step and continue without starting from scratch.",
+      "ctaImport": "Import data from Balance",
+      "ctaGuided": "Continue with guided onboarding"
+    },
+    "proImport": {
+      "title": "Import your data",
+      "subtitle": "Select the file exported from Balance to transfer your data into Balance Pro.",
+      "ctaImport": "Select file to import",
+      "ctaGuided": "Continue with guided onboarding",
+      "importing": "Importing data...",
+      "importError": "Import failed. Try again with a file exported from Balance."
+    },
     "name": {
       "title": "What’s your name?",
       "subtitle": "We’ll use it to welcome you to Balance.",
@@ -268,17 +282,31 @@
       "colorLabel": "Color"
     },
     "actions": {
-      "limitTitle": "Balance Pro is coming soon",
-      "limitBody": "Want more wallets and advanced features? Join the waitlist and get notified when Balance Pro becomes available.",
-      "limitModalTitle": "Balance Pro is coming soon",
-      "limitModalSubtitle": "Want more wallets and advanced features? Join the waitlist and get notified when Balance Pro becomes available.",
+      "limitTitle": "Unlock Balance Pro",
+      "limitBody": "The free version includes up to 2 wallets. Balance Pro removes the limit and keeps everything inside the same app.",
+      "limitModalTitle": "Unlock Balance Pro",
+      "limitModalSubtitle": "The free version includes up to 2 wallets. Choose a Balance Pro plan to unlock unlimited wallets and keep everything in the same app.",
       "limitBenefitUnlimited": "Unlimited wallets",
       "limitBenefitInsights": "Advanced insights",
       "limitBenefitControl": "Full control over your finances",
-      "limitUpgradeCta": "Join the waitlist",
+      "planMonthly": "Monthly",
+      "planYearly": "Yearly",
+      "planBestValue": "Best value",
+      "limitUpgradeCta": "Continue with {{plan}}",
+      "restorePurchases": "Restore purchases",
       "limitMaybeLater": "Not now",
-      "downloadPro": "Join the waitlist",
-      "storeError": "Unable to open the link."
+      "downloadPro": "Unlock Balance Pro",
+      "limitStatusSyncing": "Checking your Balance Pro status...",
+      "storeError": "Unable to open the link.",
+      "storeUnavailable": "The store is unavailable right now. Please try again later.",
+      "productUnavailable": "This plan is currently unavailable. Please try again shortly.",
+      "purchaseSuccess": "Balance Pro is active.",
+      "purchaseCancelled": "Purchase cancelled.",
+      "purchasePending": "Your subscription is pending confirmation. We'll unlock Balance Pro as soon as Apple confirms it.",
+      "purchaseError": "Unable to complete the purchase right now. Please try again shortly.",
+      "restoreSuccess": "Subscription restored.",
+      "restoreEmpty": "No active subscription was found to restore.",
+      "restoreError": "Unable to restore purchases right now. Please try again later."
     },
     "snapshot": {
       "investmentTypeFallback": "Investment type",

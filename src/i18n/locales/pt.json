@@ -29,6 +29,20 @@
       "bullet2": "Vê o teu património líquido ao longo do tempo",
       "bullet3": "Sem conta. Sem cloud. Sem rastreio"
     },
+    "proWelcome": {
+      "title": "Bem-vindo ao Balance Pro",
+      "subtitle": "Se vens do Balance, abre a tua app antiga e exporta os dados. Poderás importá-los no passo seguinte e continuar sem começar do zero.",
+      "ctaImport": "Importar dados do Balance",
+      "ctaGuided": "Continuar com onboarding guiado"
+    },
+    "proImport": {
+      "title": "Importa os teus dados",
+      "subtitle": "Seleciona o ficheiro exportado do Balance para transferir os teus dados para o Balance Pro.",
+      "ctaImport": "Selecionar ficheiro para importar",
+      "ctaGuided": "Continuar com onboarding guiado",
+      "importing": "A importar dados...",
+      "importError": "Falha na importação. Tenta novamente com um ficheiro exportado do Balance."
+    },
     "name": {
       "title": "Como te chamas?",
       "subtitle": "Vamos usar o teu nome para te dar as boas-vindas ao Balance.",
@@ -268,17 +282,31 @@
       "colorLabel": "Cor"
     },
     "actions": {
-      "limitTitle": "Balance Pro está a chegar",
-      "limitBody": "Queres mais carteiras e funcionalidades avançadas? Entra na lista de espera e recebe uma notificação quando o Balance Pro estiver disponível.",
-      "limitModalTitle": "Balance Pro está a chegar",
-      "limitModalSubtitle": "Queres mais carteiras e funcionalidades avançadas? Entra na lista de espera e recebe uma notificação quando o Balance Pro estiver disponível.",
+      "limitTitle": "Desbloquear Balance Pro",
+      "limitBody": "A versão gratuita inclui até 2 carteiras. O Balance Pro remove esse limite e mantém tudo na mesma app.",
+      "limitModalTitle": "Desbloquear Balance Pro",
+      "limitModalSubtitle": "A versão gratuita inclui até 2 carteiras. Escolhe um plano Balance Pro para desbloquear carteiras ilimitadas e manter tudo na mesma app.",
       "limitBenefitUnlimited": "Carteiras ilimitadas",
       "limitBenefitInsights": "Insights avançados",
       "limitBenefitControl": "Controlo total das tuas finanças",
-      "limitUpgradeCta": "Entrar na lista de espera",
+      "planMonthly": "Mensal",
+      "planYearly": "Anual",
+      "planBestValue": "Melhor valor",
+      "limitUpgradeCta": "Continuar com {{plan}}",
+      "restorePurchases": "Restaurar compras",
       "limitMaybeLater": "Agora não",
-      "downloadPro": "Entrar na lista de espera",
-      "storeError": "Não foi possível abrir o link."
+      "downloadPro": "Desbloquear Balance Pro",
+      "limitStatusSyncing": "A verificar o teu estado Balance Pro...",
+      "storeError": "Não foi possível abrir o link.",
+      "storeUnavailable": "A loja não está disponível neste momento. Tenta novamente mais tarde.",
+      "productUnavailable": "Este plano não está disponível neste momento. Tenta novamente em breve.",
+      "purchaseSuccess": "Balance Pro ativado.",
+      "purchaseCancelled": "Compra cancelada.",
+      "purchasePending": "A subscrição está pendente de confirmação. Vamos desbloquear o Balance Pro assim que a Apple confirmar.",
+      "purchaseError": "Não foi possível concluir a compra agora. Tenta novamente em breve.",
+      "restoreSuccess": "Subscrição restaurada.",
+      "restoreEmpty": "Nenhuma subscrição ativa encontrada para restaurar.",
+      "restoreError": "Não foi possível restaurar as compras agora. Tenta novamente mais tarde."
     },
     "snapshot": {
       "investmentTypeFallback": "Tipo de investimento",

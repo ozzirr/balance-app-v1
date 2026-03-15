@@ -75,6 +75,31 @@ async function setUserVersion(version: number): Promise<void> {
   await executeSql(`PRAGMA user_version = ${version}`);
 }
 
+type TableInfoRow = {
+  name?: string;
+};
+
+async function hasColumn(table: string, column: string): Promise<boolean> {
+  const result = await executeSql(`PRAGMA table_info(${table})`);
+  for (let i = 0; i < result.rows.length; i += 1) {
+    const row = result.rows.item(i) as TableInfoRow;
+    if (row.name === column) return true;
+  }
+  return false;
+}
+
+async function ensureCriticalSchema(): Promise<void> {
+  // Self-heal for legacy DBs where user_version may be ahead but columns are missing.
+  if (!(await hasColumn("income_entries", "end_date"))) {
+    await executeSql("ALTER TABLE income_entries ADD COLUMN end_date TEXT");
+  }
+  if (!(await hasColumn("expense_entries", "end_date"))) {
+    await executeSql("ALTER TABLE expense_entries ADD COLUMN end_date TEXT");
+  }
+  await executeSql("CREATE INDEX IF NOT EXISTS idx_income_end_date ON income_entries(end_date)");
+  await executeSql("CREATE INDEX IF NOT EXISTS idx_expense_end_date ON expense_entries(end_date)");
+}
+
 export async function runMigrations(): Promise<void> {
   const currentVersion = await getUserVersion();
   let version = currentVersion;
@@ -85,6 +110,7 @@ export async function runMigrations(): Promise<void> {
       await setUserVersion(version);
     }
   }
+  await ensureCriticalSchema();
 }
 
 export async function withTransaction(fn: (db: SQLiteDatabase) => Promise<void>): Promise<void> {

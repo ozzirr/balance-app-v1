@@ -1,7 +1,8 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { executeSql, withTransaction } from "@/db/db";
+import { executeSql, runMigrations, withTransaction } from "@/db/db";
 import type { ExportPayload } from "./types";
 import { compareIsoDates, isIsoDate } from "@/utils/dates";
+import { addYearsClamped } from "@/utils/recurrence";
 import type { SnapshotLine } from "@/repositories/types";
 import { DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 
@@ -16,6 +17,38 @@ const REQUIRED_KEYS_V1: (keyof ExportPayload)[] = [
 ];
 const REQUIRED_KEYS_V2: (keyof ExportPayload)[] = [...REQUIRED_KEYS_V1, "preferences"];
 const REQUIRED_KEYS_V3: (keyof ExportPayload)[] = [...REQUIRED_KEYS_V2, "wallet_order"];
+
+type RecurringImportEntry = {
+  start_date: string;
+  end_date?: string | null;
+  recurrence_frequency?: string | null;
+  one_shot?: number;
+};
+
+function normalizeRecurringEndDate<T extends RecurringImportEntry>(entry: T): T {
+  const recurring = entry.one_shot === 0 && Boolean(entry.recurrence_frequency);
+  if (!recurring) {
+    return { ...entry, end_date: entry.end_date ?? null };
+  }
+  const validEndDate =
+    typeof entry.end_date === "string" &&
+    isIsoDate(entry.end_date) &&
+    isIsoDate(entry.start_date) &&
+    compareIsoDates(entry.end_date, entry.start_date) >= 0;
+  if (validEndDate) return entry;
+  if (isIsoDate(entry.start_date)) {
+    return { ...entry, end_date: addYearsClamped(entry.start_date, 20) };
+  }
+  return { ...entry, end_date: "2035-12-31" };
+}
+
+function normalizeImportPayload(payload: ExportPayload): ExportPayload {
+  return {
+    ...payload,
+    income_entries: (payload.income_entries ?? []).map((entry) => normalizeRecurringEndDate(entry)),
+    expense_entries: (payload.expense_entries ?? []).map((entry) => normalizeRecurringEndDate(entry)),
+  };
+}
 
 export function validateExportPayload(payload: ExportPayload): string[] {
   const errors: string[] = [];
@@ -162,7 +195,9 @@ export async function exportToFile(filePath: string): Promise<void> {
 }
 
 export async function importFromJson(payload: ExportPayload): Promise<void> {
-  const errors = validateExportPayload(payload);
+  await runMigrations();
+  const normalizedPayload = normalizeImportPayload(payload);
+  const errors = validateExportPayload(normalizedPayload);
   if (errors.length) {
     throw new Error(errors.join("\n"));
   }
@@ -175,7 +210,7 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
       "expense_entries",
       "wallets",
       "expense_categories",
-      ...(payload.preferences ? ["preferences"] : []),
+      ...(normalizedPayload.preferences ? ["preferences"] : []),
     ];
 
     for (const table of tables) {
@@ -183,11 +218,11 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
     }
 
     const walletOrderMap = new Map<number, number>();
-    if (payload.wallet_order?.length) {
-      payload.wallet_order.forEach((id, index) => walletOrderMap.set(id, index));
+    if (normalizedPayload.wallet_order?.length) {
+      normalizedPayload.wallet_order.forEach((id, index) => walletOrderMap.set(id, index));
     }
 
-    for (const row of payload.wallets) {
+    for (const row of normalizedPayload.wallets) {
       const sortOrderFromPayload =
         (row as unknown as { sort_order?: number; sortOrder?: number }).sort_order ??
         (row as unknown as { sortOrder?: number }).sortOrder;
@@ -207,7 +242,7 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
       );
     }
 
-    for (const row of payload.expense_categories) {
+    for (const row of normalizedPayload.expense_categories) {
       await db.runAsync("INSERT INTO expense_categories (id, name, active, color) VALUES (?, ?, ?, ?)", [
         row.id,
         row.name,
@@ -216,7 +251,7 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
       ]);
     }
 
-    for (const row of payload.income_entries) {
+    for (const row of normalizedPayload.income_entries) {
       await db.runAsync(
         `INSERT INTO income_entries
         (id, name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id)
@@ -237,7 +272,7 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
       );
     }
 
-    for (const row of payload.expense_entries) {
+    for (const row of normalizedPayload.expense_entries) {
       await db.runAsync(
         `INSERT INTO expense_entries
         (id, name, amount, start_date, end_date, recurrence_frequency, recurrence_interval, one_shot, note, active, wallet_id, expense_category_id)
@@ -259,11 +294,11 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
       );
     }
 
-    for (const row of payload.snapshots) {
+    for (const row of normalizedPayload.snapshots) {
       await db.runAsync("INSERT INTO snapshots (id, date) VALUES (?, ?)", [row.id, row.date]);
     }
 
-    for (const row of payload.snapshot_lines as SnapshotLine[]) {
+    for (const row of normalizedPayload.snapshot_lines as SnapshotLine[]) {
       await db.runAsync(
         `INSERT INTO snapshot_lines
         (id, snapshot_id, wallet_id, amount)
@@ -272,8 +307,8 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
       );
     }
 
-    if (payload.preferences) {
-      for (const row of payload.preferences) {
+    if (normalizedPayload.preferences) {
+      for (const row of normalizedPayload.preferences) {
         await db.runAsync("INSERT INTO preferences (key, value) VALUES (?, ?)", [
           row.key,
           row.value,

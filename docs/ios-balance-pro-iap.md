@@ -1,0 +1,45 @@
+# Balance Pro Subscriptions
+
+Setup minimo per preparare `Balance Pro` alla review Apple nella build iOS unica.
+Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Balance Pro` sono nomi commerciali/subscription usati in App Store Connect e nell'interfaccia.
+
+## App Store Connect
+
+1. Vai su `Apps > Balance: Finanza Personale > In-App Purchases`.
+2. Crea un `Subscription Group` per `Balance Pro`.
+3. Aggiungi due prodotti `Auto-Renewable Subscription`:
+   - `com.andrearizzo.balance.pro.monthly`
+   - `com.andrearizzo.balance.pro.yearly`
+4. Imposta prezzo, localizzazioni e screenshot review per entrambi i piani.
+5. Salva i prodotti e portali in stato `Ready to Submit`.
+6. Quando carichi la build TestFlight/App Store, associa gli abbonamenti alla submission.
+
+## Expo / native config
+
+- La config Expo registra il plugin `expo-iap`.
+- Dopo la modifica, rigenera il progetto nativo con `npx expo prebuild` oppure usa EAS Build.
+- Per test locali su device iOS reale, usa una dev build o TestFlight. Expo Go non basta per testare IAP.
+
+## Sandbox testing
+
+1. Crea un utente `Sandbox Tester` in App Store Connect.
+2. Installa una build dev/TestFlight dell'app su iPhone.
+3. In iOS esci dall'account App Store reale per la sezione sandbox se necessario:
+   `Settings > Developer > Sandbox Apple Account`.
+4. Avvia l'app con 2 wallet esistenti.
+5. Prova ad aggiungere il 3° wallet:
+   - deve aprirsi la modale `Sblocca Balance Pro`;
+   - la modale deve permettere di scegliere `Mensile` o `Annuale`;
+   - la CTA primaria deve aprire il foglio abbonamento Apple per il piano selezionato;
+   - `Ripristina acquisti` deve sincronizzare un acquisto già fatto.
+6. Verifica i casi:
+   - acquisto riuscito: modale chiusa, `isPro=true`, wallet illimitati;
+   - acquisto annullato: nessun crash, modale resta disponibile;
+   - restore senza abbonamenti attivi: messaggio dedicato;
+   - device/store non disponibile: messaggio dedicato.
+
+## Note review Apple
+
+- Il paywall compare solo quando l'utente prova a superare il limite gratuito di 2 wallet.
+- La build deve includere il pulsante `Ripristina acquisti`.
+- Gli abbonamenti devono essere approvabili insieme alla build; se restano in bozza, la review può bloccarsi.

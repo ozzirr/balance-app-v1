@@ -36,6 +36,7 @@ import type { SecurityModalStackParamList } from "@/security/securityFlowsTypes"
 import { initI18n } from "@/i18n";
 import i18n from "i18next";
 import { SettingsProvider } from "@/settings/useSettings";
+import { BalanceProProvider } from "@/features/pro/BalanceProProvider";
 
 enableScreens(false);
 
@@ -45,6 +46,14 @@ type RootStackParamList = SecurityModalStackParamList & {
 };
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+function WalletScreenWithBalancePro(): React.ReactElement {
+  return (
+    <BalanceProProvider>
+      <WalletScreen />
+    </BalanceProProvider>
+  );
+}
 
 let splashPrevented = false;
 if (!splashPrevented) {
@@ -259,7 +268,7 @@ export default function App(): JSX.Element {
                                       component={EntriesScreen}
                                       options={{ tabBarLabel: "Balance" }}
                                     />
-                                    <Tab.Screen name="Wallet" component={WalletScreen} />
+                                    <Tab.Screen name="Wallet" component={WalletScreenWithBalancePro} />
                                     <Tab.Screen
                                       name="Impostazioni"
                                       component={SettingsScreen}

@@ -29,6 +29,20 @@
       "bullet2": "Visualizza il tuo patrimonio nel tempo",
       "bullet3": "Nessun account. Nessun cloud. Nessun tracking"
     },
+    "proWelcome": {
+      "title": "Benvenuto in Balance Pro",
+      "subtitle": "Se arrivi da Balance, apri la tua vecchia app ed esporta i dati. Potrai importarli qui nel passaggio successivo e continuare senza ripartire da zero.",
+      "ctaImport": "Importa i dati da Balance",
+      "ctaGuided": "Continua con l'onboarding guidato"
+    },
+    "proImport": {
+      "title": "Importa i tuoi dati",
+      "subtitle": "Seleziona il file esportato da Balance per trasferire i tuoi dati in Balance Pro.",
+      "ctaImport": "Seleziona file da importare",
+      "ctaGuided": "Continua con l'onboarding guidato",
+      "importing": "Importazione in corso...",
+      "importError": "Importazione non riuscita. Riprova con un file esportato da Balance."
+    },
     "name": {
       "title": "Come ti chiami?",
       "subtitle": "Useremo il tuo nome per darti il benvenuto in Balance.",
@@ -268,17 +282,31 @@
       "colorLabel": "Colore"
     },
     "actions": {
-      "limitTitle": "Balance Pro è in arrivo",
-      "limitBody": "Vuoi più wallet e funzioni avanzate? Iscriviti alla lista d’attesa e ricevi una notifica quando Balance Pro sarà disponibile.",
-      "limitModalTitle": "Balance Pro è in arrivo",
-      "limitModalSubtitle": "Vuoi più wallet e funzioni avanzate? Iscriviti alla lista d’attesa e ricevi una notifica quando Balance Pro sarà disponibile.",
+      "limitTitle": "Sblocca Balance Pro",
+      "limitBody": "La versione gratuita include fino a 2 wallet. Con Balance Pro rimuovi il limite e continui a gestire tutti i tuoi wallet nella stessa app.",
+      "limitModalTitle": "Sblocca Balance Pro",
+      "limitModalSubtitle": "La versione gratuita include fino a 2 wallet. Scegli un piano Balance Pro per sbloccare wallet illimitati e mantenere tutto nella stessa app.",
       "limitBenefitUnlimited": "Wallet illimitati",
       "limitBenefitInsights": "Approfondimenti avanzati",
       "limitBenefitControl": "Pieno controllo delle tue finanze",
-      "limitUpgradeCta": "Iscriviti alla lista d’attesa",
+      "planMonthly": "Mensile",
+      "planYearly": "Annuale",
+      "planBestValue": "Miglior valore",
+      "limitUpgradeCta": "Continua con {{plan}}",
+      "restorePurchases": "Ripristina acquisti",
       "limitMaybeLater": "Non ora",
-      "downloadPro": "Iscriviti alla lista d’attesa",
-      "storeError": "Impossibile aprire il link."
+      "downloadPro": "Sblocca Balance Pro",
+      "limitStatusSyncing": "Sto verificando il tuo stato Balance Pro...",
+      "storeError": "Impossibile aprire il link.",
+      "storeUnavailable": "Store non disponibile. Riprova più tardi.",
+      "productUnavailable": "Questo piano non è disponibile al momento. Riprova tra poco.",
+      "purchaseSuccess": "Balance Pro attivato.",
+      "purchaseCancelled": "Acquisto annullato.",
+      "purchasePending": "L'abbonamento è in attesa di conferma. Ti avviseremo appena Balance Pro sarà disponibile.",
+      "purchaseError": "Impossibile completare l'acquisto ora. Riprova tra poco.",
+      "restoreSuccess": "Abbonamento ripristinato.",
+      "restoreEmpty": "Nessun abbonamento attivo da ripristinare.",
+      "restoreError": "Impossibile ripristinare gli acquisti ora. Riprova più tardi."
     },
     "snapshot": {
       "investmentTypeFallback": "Tipo investimento",

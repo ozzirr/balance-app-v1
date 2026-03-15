@@ -3,46 +3,16 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "free": {
+    "preview": {
       "distribution": "internal",
-      "env": {
-        "APP_VARIANT": "free"
-      },
       "android": {
         "buildType": "apk",
         "credentialsSource": "remote"
       }
     },
-    "pro": {
-      "distribution": "internal",
-      "env": {
-        "APP_VARIANT": "pro"
-      },
-      "android": {
-        "buildType": "apk",
-        "credentialsSource": "remote"
-      }
-    },
-    "freeStore": {
+    "production": {
       "distribution": "store",
       "autoIncrement": true,
-      "env": {
-        "APP_VARIANT": "free"
-      },
-      "ios": {
-        "autoIncrement": "buildNumber"
-      },
-      "android": {
-        "buildType": "app-bundle",
-        "credentialsSource": "remote"
-      }
-    },
-    "proStore": {
-      "distribution": "store",
-      "autoIncrement": true,
-      "env": {
-        "APP_VARIANT": "pro"
-      },
       "ios": {
         "autoIncrement": "buildNumber"
       },
@@ -53,18 +23,11 @@
     }
   },
   "submit": {
-    "freeStore": {
+    "production": {
       "ios": {
         "bundleIdentifier": "com.andrearizzo.balance",
         "appleTeamId": "G6G624VHBN",
         "ascAppId": "6758206139"
-      }
-    },
-    "proStore": {
-      "ios": {
-        "bundleIdentifier": "com.andrearizzo.balance.pro",
-        "appleTeamId": "G6G624VHBN",
-        "ascAppId": "6758208812"
       }
     }
   }
