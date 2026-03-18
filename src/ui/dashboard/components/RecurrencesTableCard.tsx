@@ -71,7 +71,7 @@ export default function RecurrencesTableCard({
             row.meta ? (
               <SmallOutlinePillButton
                 label=""
-                onPress={() => onPressRow?.(row.meta)}
+                onPress={() => onPressRow?.(row.meta!)}
                 color={tokens.colors.accent}
                 icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={tokens.colors.accent} />}
               />

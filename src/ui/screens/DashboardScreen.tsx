@@ -548,7 +548,7 @@ export default function DashboardScreen(): JSX.Element {
                     <View style={styles.rangeRow}>
                       <RangeSelector
                         selectedRange={kpiDeltaRange}
-                        onChangeRange={setKpiDeltaRange}
+                        onChangeRange={(range) => setKpiDeltaRange(range)}
                         options={kpiRangeOptions}
                         showLabel={false}
                       />

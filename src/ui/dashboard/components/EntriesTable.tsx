@@ -20,12 +20,12 @@ export type EntriesTableRow<M = unknown> = {
   meta?: M;
 };
 
-type EntriesTableProps = {
-  rows: EntriesTableRow[];
+type EntriesTableProps<M = unknown> = {
+  rows: EntriesTableRow<M>[];
   emptyLabel?: string;
   minWidth?: number;
   showCategory?: boolean;
-  renderAction?: (row: EntriesTableRow) => React.ReactNode;
+  renderAction?: (row: EntriesTableRow<M>) => React.ReactNode;
   showPagination?: boolean;
 };
 
@@ -37,14 +37,14 @@ const AMOUNT_COLUMN_WIDTH = 72;
 const DESC_COLUMN_WIDTH = 110;
 const ACTION_COLUMN_WIDTH = 52;
 
-export default function EntriesTable({
+export default function EntriesTable<M = unknown>({
   rows,
   emptyLabel,
   minWidth,
   showCategory = true,
   renderAction,
   showPagination = true,
-}: EntriesTableProps): JSX.Element {
+}: EntriesTableProps<M>): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
   const [pageIndex, setPageIndex] = useState(0);
@@ -83,9 +83,9 @@ export default function EntriesTable({
     const start = pageIndex * ROWS_PER_PAGE;
     return rows.slice(start, start + ROWS_PER_PAGE);
   }, [pageIndex, rows, showPagination]);
-  const displayRows = useMemo(() => {
+  const displayRows = useMemo<Array<EntriesTableRow<M> | null>>(() => {
     if (!showPagination) return pageRows;
-    const filled = [...pageRows];
+    const filled: Array<EntriesTableRow<M> | null> = [...pageRows];
     while (filled.length < ROWS_PER_PAGE) {
       filled.push(null);
     }

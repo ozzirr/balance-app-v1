@@ -151,7 +151,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
                   style={{
                     axis: { stroke: "transparent" },
                     grid: { stroke: tokens.colors.border },
-                    tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 10, dx: 12 },
+                    tickLabels: { fontSize: 10, fill: tokens.colors.muted, padding: 10 },
                   }}
                 />
                 <VictoryGroup offset={6}>

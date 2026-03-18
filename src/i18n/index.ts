@@ -38,7 +38,7 @@ async function loadInitialLanguage(): Promise<SupportedLanguage> {
   if (savedLanguage && SUPPORTED_LANGUAGES.includes(savedLanguage as SupportedLanguage)) {
     return savedLanguage as SupportedLanguage;
   }
-  return resolveSupportedLanguage(Localization.locale);
+  return resolveSupportedLanguage(Localization.getLocales()[0]?.languageTag);
 }
 
 export function initI18n(): Promise<void> {

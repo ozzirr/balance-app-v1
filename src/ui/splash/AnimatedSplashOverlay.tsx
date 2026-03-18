@@ -4,16 +4,15 @@ import { Animated, Easing, ImageSourcePropType, StyleSheet, View } from "react-n
 type AnimatedSplashOverlayProps = {
   visible: boolean;
   active: boolean;
-  themeMode: "dark" | "light";
   onAnimationComplete: () => void;
 };
 
-const ICON_SOURCE: ImageSourcePropType = require("../../../assets/icon.png");
+const ICON_SOURCE: ImageSourcePropType = require("../../../assets/splash-icon.png");
+const SPLASH_BACKGROUND_COLOR = "#0B0E1A";
 
 export default function AnimatedSplashOverlay({
   visible,
   active,
-  themeMode,
   onAnimationComplete,
 }: AnimatedSplashOverlayProps): JSX.Element | null {
   const scale = useRef(new Animated.Value(1)).current;
@@ -45,10 +44,8 @@ export default function AnimatedSplashOverlay({
     return null;
   }
 
-  const backgroundColor = themeMode === "dark" ? "#0B0E1A" : "#FFFFFF";
-
   return (
-    <View style={[styles.overlay, { backgroundColor }]} pointerEvents="auto">
+    <View style={[styles.overlay, { backgroundColor: SPLASH_BACKGROUND_COLOR }]} pointerEvents="auto">
       <Animated.Image
         source={ICON_SOURCE}
         style={[styles.icon, { opacity, transform: [{ scale }] }]}

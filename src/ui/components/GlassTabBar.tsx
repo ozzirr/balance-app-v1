@@ -10,7 +10,9 @@ import LimitReachedModal from "@/ui/components/LimitReachedModal";
 import { useTranslation } from "react-i18next";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 
-const ICONS: Record<string, string> = {
+type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
+
+const ICONS: Record<string, IconName> = {
   Dashboard: "view-grid",
   Snapshot: "calendar-month-outline",
   Balance: "swap-vertical",
@@ -106,7 +108,7 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
                     navigation.navigate(route.name);
                   }
                 };
-                const icon = ICONS[route.name] ?? "circle-outline";
+                const icon: IconName = ICONS[route.name] ?? "circle-outline";
 
                 return (
                   <Pressable

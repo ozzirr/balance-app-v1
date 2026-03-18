@@ -712,8 +712,8 @@ export default function SnapshotScreen(): JSX.Element {
                   <GlassCardContainer key={`${line.walletId}-${index}`}>
                     <SectionHeader title={walletTitle} />
                     <View style={styles.lineInputRow}>
-                      <TextInput
-                        ref={(ref) => {
+                        <TextInput
+                        ref={(ref: React.ComponentRef<typeof TextInput> | null) => {
                           inputRefs.current[line.walletId] = ref;
                         }}
                         keyboardType="decimal-pad"

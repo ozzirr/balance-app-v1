@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { getPreference } from "@/repositories/preferencesRepo";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
@@ -16,7 +16,7 @@ export default function ProfileButton({
   isSettingsScreen,
   position = "right",
 }: Props): JSX.Element {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const { tokens } = useDashboardTheme();
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
 

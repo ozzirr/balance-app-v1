@@ -121,6 +121,11 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
     setPin((prev) => prev.slice(0, -1));
   }, [busy]);
 
+  const handleClearAll = useCallback(() => {
+    if (busy) return;
+    setPin("");
+  }, [busy]);
+
   const authInProgressRef = useRef(false);
   const authDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState ?? "active");

@@ -298,7 +298,7 @@ export default function PortfolioLineChartCard({
           bounces={false}
           overScrollMode="never"
           contentContainerStyle={[styles.chartScroll, { justifyContent: "flex-end" }]}
-          contentOffset={{ x: chartOffset }}
+          contentOffset={{ x: chartOffset, y: 0 }}
         >
           <VictoryChart
             width={chartWidth}

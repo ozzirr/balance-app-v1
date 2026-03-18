@@ -68,7 +68,7 @@ export default function OnboardingIncomeRecurring(): JSX.Element {
             textColor={tokens.colors.text}
           />
           {amountValue.length > 0 && !amountValid && (
-            <Text style={[styles.errorText, { color: tokens.colors.error }]}>
+            <Text style={[styles.errorText, { color: tokens.colors.red }]}>
               Inserisci un importo maggiore di zero
             </Text>
           )}

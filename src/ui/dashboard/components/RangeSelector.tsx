@@ -16,14 +16,14 @@ type Props<T extends string> = {
   accessibilityLabel?: string;
 };
 
-export default function RangeSelector({
+export default function RangeSelector<T extends string>({
   selectedRange,
   onChangeRange,
   options,
   showLabel = true,
   label,
   accessibilityLabel,
-}: Props<string>): JSX.Element {
+}: Props<T>): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
   const selectedLabel = useMemo(

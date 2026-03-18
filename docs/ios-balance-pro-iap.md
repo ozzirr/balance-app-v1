@@ -17,6 +17,7 @@ Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Bal
 ## Expo / native config
 
 - La config Expo registra il plugin `expo-iap`.
+- La paywall usa `EXPO_PUBLIC_PRIVACY_POLICY_URL` per il link alla Privacy Policy; imposta un URL pubblico reale prima della submission se non usi il fallback di default.
 - Dopo la modifica, rigenera il progetto nativo con `npx expo prebuild` oppure usa EAS Build.
 - Per test locali su device iOS reale, usa una dev build o TestFlight. Expo Go non basta per testare IAP.
 
@@ -31,7 +32,7 @@ Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Bal
    - deve aprirsi la modale `Sblocca Balance Pro`;
    - la modale deve permettere di scegliere `Mensile` o `Annuale`;
    - la CTA primaria deve aprire il foglio abbonamento Apple per il piano selezionato;
-   - `Ripristina acquisti` deve sincronizzare un acquisto già fatto.
+   - l'azione `Ripristina acquisti` deve sincronizzare un acquisto già fatto.
 6. Verifica i casi:
    - acquisto riuscito: modale chiusa, `isPro=true`, wallet illimitati;
    - acquisto annullato: nessun crash, modale resta disponibile;
@@ -41,5 +42,5 @@ Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Bal
 ## Note review Apple
 
 - Il paywall compare solo quando l'utente prova a superare il limite gratuito di 2 wallet.
-- La build deve includere il pulsante `Ripristina acquisti`.
+- La build deve includere nel paywall: prezzo localizzato ben visibile, durata dell'abbonamento, `Ripristina acquisti`, Privacy Policy e Terms of Use.
 - Gli abbonamenti devono essere approvabili insieme alla build; se restano in bozza, la review può bloccarsi.

@@ -19,15 +19,18 @@ import {
 const SUBSCRIPTION_STATE_PREFERENCE_KEY = "entitlements.balancePro.subscriptionState";
 const LEGACY_IS_PRO_PREFERENCE_KEY = "entitlements.balancePro.isPro";
 const FALLBACK_ENTITLEMENT_CACHE_MS = 24 * 60 * 60 * 1000;
+const BALANCE_PRO_LOG_PREFIX = "[BalancePro]";
 
 const ERROR_CODES = {
   alreadyOwned: "already-owned",
   billingUnavailable: "billing-unavailable",
+  emptyProducts: "empty-products",
   iapNotAvailable: "iap-not-available",
   initConnection: "init-connection",
   itemUnavailable: "item-unavailable",
   networkError: "network-error",
   queryProduct: "query-product",
+  runtimeUnavailable: "runtime-unavailable",
   serviceDisconnected: "service-disconnected",
   serviceError: "service-error",
   userCancelled: "user-cancelled",
@@ -62,6 +65,8 @@ type BalanceProContextValue = {
   isReady: boolean;
   isStoreAvailable: boolean;
   isStoreLoading: boolean;
+  storeErrorCode: string | null;
+  storeErrorMessage: string | null;
   isPurchasePending: boolean;
   isRestorePending: boolean;
   availablePlans: BalanceProAvailablePlan[];
@@ -168,6 +173,46 @@ function isUserCancelledPurchase(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === ERROR_CODES.userCancelled);
 }
 
+function getErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return null;
+  }
+
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && code.length > 0 ? code : null;
+}
+
+function getErrorMessage(error: unknown): string | null {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return null;
+  }
+
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string" && message.length > 0 ? message : null;
+}
+
+function logBalanceProInfo(message: string, details?: Record<string, unknown>): void {
+  if (details) {
+    console.info(BALANCE_PRO_LOG_PREFIX, message, details);
+    return;
+  }
+
+  console.info(BALANCE_PRO_LOG_PREFIX, message);
+}
+
+function logBalanceProWarn(message: string, error?: unknown, details?: Record<string, unknown>): void {
+  if (details || error) {
+    console.warn(BALANCE_PRO_LOG_PREFIX, message, details ?? {}, error ?? "");
+    return;
+  }
+
+  console.warn(BALANCE_PRO_LOG_PREFIX, message);
+}
+
 function resolveEntitlementExpiry(input: {
   expirationDateIOS?: number | null;
   renewalInfoIOS?: RenewalInfoIOS | null;
@@ -270,7 +315,7 @@ function parsePersistedState(value: string | null | undefined): PersistedSubscri
       lastValidatedAt,
     };
   } catch (error) {
-    console.warn("Failed to parse Balance Pro entitlement cache", error);
+    logBalanceProWarn("Failed to parse Balance Pro entitlement cache", error);
     return EMPTY_SUBSCRIPTION_STATE;
   }
 }
@@ -299,6 +344,10 @@ function sortPurchases(purchases: Purchase[]): Purchase[] {
   return [...purchases].sort((left, right) => right.transactionDate - left.transactionDate);
 }
 
+function hasLoadedProducts(products: ProductMap): boolean {
+  return Object.values(products).some((product) => product !== null);
+}
+
 function createPlanEntries(products: ProductMap): BalanceProAvailablePlan[] {
   return (["yearly", "monthly"] as const).map((planId) => ({
     planId,
@@ -314,6 +363,8 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
   const [activePlan, setActivePlan] = useState<BalanceProPlanId | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isStoreLoading, setIsStoreLoading] = useState(false);
+  const [storeErrorCode, setStoreErrorCode] = useState<string | null>(null);
+  const [storeErrorMessage, setStoreErrorMessage] = useState<string | null>(null);
   const [isPurchasePending, setIsPurchasePending] = useState(false);
   const [isRestorePending, setIsRestorePending] = useState(false);
   const [isStoreConnected, setIsStoreConnected] = useState(false);
@@ -356,6 +407,11 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     return runtime;
   }, []);
 
+  const clearStoreError = useCallback(() => {
+    setStoreErrorCode(null);
+    setStoreErrorMessage(null);
+  }, []);
+
   const loadProducts = useCallback(async (runtime?: ExpoIapRuntime | null): Promise<ProductMap> => {
     const iap = runtime ?? getIapRuntime();
     if (!iap) {
@@ -382,9 +438,51 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       nextProducts[planId] = item;
     });
 
+    logBalanceProInfo("Fetched Balance Pro products", {
+      requestedProductIds: [...BALANCE_PRO_PRODUCT_IDS],
+      returnedProductIds: products.map((item) => item.id),
+      matchedProductIds: Object.values(nextProducts)
+        .map((item) => item?.id ?? null)
+        .filter((item): item is string => Boolean(item)),
+    });
+
     setProductsByPlan(nextProducts);
     return nextProducts;
   }, [getIapRuntime]);
+
+  const loadStoreCatalog = useCallback(async (runtime?: ExpoIapRuntime | null): Promise<boolean> => {
+    const iap = runtime ?? getIapRuntime();
+    if (!iap) {
+      setProductsByPlan(EMPTY_PRODUCT_MAP);
+      setStoreErrorCode(ERROR_CODES.runtimeUnavailable);
+      setStoreErrorMessage("In-app purchases module unavailable");
+      return false;
+    }
+
+    try {
+      const nextProducts = await loadProducts(iap);
+      if (!hasLoadedProducts(nextProducts)) {
+        setProductsByPlan(EMPTY_PRODUCT_MAP);
+        setStoreErrorCode(ERROR_CODES.emptyProducts);
+        setStoreErrorMessage("No subscription products were returned from the App Store");
+        logBalanceProWarn("No Balance Pro subscription products returned from fetchProducts", undefined, {
+          requestedProductIds: [...BALANCE_PRO_PRODUCT_IDS],
+        });
+        return false;
+      }
+
+      clearStoreError();
+      return true;
+    } catch (error) {
+      setProductsByPlan(EMPTY_PRODUCT_MAP);
+      setStoreErrorCode(getErrorCode(error) ?? ERROR_CODES.queryProduct);
+      setStoreErrorMessage(getErrorMessage(error) ?? "Failed to load subscription products");
+      logBalanceProWarn("Failed to fetch Balance Pro subscriptions", error, {
+        requestedProductIds: [...BALANCE_PRO_PRODUCT_IDS],
+      });
+      return false;
+    }
+  }, [clearStoreError, getIapRuntime, loadProducts]);
 
   const refreshFromAvailablePurchases = useCallback(async (runtime?: ExpoIapRuntime | null): Promise<boolean> => {
     const iap = runtime ?? getIapRuntime();
@@ -414,11 +512,11 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       await persistEntitlementState(nextState);
       return nextState.hasActiveSubscription;
     } catch (error) {
-      console.warn("Failed to refresh Balance Pro subscription status", error);
+      logBalanceProWarn("Failed to refresh Balance Pro subscription status", error);
       try {
         return await refreshFromAvailablePurchases(runtime);
       } catch (fallbackError) {
-        console.warn("Failed to refresh Balance Pro status from available purchases", fallbackError);
+        logBalanceProWarn("Failed to refresh Balance Pro status from available purchases", fallbackError);
         return isProRef.current;
       }
     }
@@ -431,6 +529,9 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       }
 
       if (purchase.purchaseState === "pending") {
+        logBalanceProInfo("Balance Pro purchase pending confirmation", {
+          productId: purchase.productId,
+        });
         settlePurchase({ status: "pending" });
         return;
       }
@@ -454,12 +555,21 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       try {
         await iap.finishTransaction({ purchase, isConsumable: false });
       } catch (error) {
-        console.warn("Failed to finish Balance Pro subscription transaction", error);
+        logBalanceProWarn("Failed to finish Balance Pro subscription transaction", error, {
+          productId: purchase.productId,
+          transactionId: purchase.transactionId ?? purchase.id ?? null,
+        });
       }
 
       const optimisticState = createStateFromPurchase(purchase);
       await persistEntitlementState(optimisticState);
       const hasActiveSubscription = await refreshProStatusInternal(iap);
+      logBalanceProInfo("Balance Pro purchase processed", {
+        productId: purchase.productId,
+        transactionId: purchase.transactionId ?? purchase.id ?? null,
+        purchaseState: purchase.purchaseState,
+        hasActiveSubscription,
+      });
       settlePurchase(hasActiveSubscription || optimisticState.hasActiveSubscription ? { status: "success" } : { status: "error" });
     },
     [getIapRuntime, persistEntitlementState, refreshProStatusInternal, settlePurchase]
@@ -467,6 +577,12 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
 
   const handlePurchaseFailure = useCallback(
     async (error: PurchaseError | Error) => {
+      logBalanceProWarn("Balance Pro purchase failed", error, {
+        code: getErrorCode(error),
+        message: getErrorMessage(error),
+        isStoreConnected,
+      });
+
       if (isUserCancelledPurchase(error)) {
         settlePurchase({ status: "cancelled" });
         return;
@@ -494,40 +610,30 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     [getIapRuntime, isStoreConnected, refreshProStatusInternal, settlePurchase]
   );
 
-  const prepareStore = useCallback(async (): Promise<boolean> => {
+  const connectStore = useCallback(async (): Promise<ExpoIapRuntime | null> => {
     if (Platform.OS !== "ios") {
-      return false;
-    }
-
-    if (isStoreConnected) {
-      const runtime = getIapRuntime();
-      if (!runtime) {
-        return false;
-      }
-
-      try {
-        await loadProducts(runtime);
-      } catch (error) {
-        console.warn("Failed to fetch Balance Pro subscriptions", error);
-      }
-
-      await refreshProStatusInternal(runtime);
-      return true;
+      return null;
     }
 
     if (initStorePromiseRef.current) {
-      return initStorePromiseRef.current;
+      const connected = await initStorePromiseRef.current;
+      return connected ? getIapRuntime() : null;
     }
 
     const runtime = getIapRuntime();
     if (!runtime) {
       setIsStoreConnected(false);
-      return false;
+      setStoreErrorCode(ERROR_CODES.runtimeUnavailable);
+      setStoreErrorMessage("In-app purchases module unavailable");
+      logBalanceProWarn("Expo IAP runtime unavailable");
+      return null;
+    }
+
+    if (isStoreConnected) {
+      return runtime;
     }
 
     const initPromise = (async () => {
-      setIsStoreLoading(true);
-
       if (!purchaseSubscriptionRef.current) {
         purchaseSubscriptionRef.current = runtime.purchaseUpdatedListener((purchase) => {
           void handleSuccessfulPurchase(purchase);
@@ -541,40 +647,60 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       }
 
       try {
+        logBalanceProInfo("Initializing in-app purchases connection");
         const connected = await runtime.initConnection();
         setIsStoreConnected(Boolean(connected));
         if (!connected) {
+          setStoreErrorCode(ERROR_CODES.initConnection);
+          setStoreErrorMessage("Unable to connect to the App Store");
+          logBalanceProWarn("In-app purchases connection was not established");
           return false;
         }
 
-        try {
-          await loadProducts(runtime);
-        } catch (error) {
-          console.warn("Failed to fetch Balance Pro subscriptions", error);
-        }
-
-        await refreshProStatusInternal(runtime);
+        clearStoreError();
+        logBalanceProInfo("In-app purchases connection ready");
         return true;
       } catch (error) {
-        console.warn("Failed to initialize in-app purchases", error);
         setIsStoreConnected(false);
+        setStoreErrorCode(getErrorCode(error) ?? ERROR_CODES.initConnection);
+        setStoreErrorMessage(getErrorMessage(error) ?? "Failed to initialize in-app purchases");
+        logBalanceProWarn("Failed to initialize in-app purchases", error);
         return false;
       } finally {
-        setIsStoreLoading(false);
         initStorePromiseRef.current = null;
       }
     })();
 
     initStorePromiseRef.current = initPromise;
-    return initPromise;
+    const connected = await initPromise;
+    return connected ? runtime : null;
   }, [
+    clearStoreError,
     getIapRuntime,
     handlePurchaseFailure,
     handleSuccessfulPurchase,
     isStoreConnected,
-    loadProducts,
-    refreshProStatusInternal,
   ]);
+
+  const prepareStore = useCallback(async (): Promise<boolean> => {
+    if (Platform.OS !== "ios") {
+      return false;
+    }
+
+    setIsStoreLoading(true);
+    try {
+      const runtime = await connectStore();
+      if (!runtime) {
+        return false;
+      }
+
+      const hasProducts = await loadStoreCatalog(runtime);
+      await refreshProStatusInternal(runtime);
+      return hasProducts;
+    } finally {
+      setIsStoreLoading(false);
+    }
+  }, [connectStore, loadStoreCatalog, refreshProStatusInternal]);
 
   useEffect(() => {
     let active = true;
@@ -591,7 +717,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         isProRef.current = cachedEntitlement.isPro;
       })
       .catch((error) => {
-        console.warn("Failed to read Balance Pro state", error);
+        logBalanceProWarn("Failed to read Balance Pro state", error);
       })
       .finally(() => {
         if (active) {
@@ -625,14 +751,13 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       return isProRef.current;
     }
 
-    const connected = await prepareStore();
-    const iap = getIapRuntime();
-    if (!connected || !iap) {
+    const iap = await connectStore();
+    if (!iap) {
       return isProRef.current;
     }
 
     return refreshProStatusInternal(iap);
-  }, [getIapRuntime, prepareStore, refreshProStatusInternal]);
+  }, [connectStore, refreshProStatusInternal]);
 
   const purchase = useCallback(
     async (plan: BalanceProPlanId): Promise<PurchaseProResult> => {
@@ -640,9 +765,14 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         return { status: "store-unavailable" };
       }
 
-      const connected = await prepareStore();
+      logBalanceProInfo("Balance Pro purchase requested", {
+        plan,
+        productId: BALANCE_PRO_PRODUCT_ID_BY_PLAN[plan],
+      });
+
+      const hasLoadedCatalog = await prepareStore();
       const iap = getIapRuntime();
-      if (!connected || !iap) {
+      if (!iap) {
         return { status: "store-unavailable" };
       }
 
@@ -652,17 +782,21 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
 
       let resolvedProducts = productsByPlan;
       try {
-        if (!resolvedProducts[plan]) {
-          resolvedProducts = await loadProducts();
+        if (!resolvedProducts[plan] && hasLoadedCatalog) {
+          resolvedProducts = await loadProducts(iap);
         }
       } catch (error) {
-        console.warn("Failed to prepare Balance Pro subscription purchase", error);
+        logBalanceProWarn("Failed to prepare Balance Pro subscription purchase", error, {
+          plan,
+        });
         return { status: "store-unavailable" };
       }
 
       const selectedProduct = resolvedProducts[plan];
       if (!selectedProduct) {
-        return { status: "product-unavailable" };
+        return hasLoadedCatalog || storeErrorCode === ERROR_CODES.emptyProducts
+          ? { status: "product-unavailable" }
+          : { status: "store-unavailable" };
       }
 
       setIsPurchasePending(true);
@@ -684,6 +818,10 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
               ? result.find((item) => item.productId === selectedProduct.id) ?? null
               : result;
             if (!purchaseResult) {
+              logBalanceProInfo("Balance Pro purchase returned no transaction", {
+                plan,
+                productId: selectedProduct.id,
+              });
               settlePurchase({ status: "cancelled" });
               return;
             }
@@ -703,6 +841,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       loadProducts,
       prepareStore,
       productsByPlan,
+      storeErrorCode,
       settlePurchase,
     ]
   );
@@ -712,9 +851,8 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       return { status: "store-unavailable" };
     }
 
-    const connected = await prepareStore();
-    const iap = getIapRuntime();
-    if (!connected || !iap) {
+    const iap = await connectStore();
+    if (!iap) {
       return { status: "store-unavailable" };
     }
 
@@ -725,11 +863,15 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     setIsRestorePending(true);
 
     try {
+      logBalanceProInfo("Restore purchases requested");
       await iap.restorePurchases();
       const hasBalancePro = await refreshProStatus();
+      logBalanceProInfo("Restore purchases completed", {
+        hasBalancePro,
+      });
       return hasBalancePro ? { status: "restored" } : { status: "nothing-to-restore" };
     } catch (error) {
-      console.warn("Failed to restore Balance Pro subscriptions", error);
+      logBalanceProWarn("Failed to restore Balance Pro subscriptions", error);
       if (isStoreUnavailableError(error)) {
         return { status: "store-unavailable" };
       }
@@ -740,7 +882,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     } finally {
       setIsRestorePending(false);
     }
-  }, [getIapRuntime, isRestorePending, prepareStore, refreshProStatus]);
+  }, [connectStore, isRestorePending, refreshProStatus]);
 
   useEffect(() => {
     return () => {
@@ -753,7 +895,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       iapRef.current = null;
       if (iap) {
         void iap.endConnection().catch((error) => {
-          console.warn("Failed to close in-app purchases connection", error);
+          logBalanceProWarn("Failed to close in-app purchases connection", error);
         });
       }
     };
@@ -773,8 +915,10 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         activePlan,
         hasActiveSubscription: isPro,
         isReady,
-        isStoreAvailable: Platform.OS === "ios" && isStoreConnected && availablePlans.some((plan) => plan.product !== null),
+        isStoreAvailable: Platform.OS === "ios" && isStoreConnected && hasLoadedProducts(productsByPlan),
         isStoreLoading,
+        storeErrorCode,
+        storeErrorMessage,
         isPurchasePending,
         isRestorePending,
         availablePlans,

@@ -36,6 +36,8 @@ import { createStandardTextInputProps } from "@/ui/components/standardInputProps
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import { useSettings } from "@/settings/useSettings";
 
+type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
+
 type EntryType = "income" | "expense";
 type FormMode = "create" | "edit";
 type CategoryFilter = "all" | number;
@@ -117,8 +119,8 @@ function sanitizeAmountInput(value: string): string {
 type AccordionItemProps = {
   title: string;
   subtitle?: string;
-  icon: string;
-  iconOverride?: string;
+  icon: IconName;
+  iconOverride?: IconName;
   iconBackgroundOverride?: string;
   iconColorOverride?: string;
   onIconPress?: () => void;
@@ -704,7 +706,11 @@ export default function EntriesScreen(): JSX.Element {
     const activeCategoryIds = new Set(activeCategories.map((cat) => cat.id));
     const ids = new Set<number>();
     entries.forEach((entry) => {
-      if (typeof entry.expense_category_id === "number" && activeCategoryIds.has(entry.expense_category_id)) {
+      if (
+        "expense_category_id" in entry &&
+        typeof entry.expense_category_id === "number" &&
+        activeCategoryIds.has(entry.expense_category_id)
+      ) {
         ids.add(entry.expense_category_id);
       }
     });
@@ -1256,7 +1262,7 @@ export default function EntriesScreen(): JSX.Element {
                 row.meta ? (
                   <SmallOutlinePillButton
                     label=""
-                    onPress={() => handleRowAction(row.meta)}
+                    onPress={() => handleRowAction(row.meta!)}
                     color={tokens.colors.accent}
                     icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={tokens.colors.accent} />}
                   />

@@ -28,6 +28,7 @@ import { createStandardTextInputProps } from "@/ui/components/standardInputProps
 import { orderWalletsForUI, type WalletGroupOrder } from "@/domain/walletOrdering";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import type { BalanceProPlanId } from "@/config/entitlements";
+import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
 
 type WalletRouteParams = {
   walletId?: number;
@@ -198,6 +199,8 @@ export default function WalletScreen(): React.ReactElement {
     isReady: isProReady,
     isStoreAvailable,
     isStoreLoading,
+    storeErrorCode,
+    storeErrorMessage,
     isPurchasePending,
     isRestorePending,
     availablePlans,
@@ -389,18 +392,24 @@ export default function WalletScreen(): React.ReactElement {
   const canReorder = (tab === "LIQUIDITY" ? liquidityWallets.length : investmentWallets.length) > 1;
 
   useEffect(() => {
-    const firstAvailablePlan = availablePlans.find((plan) => plan.product !== null)?.planId;
-    const selectedPlanAvailable = availablePlans.some((plan) => plan.planId === selectedPlanId && plan.product !== null);
-    if (!selectedPlanAvailable && firstAvailablePlan) {
-      setSelectedPlanId(firstAvailablePlan);
-    }
-  }, [availablePlans, selectedPlanId]);
-
-  useEffect(() => {
     if (activePlan) {
       setSelectedPlanId(activePlan);
     }
   }, [activePlan]);
+
+  useEffect(() => {
+    const firstAvailablePlan = availablePlans.find((plan) => plan.product)?.planId;
+    if (!firstAvailablePlan) {
+      return;
+    }
+
+    const selectedPlan = availablePlans.find((plan) => plan.planId === selectedPlanId);
+    if (selectedPlan?.product) {
+      return;
+    }
+
+    setSelectedPlanId(firstAvailablePlan);
+  }, [availablePlans, selectedPlanId]);
 
   useEffect(() => {
     if (!isPro || !pendingWalletType) {
@@ -548,7 +557,19 @@ export default function WalletScreen(): React.ReactElement {
     setShowAddWallet((prev) => ({ ...prev, [type]: true }));
   };
 
+  const selectedPlan = availablePlans.find((plan) => plan.planId === selectedPlanId) ?? null;
+  const canPurchaseSelectedPlan = Boolean(isStoreAvailable && selectedPlan?.product);
+
   const handlePurchasePro = useCallback(async () => {
+    if (!canPurchaseSelectedPlan || isStoreLoading || !isProReady) {
+      setPurchaseNotice(
+        t("wallets.actions.limitStatusPriceUnavailable", {
+          defaultValue: "I prezzi di Balance Pro non sono disponibili in questo momento. Riprova tra poco.",
+        })
+      );
+      return;
+    }
+
     const result = await purchase(selectedPlanId);
     switch (result.status) {
       case "success":
@@ -583,7 +604,7 @@ export default function WalletScreen(): React.ReactElement {
         );
         return;
     }
-  }, [purchase, selectedPlanId, t]);
+  }, [canPurchaseSelectedPlan, isProReady, isStoreLoading, purchase, selectedPlanId, t]);
 
   const handleRestorePurchases = useCallback(async () => {
     const result = await restore();
@@ -608,6 +629,34 @@ export default function WalletScreen(): React.ReactElement {
     }
   }, [restore, t]);
 
+  const handleRetryStore = useCallback(() => {
+    void prepareStore();
+  }, [prepareStore]);
+
+  const handleOpenExternalStoreLink = useCallback(
+    async (openLink: () => Promise<void>) => {
+      try {
+        await openLink();
+      } catch (error) {
+        console.warn("Failed to open Balance Pro legal link", error);
+        setPurchaseNotice(
+          t("wallets.actions.storeError", {
+            defaultValue: "Impossibile aprire il link.",
+          })
+        );
+      }
+    },
+    [t]
+  );
+
+  const handleOpenPrivacyPolicy = useCallback(() => {
+    void handleOpenExternalStoreLink(openPrivacyPolicyLink);
+  }, [handleOpenExternalStoreLink]);
+
+  const handleOpenTermsOfUse = useCallback(() => {
+    void handleOpenExternalStoreLink(openTermsOfUseLink);
+  }, [handleOpenExternalStoreLink]);
+
   const inputProps = createStandardTextInputProps(tokens);
   const balanceProBenefits = useMemo(
     () => [
@@ -617,9 +666,33 @@ export default function WalletScreen(): React.ReactElement {
     ],
     [t]
   );
+  const paywallLegalLinks = useMemo(
+    () => [
+      {
+        key: "privacy",
+        label: t("wallets.actions.privacyPolicy", { defaultValue: "Privacy Policy" }),
+        onPress: handleOpenPrivacyPolicy,
+      },
+      {
+        key: "terms",
+        label: t("wallets.actions.termsOfUse", { defaultValue: "Terms of Use" }),
+        onPress: handleOpenTermsOfUse,
+      },
+    ],
+    [handleOpenPrivacyPolicy, handleOpenTermsOfUse, t]
+  );
   const selectedPlanLabel = selectedPlanId === "yearly"
     ? t("wallets.actions.planYearly", { defaultValue: "Yearly" })
     : t("wallets.actions.planMonthly", { defaultValue: "Monthly" });
+  const shouldShowRetryStore = Boolean((storeErrorCode || storeErrorMessage || !isStoreAvailable) && isProReady && !isStoreLoading);
+  const paywallPrimaryCtaLabel = !isProReady || isStoreLoading
+    ? t("wallets.actions.limitLoadingCta", { defaultValue: "Caricamento prezzi..." })
+    : !canPurchaseSelectedPlan
+    ? t("wallets.actions.limitPurchaseUnavailableCta", { defaultValue: "Acquisto non disponibile" })
+    : t("wallets.actions.limitUpgradeCta", {
+        plan: selectedPlanLabel,
+        defaultValue: "Continua con {{plan}}",
+      });
   const paywallStatusMessage = !isProReady
     ? t("wallets.actions.limitStatusSyncing", {
         defaultValue: "Sto verificando il tuo stato Balance Pro...",
@@ -628,7 +701,11 @@ export default function WalletScreen(): React.ReactElement {
     ? t("wallets.actions.limitStatusSyncing", {
         defaultValue: "Sto verificando il tuo stato Balance Pro...",
       })
-    : !isStoreAvailable
+    : storeErrorCode === "empty-products" || !canPurchaseSelectedPlan
+    ? t("wallets.actions.limitStatusPriceUnavailable", {
+        defaultValue: "I prezzi di Balance Pro non sono disponibili in questo momento. Riprova tra poco o ripristina gli acquisti.",
+      })
+    : storeErrorMessage
     ? t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." })
     : undefined;
   const closeReorderModal = useCallback(() => setReorderMode(false), []);
@@ -1031,19 +1108,22 @@ export default function WalletScreen(): React.ReactElement {
           plans={availablePlans}
           selectedPlanId={selectedPlanId}
           onSelectPlan={setSelectedPlanId}
-          onSecondaryAction={handleRestorePurchases}
           title={t("wallets.actions.limitModalTitle")}
           subtitle={t("wallets.actions.limitModalSubtitle")}
-          ctaLabel={t("wallets.actions.limitUpgradeCta", {
-            plan: selectedPlanLabel,
-            defaultValue: "Continua con {{plan}}",
-          })}
+          ctaLabel={paywallPrimaryCtaLabel}
+          primaryDisabled={!canPurchaseSelectedPlan || !isProReady || isStoreLoading}
+          onSecondaryAction={handleRestorePurchases}
           secondaryActionLabel={t("wallets.actions.restorePurchases")}
+          onTertiaryAction={shouldShowRetryStore ? handleRetryStore : undefined}
+          tertiaryActionLabel={shouldShowRetryStore ? t("wallets.actions.retryStoreLoad", { defaultValue: "Riprova" }) : undefined}
           secondaryLabel={t("wallets.actions.limitMaybeLater")}
           benefits={balanceProBenefits}
           primaryLoading={isPurchasePending}
           secondaryActionLoading={isRestorePending}
+          tertiaryActionLoading={isStoreLoading}
           statusMessage={paywallStatusMessage}
+          legalLinks={paywallLegalLinks}
+          isStoreLoading={!isProReady || isStoreLoading}
         />
 
         <Snackbar visible={purchaseNotice !== null} onDismiss={() => setPurchaseNotice(null)} duration={4000}>

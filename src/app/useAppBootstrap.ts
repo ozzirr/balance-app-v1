@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { runMigrations } from "@/db/db";
 import { ensureDefaultWallets } from "@/repositories/walletsRepo";
 import { getPreference } from "@/repositories/preferencesRepo";
-
-type ThemeMode = "light" | "dark";
+import type { ThemeMode } from "@/ui/theme";
 
 type AppBootstrap = {
   ready: boolean;

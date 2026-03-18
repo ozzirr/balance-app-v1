@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
-import type { ViewStyle, StyleProp } from "react-native";
+import type { DimensionValue, ViewStyle, StyleProp } from "react-native";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 type Props = {
-  width?: number | string;
+  width?: DimensionValue;
   height?: number;
   radius?: number;
   style?: StyleProp<ViewStyle>;

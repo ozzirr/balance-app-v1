@@ -61,7 +61,7 @@ export default function OnboardingWallets(): JSX.Element {
             textColor={tokens.colors.text}
           />
           {liquidityNameError && (
-            <Text style={[styles.errorText, { color: tokens.colors.error }]}>
+            <Text style={[styles.errorText, { color: tokens.colors.red }]}>
               Inserisci un nome
             </Text>
           )}
@@ -76,7 +76,7 @@ export default function OnboardingWallets(): JSX.Element {
             textColor={tokens.colors.text}
           />
           {balanceValue.length > 0 && !balanceValid && (
-            <Text style={[styles.errorText, { color: tokens.colors.error }]}>
+            <Text style={[styles.errorText, { color: tokens.colors.red }]}>
               Inserisci un numero valido
             </Text>
           )}

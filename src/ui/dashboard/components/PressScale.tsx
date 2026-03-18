@@ -3,7 +3,7 @@ import { Pressable, StyleSheet } from "react-native";
 import type { PressableProps, ViewStyle, StyleProp } from "react-native";
 
 type Props = PressableProps & {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 };
 

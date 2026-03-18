@@ -278,16 +278,14 @@ export function buildKpiDeltaForRange(
   portfolioSeries: PortfolioPoint[],
   snapshotLinesById: Record<number, SnapshotLineDetail[]>
 ): KpiDeltaResult {
-  if (range === "1D" || range === "7D" || range === "28D") {
+  if (range === "7D" || range === "28D") {
     const endSnapshot = snapshots[0];
     if (!endSnapshot) {
       return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, total: EMPTY_DELTA } };
     }
     const endTotals = totalsFromSnapshotLines(snapshotLinesById[endSnapshot.id]);
     const startSnapshot =
-      range === "1D"
-        ? findSnapshotBefore(snapshots, endSnapshot.date)
-        : findSnapshotOnOrBefore(snapshots, addDays(endSnapshot.date, range === "7D" ? -7 : -28));
+      findSnapshotOnOrBefore(snapshots, addDays(endSnapshot.date, range === "7D" ? -7 : -28));
     if (!startSnapshot) {
       return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, total: EMPTY_DELTA } };
     }

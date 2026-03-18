@@ -10,6 +10,12 @@ export type OnboardingStackParamList = {
   OnboardingWelcome: undefined;
   OnboardingProImport: undefined;
   OnboardingName: undefined;
+  OnboardingIntro: undefined;
+  OnboardingWallets: undefined;
+  OnboardingCategories: undefined;
+  OnboardingIncomeRecurring: undefined;
+  OnboardingExpensesQuickAdd: undefined;
+  OnboardingDone: undefined;
   OnboardingInvestments: undefined;
 };
 

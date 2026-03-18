@@ -17,7 +17,7 @@ export default function GlassBlur({
   tint,
   style,
   pointerEvents = "none",
-}: Props): JSX.Element {
+}: Props): React.JSX.Element | null {
   const theme = useTheme();
   const resolvedTint = tint ?? (theme.dark ? "dark" : "light");
 

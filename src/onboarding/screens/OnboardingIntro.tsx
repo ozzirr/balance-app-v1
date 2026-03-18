@@ -44,7 +44,7 @@ const slides: SlideData[] = [
     title: "Iniziamo subito",
     subtitle: "Pochi passaggi per configurare Balance.",
     bullets: [],
-    image: require("../../../assets/onboarding/onboarding-4.png"),
+    image: require("../../../assets/onboarding/onboarding-3.png"),
   },
 ];
 

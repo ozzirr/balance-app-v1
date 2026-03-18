@@ -50,7 +50,7 @@ export async function authenticateForUnlock(): Promise<{ success: boolean; error
     if (result.success) {
       return { success: true };
     }
-    return { success: false, error: result.errorCode ?? "authentication_failed" };
+    return { success: false, error: result.error ?? "authentication_failed" };
   } catch (error) {
     console.warn(`[FaceID] authenticateAsync call #${callId} -> exception`, error);
     return { success: false, error: (error as Error).message ?? "authentication_error" };

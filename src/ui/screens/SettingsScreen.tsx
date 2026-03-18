@@ -17,7 +17,6 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { ThemeContext } from "@/ui/theme";
-import type { StorageAccessFrameworkIO } from "expo-file-system";
 import SecuritySettingsSection from "@/security/SecuritySettingsSection";
 import {
   getSecurityConfig,
@@ -45,6 +44,12 @@ import {
 import AppBackground from "@/ui/components/AppBackground";
 import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+
+type StorageAccessFrameworkLike = {
+  requestDirectoryPermissionsAsync?: () => Promise<{ granted: boolean; directoryUri?: string }>;
+  createFileAsync: (parentUri: string, fileName: string, mimeType: string) => Promise<string>;
+  writeAsStringAsync?: (fileUri: string, contents: string) => Promise<void>;
+};
 
 function findSecurityModalNavigation(
   navigation: NavigationProp<ParamListBase>
@@ -163,7 +168,8 @@ export default function SettingsScreen(): JSX.Element {
       const payload = (await exportToJson()) as ExportPayload;
       const json = JSON.stringify(payload, null, 2);
       const storageAccess =
-        (FileSystem as typeof FileSystem & { StorageAccessFramework?: StorageAccessFrameworkIO }).StorageAccessFramework;
+        (FileSystem as typeof FileSystem & { StorageAccessFramework?: StorageAccessFrameworkLike })
+          .StorageAccessFramework;
       if (Platform.OS === "android" && storageAccess?.requestDirectoryPermissionsAsync) {
         const permission = await storageAccess.requestDirectoryPermissionsAsync();
         if (!permission.granted || !permission.directoryUri) {
@@ -189,9 +195,7 @@ export default function SettingsScreen(): JSX.Element {
         LegacyFileSystem.documentDirectory;
       let baseDir =
         cacheDir ??
-        docDir ??
-        (FileSystem as typeof FileSystem & { temporaryDirectory?: string }).temporaryDirectory ??
-        LegacyFileSystem.temporaryDirectory;
+        docDir;
       if (!baseDir && FileSystem.getInfoAsync) {
         if (docDir) {
           const info = await FileSystem.getInfoAsync(docDir);
@@ -521,6 +525,7 @@ const styles = StyleSheet.create({
   cardContent: {
     gap: 12,
   },
+  preferencesCard: {},
 
   row: {
     flexDirection: "row",

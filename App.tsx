@@ -61,7 +61,7 @@ if (!splashPrevented) {
   splashPrevented = true;
 }
 
-export default function App(): JSX.Element {
+export default function App(): React.JSX.Element | null {
   const { ready, error, themeMode, setThemeMode, retry } = useAppBootstrap();
   const [i18nReady, setI18nReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
@@ -293,7 +293,6 @@ export default function App(): JSX.Element {
             <AnimatedSplashOverlay
               visible={overlayVisible}
               active={overlayActive}
-              themeMode={themeMode}
               onAnimationComplete={handleSplashComplete}
             />
           </View>

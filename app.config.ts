@@ -43,6 +43,10 @@ export default function ({ config }: ConfigContext): ExpoConfig {
       ...iosRest,
       supportsTablet: true,
       bundleIdentifier: IOS_BUNDLE_IDENTIFIER,
+      icon: {
+        light: "./assets/icon.png",
+        dark: "./assets/balance_icon-iOS-Dark-1024x1024@1x.png",
+      },
       ...(IS_STORE_PROFILE ? {} : { buildNumber: "1" }),
       infoPlist: {
         ...iosInfoPlistRest,
