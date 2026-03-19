@@ -57,6 +57,17 @@
       "cta": "Começar"
     }
   },
+  "pro": {
+    "welcome": {
+      "title": "Bem-vindo ao Balance Pro",
+      "body": "Sua assinatura está ativa. Agora você tem acesso completo aos recursos Pro do Balance.",
+      "benefit1": "Carteiras ilimitadas",
+      "benefit2": "Insights avançados",
+      "benefit3": "Controle total das suas finanças",
+      "continue": "Continuar",
+      "secondary": "Descobrir o Balance Pro"
+    }
+  },
   "errors": {
     "genericTitle": "Erro",
     "generic": "Algo correu mal"
@@ -282,16 +293,26 @@
       "colorLabel": "Cor"
     },
     "actions": {
-      "limitTitle": "Desbloquear Balance Pro",
-      "limitBody": "A versão gratuita inclui até 3 carteiras. Escolhe Balance Pro para continuar.",
-      "limitModalTitle": "Desbloquear Balance Pro",
-      "limitModalSubtitle": "A versão gratuita inclui até 3 carteiras. Escolhe Balance Pro para continuar.",
-      "limitBenefitUnlimited": "Carteiras ilimitadas",
+      "limitTitle": "Passa ao Balance Pro",
+      "limitBody": "Desbloqueia carteiras sem limites, insights avançados e mais controlo sobre as tuas finanças.",
+      "limitModalTitle": "Passa ao Balance Pro",
+      "limitModalSubtitle": "Desbloqueia carteiras sem limites, insights avançados e mais controlo sobre as tuas finanças.",
+      "limitBenefitUnlimited": "Carteiras sem limites",
       "limitBenefitInsights": "Insights avançados",
-      "limitBenefitControl": "Controlo total das tuas finanças",
+      "limitBenefitControl": "Mais controlo sobre as tuas finanças",
+      "paywallHeadlineTrial": "Experimenta o Balance Pro grátis",
+      "paywallHeadline": "Passa ao Balance Pro",
+      "paywallSubtitle": "Começa com um teste gratuito e desbloqueia uma forma mais completa de gerir as tuas carteiras, com insights avançados e mais controlo.",
+      "paywallTrustCancelAnytime": "Teste gratuito, cancela quando quiseres",
+      "paywallTrialEligibleBadge": "Teste gratuito se disponível",
+      "paywallBillingHelper": "Renova por {{price}} / {{cycle}}. Cancela quando quiseres.",
+      "paywallBillingHelperTrial": "Se elegível, só pagas após o teste gratuito. Depois {{price}} / {{cycle}}. Cancela quando quiseres.",
+      "paywallSecureApple": "Pagamento seguro via Apple",
+      "paywallRestoreAvailable": "Restauração de compras disponível",
       "planMonthly": "Mensal",
       "planYearly": "Anual",
       "planBestValue": "Melhor valor",
+      "planSavingsPercentage": "Poupa {{percent}}% face ao mensal",
       "planCycleDay": "dia",
       "planCycleWeek": "semana",
       "planCycleMonth": "mês",
@@ -307,13 +328,16 @@
       "planLoadingPrice": "A carregar preço...",
       "planPriceUnavailable": "Preço indisponível",
       "limitUpgradeCta": "Continuar com {{plan}}",
+      "limitTrialCta": "Começar teste gratuito",
+      "limitYearlyCta": "Escolher anual",
+      "limitMonthlyCta": "Escolher mensal",
       "limitLoadingCta": "A carregar preços...",
       "limitPurchaseUnavailableCta": "Compra indisponível",
       "restorePurchases": "Restaurar compras",
       "privacyPolicy": "Política de Privacidade",
       "termsOfUse": "Termos de Utilização",
       "retryStoreLoad": "Tentar novamente",
-      "limitMaybeLater": "Agora não",
+      "limitMaybeLater": "Talvez mais tarde",
       "downloadPro": "Desbloquear Balance Pro",
       "limitStatusSyncing": "A verificar o teu estado Balance Pro...",
       "limitStatusPriceUnavailable": "Os preços do Balance Pro não estão disponíveis neste momento. Tenta novamente em breve ou restaura as compras.",

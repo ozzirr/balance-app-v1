@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
-import { Modal, Portal, Text, Button } from "react-native-paper";
-import GlassBlur from "@/ui/components/GlassBlur";
+import { Button, Modal, Portal, Text } from "react-native-paper";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
-import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useTranslation } from "react-i18next";
 import type { BalanceProPlanId } from "@/config/entitlements";
-import type { BalanceProAvailablePlan } from "@/features/pro/BalanceProProvider";
-import type { ProductSubscriptionIOS } from "expo-iap";
+import type { BalanceProAvailablePlan, BalanceProProduct } from "@/features/pro/BalanceProProvider";
+import GlassBlur from "@/ui/components/GlassBlur";
+import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 type LegalLinkAction = {
   key: string;
@@ -43,10 +42,110 @@ type Props = {
   isStoreLoading?: boolean;
 };
 
-const LinearGradient: React.ComponentType<any> | undefined = undefined;
+type PlanCycleUnit = "day" | "week" | "month" | "year";
 
-function getIosSubscriptionProduct(plan: BalanceProAvailablePlan): ProductSubscriptionIOS | null {
-  return plan.product?.platform === "ios" ? plan.product : null;
+function isPlanCycleUnit(value: string | null | undefined): value is PlanCycleUnit {
+  return value === "day" || value === "week" || value === "month" || value === "year";
+}
+
+function parsePositiveInt(value: string | number | null | undefined): number | null {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function getPlanCycleUnit(plan: BalanceProAvailablePlan): PlanCycleUnit {
+  if (isPlanCycleUnit(plan.product?.subscriptionPeriodUnitIOS)) {
+    return plan.product.subscriptionPeriodUnitIOS;
+  }
+
+  return plan.planId === "yearly" ? "year" : "month";
+}
+
+function getPlanCycleCount(plan: BalanceProAvailablePlan): number {
+  return parsePositiveInt(plan.product?.subscriptionPeriodNumberIOS) ?? 1;
+}
+
+function getFreeTrialOffer(product: BalanceProProduct | null): { count: number | null; unit: PlanCycleUnit | null } | null {
+  if (!product) {
+    return null;
+  }
+
+  const standardizedTrialOffer = product.subscriptionOffers?.find(
+    (offer) => offer.type === "introductory" && offer.paymentMode === "free-trial"
+  );
+
+  if (standardizedTrialOffer) {
+    return {
+      count: standardizedTrialOffer.periodCount ?? standardizedTrialOffer.period?.value ?? null,
+      unit: isPlanCycleUnit(standardizedTrialOffer.period?.unit) ? standardizedTrialOffer.period?.unit : null,
+    };
+  }
+
+  if (product.introductoryPricePaymentModeIOS !== "free-trial") {
+    return null;
+  }
+
+  return {
+    count: parsePositiveInt(product.introductoryPriceNumberOfPeriodsIOS),
+    unit: isPlanCycleUnit(product.introductoryPriceSubscriptionPeriodIOS)
+      ? product.introductoryPriceSubscriptionPeriodIOS
+      : null,
+  };
+}
+
+function getPlanDurationInMonths(plan: BalanceProAvailablePlan): number | null {
+  const cycleUnit = getPlanCycleUnit(plan);
+  const cycleCount = getPlanCycleCount(plan);
+  if (cycleCount <= 0) {
+    return null;
+  }
+
+  if (cycleUnit === "year") {
+    return cycleCount * 12;
+  }
+
+  if (cycleUnit === "month") {
+    return cycleCount;
+  }
+
+  return null;
+}
+
+function getPlanSavingsPercentage(
+  yearlyPlan: BalanceProAvailablePlan,
+  monthlyPlan: BalanceProAvailablePlan | null
+): number | null {
+  if (!monthlyPlan) {
+    return null;
+  }
+
+  const yearlyPrice = yearlyPlan.product?.price;
+  const monthlyPrice = monthlyPlan.product?.price;
+  if (
+    typeof yearlyPrice !== "number" ||
+    !Number.isFinite(yearlyPrice) ||
+    typeof monthlyPrice !== "number" ||
+    !Number.isFinite(monthlyPrice)
+  ) {
+    return null;
+  }
+
+  const yearlyDurationInMonths = getPlanDurationInMonths(yearlyPlan);
+  const monthlyDurationInMonths = getPlanDurationInMonths(monthlyPlan);
+  if (!yearlyDurationInMonths || !monthlyDurationInMonths) {
+    return null;
+  }
+
+  const comparableMonthlyCost = monthlyPrice * (yearlyDurationInMonths / monthlyDurationInMonths);
+  if (!Number.isFinite(comparableMonthlyCost) || comparableMonthlyCost <= 0 || comparableMonthlyCost <= yearlyPrice) {
+    return null;
+  }
+
+  return Math.round(((comparableMonthlyCost - yearlyPrice) / comparableMonthlyCost) * 100);
 }
 
 export default function LimitReachedModal({
@@ -67,25 +166,20 @@ export default function LimitReachedModal({
   secondaryActionLabel,
   tertiaryActionLabel,
   iconName,
-  primaryLoading,
-  primaryDisabled,
-  secondaryActionLoading,
-  tertiaryActionLoading,
+  primaryLoading = false,
+  primaryDisabled = false,
+  secondaryActionLoading = false,
+  tertiaryActionLoading = false,
   statusMessage,
   legalLinks,
-  isStoreLoading,
+  isStoreLoading = false,
 }: Props): React.ReactElement {
   const { tokens, shadows, isDark } = useDashboardTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { width, height } = useWindowDimensions();
-
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.96)).current;
 
-  const resolvedTitle = title ?? t("wallets.actions.limitModalTitle");
-  const resolvedSubtitle = subtitle ?? t("wallets.actions.limitModalSubtitle");
-  const resolvedSecondaryLabel = secondaryLabel ?? t("wallets.actions.limitMaybeLater");
-  const resolvedIconName = iconName ?? "wallet-outline";
   const resolvedBenefits = useMemo(
     () =>
       benefits ?? [
@@ -96,37 +190,54 @@ export default function LimitReachedModal({
     [benefits, t]
   );
 
-  const isTabletLayout = width >= 768;
-  const cardWidth = Math.min(width - 32, isTabletLayout ? 560 : 390);
-  const cardMaxHeight = Math.max(420, height - 48);
-  const shouldShowBenefits = resolvedBenefits.length > 0;
   const shouldShowPlans = Boolean(plans?.length && selectedPlanId && onSelectPlan);
-  const overlayTint = isDark ? "rgba(0,0,0,0.92)" : "rgba(0,0,0,0.8)";
-  const cardBackground =
-    Platform.OS === "android"
-      ? tokens.colors.surface2
-      : isDark
-      ? "rgba(15, 18, 30, 0.78)"
-      : tokens.colors.modalGlassBg;
-  const cardBorder =
-    Platform.OS === "android"
-      ? tokens.colors.border
-      : isDark
-      ? "rgba(255,255,255,0.12)"
-      : "rgba(158,123,255,0.34)";
-  const blurTint = isDark ? "dark" : "light";
-  const blurIntensity = 35;
-  const subtitleColor = isDark ? tokens.colors.muted : "rgba(16, 21, 34, 0.68)";
-  const statusColor = isDark ? tokens.colors.muted : "rgba(16, 21, 34, 0.64)";
-  const secondaryButtonBorderColor = isDark ? tokens.colors.glassBorder : "rgba(16, 21, 34, 0.14)";
-  const secondaryButtonBackgroundColor = isDark ? "transparent" : "rgba(255,255,255,0.52)";
-  const dismissColor = isDark ? tokens.colors.accent : tokens.colors.purplePrimary;
-  const legalLinkColor = isDark ? tokens.colors.accent : tokens.colors.text;
-  const iconTint = isDark ? `${tokens.colors.accentPurple}22` : "rgba(158,123,255,0.16)";
+  const paywallPlans = plans ?? [];
+  const selectedPlan = useMemo(
+    () => paywallPlans.find((plan) => plan.planId === selectedPlanId) ?? null,
+    [paywallPlans, selectedPlanId]
+  );
+  const selectedPlanHasProduct = Boolean(selectedPlan?.product);
+  const selectedPlanTrialOffer = getFreeTrialOffer(selectedPlan?.product ?? null);
+  const hasSelectedPlanTrial = Boolean(selectedPlanTrialOffer);
+  const monthlyPlan = useMemo(
+    () => paywallPlans.find((plan) => plan.planId === "monthly") ?? null,
+    [paywallPlans]
+  );
+  const yearlyPlanSavingsPercentage = useMemo(() => {
+    const yearlyPlan = paywallPlans.find((plan) => plan.planId === "yearly") ?? null;
+    if (!yearlyPlan) {
+      return null;
+    }
 
-  const resolvePlanCycleLabel = (plan: BalanceProAvailablePlan): string => {
-    const unit = getIosSubscriptionProduct(plan)?.subscriptionPeriodUnitIOS;
-    if (unit === "year" || plan.planId === "yearly") {
+    return getPlanSavingsPercentage(yearlyPlan, monthlyPlan);
+  }, [monthlyPlan, paywallPlans]);
+
+  const resolvedHeadline = shouldShowPlans
+    ? t("wallets.actions.paywallHeadline", { defaultValue: "Upgrade to Balance Pro" })
+    : title ?? t("wallets.actions.limitModalTitle");
+
+  const resolvedSubtitle = shouldShowPlans
+    ? t("wallets.actions.paywallSubtitle", {
+        defaultValue:
+          "Start with a free trial and unlock a more complete way to manage your wallets, with advanced insights and more control.",
+      })
+    : subtitle ?? t("wallets.actions.limitModalSubtitle");
+
+  const resolvedSecondaryLabel = secondaryLabel ?? t("wallets.actions.limitMaybeLater");
+  const resolvedIconName = iconName ?? "wallet-outline";
+  const resolvedCtaLabel = shouldShowPlans
+    ? ctaLabel ??
+      (hasSelectedPlanTrial
+        ? t("wallets.actions.limitTrialCta", { defaultValue: "Start your free trial" })
+        : selectedPlanId === "yearly"
+        ? t("wallets.actions.limitYearlyCta", { defaultValue: "Choose yearly" })
+        : t("wallets.actions.limitMonthlyCta", { defaultValue: "Choose monthly" }))
+    : ctaLabel ?? t("common.continue", { defaultValue: "Continue" });
+  const resolvedPrimaryDisabled = primaryDisabled || secondaryActionLoading || tertiaryActionLoading;
+
+  const resolveCycleLabel = (plan: BalanceProAvailablePlan): string => {
+    const unit = getPlanCycleUnit(plan);
+    if (unit === "year") {
       return t("wallets.actions.planCycleYear", { defaultValue: "year" });
     }
 
@@ -141,13 +252,11 @@ export default function LimitReachedModal({
     return t("wallets.actions.planCycleMonth", { defaultValue: "month" });
   };
 
-  const resolvePlanDurationLabel = (plan: BalanceProAvailablePlan): string => {
-    const iosProduct = getIosSubscriptionProduct(plan);
-    const rawCount = Number(iosProduct?.subscriptionPeriodNumberIOS ?? "1");
-    const count = Number.isFinite(rawCount) && rawCount > 0 ? rawCount : 1;
-    const unit = iosProduct?.subscriptionPeriodUnitIOS;
+  const resolveDurationLabel = (plan: BalanceProAvailablePlan): string => {
+    const count = getPlanCycleCount(plan);
+    const unit = getPlanCycleUnit(plan);
 
-    if (unit === "year" || plan.planId === "yearly") {
+    if (unit === "year") {
       return count === 1
         ? t("wallets.actions.planDurationYear", { defaultValue: "1 year subscription" })
         : t("wallets.actions.planDurationYears", { count, defaultValue: `${count} years subscription` });
@@ -170,6 +279,57 @@ export default function LimitReachedModal({
       : t("wallets.actions.planDurationMonths", { count, defaultValue: `${count} months subscription` });
   };
 
+  const billingHelper = useMemo(() => {
+    if (!shouldShowPlans || !selectedPlanHasProduct || !selectedPlan?.displayPrice) {
+      return null;
+    }
+
+    const cycle = resolveCycleLabel(selectedPlan);
+    if (hasSelectedPlanTrial) {
+      return t("wallets.actions.paywallBillingHelperTrial", {
+        price: selectedPlan.displayPrice,
+        cycle,
+        defaultValue: "If eligible, you'll be charged after the free trial. Then {{price}} / {{cycle}}. Cancel anytime.",
+      });
+    }
+
+    return t("wallets.actions.paywallBillingHelper", {
+      price: selectedPlan.displayPrice,
+      cycle,
+      defaultValue: "Renews at {{price}} / {{cycle}}. Cancel anytime.",
+    });
+  }, [hasSelectedPlanTrial, selectedPlan, selectedPlanHasProduct, shouldShowPlans, t]);
+
+  const isTabletLayout = width >= 768;
+  const cardWidth = Math.min(width - 32, isTabletLayout ? 560 : 398);
+  const cardMaxHeight = Math.max(440, height - (isTabletLayout ? 48 : 72));
+  const overlayTint = isDark ? "rgba(8, 10, 18, 0.32)" : "rgba(245, 248, 255, 0.2)";
+  const cardBackground =
+    Platform.OS === "android"
+      ? tokens.colors.surface2
+      : isDark
+      ? "rgba(15, 18, 28, 0.72)"
+      : "rgba(255,255,255,0.74)";
+  const cardBorder =
+    Platform.OS === "android"
+      ? tokens.colors.border
+      : isDark
+      ? "rgba(255,255,255,0.14)"
+      : "rgba(255,255,255,0.52)";
+  const blurTint = isDark ? "dark" : "light";
+  const subtitleColor = isDark ? tokens.colors.muted : "rgba(16, 21, 34, 0.68)";
+  const subtleTextColor = isDark ? tokens.colors.muted : "rgba(16, 21, 34, 0.58)";
+  const cardMutedBackground = isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.54)";
+  const cardMutedBorder = isDark ? "rgba(255,255,255,0.1)" : "rgba(16,24,40,0.08)";
+  const annualPlanBackground = isDark ? "rgba(169,124,255,0.08)" : "rgba(255,255,255,0.28)";
+  const selectedPlanBackground = isDark ? "rgba(169,124,255,0.14)" : "rgba(169,124,255,0.12)";
+  const monthlyPlanBackground = isDark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.2)";
+  const premiumChipBackground = isDark ? "rgba(169,124,255,0.1)" : "rgba(255,255,255,0.22)";
+  const premiumChipText = isDark ? tokens.colors.accentPurple : tokens.colors.purplePrimary;
+  const skeletonColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(16,24,40,0.08)";
+  const glassShine = isDark ? "rgba(255,255,255,0.055)" : "rgba(255,255,255,0.38)";
+  const yearlyPlanTint = isDark ? "rgba(169,124,255,0.06)" : "rgba(169,124,255,0.04)";
+
   useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -184,62 +344,29 @@ export default function LimitReachedModal({
       ]).start();
       return;
     }
+
     Animated.parallel([
       Animated.timing(opacity, { toValue: 0, duration: 140, useNativeDriver: true }),
       Animated.timing(scale, { toValue: 0.96, duration: 140, useNativeDriver: true }),
     ]).start();
   }, [opacity, scale, visible]);
 
-  const renderPrimaryCta = () => {
-    const resolvedCtaLabel = ctaLabel ?? t("wallets.actions.limitUpgradeCta");
-    if (LinearGradient) {
-      const Gradient = LinearGradient;
-      return (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={resolvedCtaLabel}
-          accessibilityState={{ disabled: primaryDisabled || primaryLoading || secondaryActionLoading || tertiaryActionLoading }}
-          disabled={primaryDisabled || primaryLoading || secondaryActionLoading || tertiaryActionLoading}
-          onPress={onUpgrade}
-          style={{ width: "100%" }}
-        >
-          <Gradient
-            colors={[tokens.colors.accentPurple, tokens.colors.accent]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.gradientButton, primaryDisabled ? styles.disabledButton : null]}
-          >
-            <Text style={[styles.ctaText, { color: "#FFFFFF" }]}>{resolvedCtaLabel}</Text>
-          </Gradient>
-        </Pressable>
-      );
-    }
-
-    return (
-      <Button
-        mode="contained"
-        buttonColor={tokens.colors.accent}
-        textColor="#FFFFFF"
-        onPress={onUpgrade}
-        style={styles.fallbackButton}
-        contentStyle={{ paddingVertical: 10 }}
-        loading={primaryLoading}
-        disabled={primaryDisabled || primaryLoading || secondaryActionLoading || tertiaryActionLoading}
-      >
-        {resolvedCtaLabel}
-      </Button>
-    );
-  };
-
   return (
     <Portal>
+      {visible ? (
+        <View pointerEvents="none" style={styles.portalBackdrop}>
+          <GlassBlur intensity={26} tint={blurTint} fallbackColor="transparent" />
+          <View style={[styles.backdropTint, { backgroundColor: overlayTint }]} />
+        </View>
+      ) : null}
+
       <Modal
         visible={visible}
         onDismiss={onClose}
-        dismissable
+        dismissable={!primaryLoading && !secondaryActionLoading && !tertiaryActionLoading}
         style={styles.modal}
         contentContainerStyle={styles.content}
-        theme={{ colors: { backdrop: overlayTint } }}
+        theme={{ colors: { backdrop: "transparent" } }}
       >
         <Animated.View
           style={[
@@ -255,38 +382,74 @@ export default function LimitReachedModal({
             },
           ]}
         >
-          <GlassBlur intensity={blurIntensity} tint={blurTint} fallbackColor="transparent" />
+          <GlassBlur intensity={34} tint={blurTint} fallbackColor="transparent" />
+
           <ScrollView
             bounces={false}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            <View style={[styles.iconWrap, { backgroundColor: iconTint }]}>
-              <View
-                style={[
-                  styles.iconInner,
-                  { backgroundColor: isDark ? tokens.colors.modalBorder : "rgba(255,255,255,0.55)" },
+            <View style={styles.headerRow}>
+              <View style={styles.headerCenter}>
+                <View style={[styles.balanceProChip, { backgroundColor: premiumChipBackground, borderColor: `${premiumChipText}24` }]}>
+                  <MaterialCommunityIcons name="crown-outline" size={14} color={premiumChipText} />
+                  <Text style={[styles.balanceProChipLabel, { color: premiumChipText }]}>Balance Pro</Text>
+                </View>
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close", { defaultValue: "Close" })}
+                onPress={onClose}
+                disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  {
+                    backgroundColor: cardMutedBackground,
+                    borderColor: cardMutedBorder,
+                    opacity: pressed ? 0.7 : 1,
+                  },
                 ]}
               >
-                <MaterialCommunityIcons name={resolvedIconName} size={32} color={tokens.colors.accent} />
-              </View>
+                <MaterialCommunityIcons name="close" size={18} color={tokens.colors.text} />
+              </Pressable>
             </View>
-            <Text variant="titleLarge" style={[styles.title, { color: tokens.colors.text }]}>
-              {resolvedTitle}
-            </Text>
-            <Text variant="bodyMedium" style={[styles.subtitle, { color: subtitleColor }]}>
-              {resolvedSubtitle}
-            </Text>
 
-            {shouldShowBenefits ? (
+            <View style={styles.heroBlock}>
+              {!shouldShowPlans ? (
+                <View style={[styles.iconWrap, { backgroundColor: premiumChipBackground }]}>
+                  <View style={[styles.iconInner, { backgroundColor: isDark ? tokens.colors.modalBorder : "rgba(255,255,255,0.62)" }]}>
+                    <MaterialCommunityIcons name={resolvedIconName} size={28} color={tokens.colors.accent} />
+                  </View>
+                </View>
+              ) : null}
+
+              <Text variant="headlineSmall" style={[styles.title, { color: tokens.colors.text }]}>
+                {resolvedHeadline}
+              </Text>
+              <Text variant="bodyLarge" style={[styles.subtitle, { color: subtitleColor }]}>
+                {resolvedSubtitle}
+              </Text>
+              {shouldShowPlans ? (
+                <View style={styles.trustLine}>
+                  <MaterialCommunityIcons name="shield-check-outline" size={14} color={tokens.colors.accentPurple} />
+                  <Text style={[styles.trustText, { color: subtleTextColor }]}>
+                    {t("wallets.actions.paywallTrustCancelAnytime", { defaultValue: "Free trial, cancel anytime" })}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {resolvedBenefits.length > 0 ? (
               <View style={styles.benefits}>
-                {resolvedBenefits.map((item) => (
-                  <View key={item} style={styles.benefitRow}>
-                    <View style={[styles.checkIcon, { backgroundColor: tokens.colors.accentPurple }]}>
-                      <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                {resolvedBenefits.map((benefit) => (
+                  <View key={benefit} style={styles.benefitRow}>
+                    <View style={[styles.benefitIcon, { backgroundColor: tokens.colors.accentPurple }]}>
+                      <MaterialIcons name="check" size={14} color="#FFFFFF" />
                     </View>
-                    <Text variant="bodyLarge" style={{ color: tokens.colors.text }}>
-                      {item}
+                    <Text variant="bodyLarge" style={[styles.benefitText, { color: tokens.colors.text }]}>
+                      {benefit}
                     </Text>
                   </View>
                 ))}
@@ -294,108 +457,190 @@ export default function LimitReachedModal({
             ) : null}
 
             {shouldShowPlans ? (
-              <View style={[styles.planGrid, isTabletLayout ? styles.planGridWide : null]}>
-                {plans?.map((plan) => {
+              <View style={styles.plans}>
+                {paywallPlans.map((plan) => {
                   const isSelected = plan.planId === selectedPlanId;
-                  const isAvailable = Boolean(plan.product && plan.displayPrice);
-                  const planTitle =
-                    plan.planId === "yearly"
-                      ? t("wallets.actions.planYearly", { defaultValue: "Yearly" })
-                      : t("wallets.actions.planMonthly", { defaultValue: "Monthly" });
-                  const billingCycleLabel = resolvePlanCycleLabel(plan);
-                  const subscriptionLengthLabel = resolvePlanDurationLabel(plan);
+                  const planHasProduct = Boolean(plan.product);
+                  const planSavingsPercentage = plan.planId === "yearly" ? yearlyPlanSavingsPercentage : null;
+                  const isYearlyPlan = plan.planId === "yearly";
+                  const planBackground = isSelected
+                    ? selectedPlanBackground
+                    : isYearlyPlan
+                    ? annualPlanBackground
+                    : monthlyPlanBackground;
+                  const planBorderColor = isSelected
+                    ? tokens.colors.accent
+                    : isYearlyPlan
+                    ? `${tokens.colors.accentPurple}66`
+                    : cardMutedBorder;
+                  const planTitleColor = isYearlyPlan ? tokens.colors.text : subtleTextColor;
+                  const planShadowStyle = isYearlyPlan
+                    ? {
+                        shadowColor: premiumChipText,
+                        shadowOpacity: isSelected ? 0.24 : 0.14,
+                        shadowRadius: isSelected ? 18 : 12,
+                        shadowOffset: { width: 0, height: 6 },
+                        elevation: isSelected ? 7 : 4,
+                      }
+                    : null;
+                  const planBadgeBackground = isYearlyPlan
+                    ? isDark
+                      ? "rgba(169,124,255,0.16)"
+                      : "rgba(169,124,255,0.14)"
+                    : premiumChipBackground;
+                  const planBadgeBorder = isYearlyPlan ? `${premiumChipText}38` : `${premiumChipText}22`;
 
                   return (
                     <Pressable
                       key={plan.planId}
                       accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected, disabled: !isAvailable }}
-                      disabled={!isAvailable}
+                      accessibilityState={{ selected: isSelected, disabled: !planHasProduct }}
+                      disabled={!planHasProduct}
                       onPress={() => onSelectPlan?.(plan.planId)}
-                      style={[
+                      style={({ pressed }) => [
                         styles.planCard,
-                        isTabletLayout ? styles.planCardWide : null,
+                        isYearlyPlan ? styles.planCardAnnual : styles.planCardMonthly,
                         {
-                          borderColor: isSelected ? tokens.colors.accent : secondaryButtonBorderColor,
-                          backgroundColor: isSelected
-                            ? isDark
-                              ? "rgba(255,255,255,0.08)"
-                              : "rgba(255,255,255,0.76)"
-                            : secondaryButtonBackgroundColor,
-                          opacity: isAvailable ? 1 : 0.72,
+                          backgroundColor: planBackground,
+                          borderColor: planBorderColor,
+                          borderWidth: isYearlyPlan ? 2 : 1.5,
+                          opacity: pressed ? 0.92 : planHasProduct ? 1 : 0.7,
                         },
+                        planShadowStyle,
                       ]}
                     >
-                      <Text variant="titleMedium" style={{ color: tokens.colors.text }}>
-                        {planTitle}
-                      </Text>
-                      {plan.displayPrice ? (
-                        <Text style={[styles.planPriceLine, { color: tokens.colors.text }]}>
-                          <Text style={styles.planPrice}>{plan.displayPrice}</Text>
-                          <Text style={[styles.planPriceSuffix, { color: tokens.colors.text }]}> / {billingCycleLabel}</Text>
+                      <GlassBlur intensity={18} tint={blurTint} fallbackColor="transparent" />
+                      <View pointerEvents="none" style={[styles.planTint, { backgroundColor: isYearlyPlan ? yearlyPlanTint : "transparent" }]} />
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          styles.planSheen,
+                          {
+                            backgroundColor: glassShine,
+                            opacity: isYearlyPlan ? 1 : 0.7,
+                          },
+                        ]}
+                      />
+
+                      <View style={styles.planCardHeader}>
+                        <Text variant="titleMedium" style={[styles.planTitle, { color: planTitleColor }]}>
+                          {plan.planId === "yearly"
+                            ? t("wallets.actions.planYearly", { defaultValue: "Yearly" })
+                            : t("wallets.actions.planMonthly", { defaultValue: "Monthly" })}
                         </Text>
-                      ) : (
-                        <Text variant="bodyLarge" style={[styles.planPriceUnavailable, { color: tokens.colors.muted }]}>
-                          {isStoreLoading
-                            ? t("wallets.actions.planLoadingPrice", { defaultValue: "Loading price..." })
-                            : t("wallets.actions.planPriceUnavailable", { defaultValue: "Price unavailable" })}
-                        </Text>
-                      )}
-                      <Text variant="bodySmall" style={[styles.planMeta, { color: subtitleColor }]}>
-                        {subscriptionLengthLabel}
-                      </Text>
+
+                        <View style={styles.planBadges}>
+                          {plan.isBestValue ? (
+                            <View
+                              style={[
+                                styles.planBadge,
+                                isYearlyPlan ? styles.planBadgeAnnual : null,
+                                { backgroundColor: planBadgeBackground, borderColor: planBadgeBorder },
+                              ]}
+                            >
+                              <Text style={[styles.planBadgeText, { color: premiumChipText }]}>
+                                {t("wallets.actions.planBestValue", { defaultValue: "Best value" })}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
+
+                      <View style={styles.planPriceBlock}>
+                        {plan.displayPrice ? (
+                          <View style={styles.planPriceRow}>
+                            <Text
+                              style={[
+                                styles.planPrice,
+                                isYearlyPlan ? styles.planPriceAnnual : styles.planPriceMonthly,
+                                { color: tokens.colors.text },
+                              ]}
+                            >
+                              {plan.displayPrice}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={styles.planSkeletonGroup}>
+                            <View style={[styles.skeletonLine, styles.skeletonPrice, { backgroundColor: skeletonColor }]} />
+                          </View>
+                        )}
+
+                        {plan.planId === "yearly" && planSavingsPercentage ? (
+                          <Text style={[styles.planAnchor, { color: tokens.colors.accentPurple }]}>
+                            {t("wallets.actions.planSavingsPercentage", {
+                              percent: planSavingsPercentage,
+                              defaultValue: "Save {{percent}}% compared with monthly",
+                            })}
+                          </Text>
+                        ) : plan.planId === "yearly" && !plan.displayPrice && isStoreLoading ? (
+                          <Text style={[styles.planMeta, { color: subtleTextColor }]}>
+                            {resolveDurationLabel(plan)}
+                          </Text>
+                        ) : null}
+                      </View>
                     </Pressable>
                   );
                 })}
               </View>
             ) : null}
 
-            {renderPrimaryCta()}
-
-            {onSecondaryAction && secondaryActionLabel ? (
-              <Button
-                mode="outlined"
-                onPress={onSecondaryAction}
-                style={[
-                  styles.secondaryActionButton,
-                  {
-                    borderColor: secondaryButtonBorderColor,
-                    backgroundColor: secondaryButtonBackgroundColor,
-                  },
-                ]}
-                contentStyle={{ paddingVertical: 8 }}
-                textColor={tokens.colors.text}
-                loading={secondaryActionLoading}
-                disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading}
-              >
-                {secondaryActionLabel}
-              </Button>
-            ) : null}
-
-            {onTertiaryAction && tertiaryActionLabel ? (
-              <Button
-                mode="outlined"
-                onPress={onTertiaryAction}
-                style={[
-                  styles.secondaryActionButton,
-                  {
-                    borderColor: secondaryButtonBorderColor,
-                    backgroundColor: secondaryButtonBackgroundColor,
-                  },
-                ]}
-                contentStyle={{ paddingVertical: 8 }}
-                textColor={tokens.colors.text}
-                loading={tertiaryActionLoading}
-                disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading}
-              >
-                {tertiaryActionLabel}
-              </Button>
-            ) : null}
-
             {statusMessage ? (
-              <Text variant="bodySmall" style={[styles.statusMessage, { color: statusColor }]}>
-                {statusMessage}
-              </Text>
+              <View style={[styles.statusCard, { backgroundColor: cardMutedBackground, borderColor: cardMutedBorder }]}>
+                <MaterialCommunityIcons name="information-outline" size={16} color={tokens.colors.accentPurple} />
+                <Text style={[styles.statusText, { color: subtleTextColor }]}>{statusMessage}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.ctaSection}>
+              <Button
+                mode="contained"
+                buttonColor={tokens.colors.accent}
+                textColor="#FFFFFF"
+                onPress={onUpgrade}
+                loading={primaryLoading}
+                disabled={resolvedPrimaryDisabled}
+                style={styles.primaryButton}
+                contentStyle={styles.primaryButtonContent}
+              >
+                {resolvedCtaLabel}
+              </Button>
+
+              {billingHelper ? (
+                <Text variant="bodySmall" style={[styles.billingHelper, { color: subtleTextColor }]}>
+                  {billingHelper}
+                </Text>
+              ) : null}
+            </View>
+
+            {(secondaryActionLabel || tertiaryActionLabel) ? (
+              <View style={styles.secondaryActions}>
+                {secondaryActionLabel && onSecondaryAction ? (
+                  <Button
+                    mode="outlined"
+                    textColor={tokens.colors.text}
+                    onPress={onSecondaryAction}
+                    loading={secondaryActionLoading}
+                    disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading}
+                    style={[styles.secondaryButton, { borderColor: cardMutedBorder }]}
+                    contentStyle={styles.secondaryButtonContent}
+                  >
+                    {secondaryActionLabel}
+                  </Button>
+                ) : null}
+                {tertiaryActionLabel && onTertiaryAction ? (
+                  <Button
+                    mode="text"
+                    textColor={tokens.colors.accentPurple}
+                    onPress={onTertiaryAction}
+                    loading={tertiaryActionLoading}
+                    disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading}
+                    compact
+                    contentStyle={styles.tertiaryButtonContent}
+                  >
+                    {tertiaryActionLabel}
+                  </Button>
+                ) : null}
+              </View>
             ) : null}
 
             {legalLinks?.length ? (
@@ -406,26 +651,24 @@ export default function LimitReachedModal({
                     accessibilityRole="button"
                     disabled={link.disabled}
                     onPress={link.onPress}
-                    style={styles.legalLinkButton}
+                    style={({ pressed }) => [styles.legalLinkButton, { opacity: pressed || link.disabled ? 0.7 : 1 }]}
                   >
-                    <Text variant="bodySmall" style={[styles.legalLinkText, { color: legalLinkColor }]}>
-                      {link.label}
-                    </Text>
+                    <Text style={[styles.legalLinkText, { color: tokens.colors.accentPurple }]}>{link.label}</Text>
                   </Pressable>
                 ))}
               </View>
             ) : null}
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading}
+            <Button
+              mode="text"
+              textColor={subtleTextColor}
               onPress={onSecondaryLabelPress ?? onClose}
-              style={styles.secondary}
+              disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading}
+              compact
+              contentStyle={styles.dismissButtonContent}
             >
-              <Text variant="bodyLarge" style={{ color: dismissColor }}>
-                {resolvedSecondaryLabel}
-              </Text>
-            </Pressable>
+              {resolvedSecondaryLabel}
+            </Button>
           </ScrollView>
         </Animated.View>
       </Modal>
@@ -442,131 +685,269 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
   },
+  portalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backdropTint: {
+    ...StyleSheet.absoluteFillObject,
+  },
   card: {
-    borderRadius: 28,
-    overflow: "hidden",
+    borderRadius: 30,
     borderWidth: 1,
+    overflow: "hidden",
   },
   scrollContent: {
-    padding: 24,
-    alignItems: "center",
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 14,
     gap: 16,
   },
+  headerRow: {
+    minHeight: 40,
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+    position: "relative",
+    width: "100%",
+  },
+  headerCenter: {
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  balanceProChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  balanceProChipLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    position: "absolute",
+    right: 0,
+    top: 2,
+  },
+  heroBlock: {
+    gap: 8,
+    alignItems: "center",
+  },
   iconWrap: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
   },
   iconInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
   },
   title: {
     textAlign: "center",
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
   subtitle: {
     textAlign: "center",
+    lineHeight: 25,
+  },
+  trustLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  trustText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   benefits: {
-    width: "100%",
-    gap: 10,
-    marginTop: 4,
-  },
-  planGrid: {
-    width: "100%",
-    gap: 10,
-  },
-  planGridWide: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  planCard: {
-    width: "100%",
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
     gap: 8,
-  },
-  planCardWide: {
-    width: "48.5%",
-  },
-  planPriceLine: {
-    fontWeight: "700",
-  },
-  planPrice: {
-    fontSize: 26,
-    fontWeight: "800",
-  },
-  planPriceSuffix: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  planPriceUnavailable: {
-    fontWeight: "600",
-  },
-  planMeta: {
-    lineHeight: 18,
   },
   benefitRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  checkIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  benefitIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  gradientButton: {
-    width: "100%",
-    borderRadius: 999,
-    paddingVertical: 14,
+  benefitText: {
+    flex: 1,
+    fontWeight: "600",
+  },
+  plans: {
+    gap: 12,
+  },
+  planCard: {
+    borderRadius: 24,
+    borderWidth: 1.5,
+    padding: 16,
+    gap: 8,
+    overflow: "hidden",
+  },
+  planCardAnnual: {
+    minHeight: 128,
+    paddingTop: 15,
+    paddingBottom: 15,
+  },
+  planCardMonthly: {
+    minHeight: 108,
+  },
+  planCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
     alignItems: "center",
   },
-  disabledButton: {
-    opacity: 0.52,
+  planSheen: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
   },
-  fallbackButton: {
-    width: "100%",
-    borderRadius: 999,
+  planTint: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  secondaryActionButton: {
-    width: "100%",
-    borderRadius: 999,
-  },
-  ctaText: {
+  planTitle: {
     fontWeight: "700",
-    fontSize: 16,
   },
-  statusMessage: {
+  planBadges: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    flexShrink: 1,
+  },
+  planBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  planBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  planBadgeAnnual: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  planPriceBlock: {
+    gap: 6,
+  },
+  planPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  planPrice: {
+    fontWeight: "800",
+    letterSpacing: -1,
+  },
+  planPriceAnnual: {
+    fontSize: 30,
+    lineHeight: 36,
+  },
+  planPriceMonthly: {
+    fontSize: 30,
+    lineHeight: 36,
+  },
+  planAnchor: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "700",
+  },
+  planMeta: {
+    fontSize: 13,
+  },
+  planSkeletonGroup: {
+    gap: 10,
+  },
+  skeletonLine: {
+    borderRadius: 999,
+  },
+  skeletonPrice: {
+    width: 154,
+    height: 18,
+  },
+  statusCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  statusText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  ctaSection: {
+    gap: 10,
+    marginTop: 8,
+  },
+  primaryButton: {
+    borderRadius: 999,
+  },
+  primaryButtonContent: {
+    minHeight: 56,
+  },
+  billingHelper: {
     textAlign: "center",
     lineHeight: 18,
   },
+  secondaryActions: {
+    gap: 10,
+  },
+  secondaryButton: {
+    borderRadius: 999,
+  },
+  secondaryButtonContent: {
+    minHeight: 50,
+  },
+  tertiaryButtonContent: {
+    minHeight: 34,
+  },
   legalLinks: {
-    width: "100%",
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "center",
-    gap: 14,
+    flexWrap: "wrap",
+    gap: 8,
   },
   legalLinkButton: {
     paddingVertical: 4,
+    paddingHorizontal: 6,
   },
   legalLinkText: {
+    fontSize: 13,
     textDecorationLine: "underline",
   },
-  secondary: {
-    paddingVertical: 6,
+  dismissButtonContent: {
+    minHeight: 34,
   },
 });

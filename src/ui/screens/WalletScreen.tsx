@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
 import LimitReachedModal from "@/ui/components/LimitReachedModal";
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
+import ProWelcomeModal from "@/ui/components/ProWelcomeModal";
 import AppBackground from "@/ui/components/AppBackground";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GlassBlur from "@/ui/components/GlassBlur";
@@ -192,6 +193,8 @@ export default function WalletScreen(): React.ReactElement {
   const scrollRef = useRef<ScrollView | null>(null);
   const [pendingWalletType, setPendingWalletType] = useState<"LIQUIDITY" | "INVEST" | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
+  const [proWelcomeVisible, setProWelcomeVisible] = useState(false);
+  const [isDismissingProWelcome, setIsDismissingProWelcome] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<BalanceProPlanId>("yearly");
   const {
     isPro,
@@ -208,6 +211,7 @@ export default function WalletScreen(): React.ReactElement {
     prepareStore,
     purchase,
     restore,
+    markProWelcomeSeen,
   } = useBalancePro();
   useEffect(() => {
     if (!showInvestments) {
@@ -573,8 +577,13 @@ export default function WalletScreen(): React.ReactElement {
     const result = await purchase(selectedPlanId);
     switch (result.status) {
       case "success":
-        setPurchaseNotice(t("wallets.actions.purchaseSuccess", { defaultValue: "Balance Pro attivato." }));
         setLimitModalVisible(false);
+        if (result.showWelcome) {
+          setPurchaseNotice(null);
+          setProWelcomeVisible(true);
+          return;
+        }
+        setPurchaseNotice(t("wallets.actions.purchaseSuccess", { defaultValue: "Balance Pro attivato." }));
         return;
       case "cancelled":
         setPurchaseNotice(t("wallets.actions.purchaseCancelled", { defaultValue: "Acquisto annullato." }));
@@ -605,6 +614,22 @@ export default function WalletScreen(): React.ReactElement {
         return;
     }
   }, [canPurchaseSelectedPlan, isProReady, isStoreLoading, purchase, selectedPlanId, t]);
+
+  const handleDismissProWelcome = useCallback(() => {
+    if (isDismissingProWelcome) {
+      return;
+    }
+
+    setIsDismissingProWelcome(true);
+    void markProWelcomeSeen()
+      .catch((error) => {
+        console.warn("Failed to persist Balance Pro welcome state", error);
+      })
+      .finally(() => {
+        setIsDismissingProWelcome(false);
+        setProWelcomeVisible(false);
+      });
+  }, [isDismissingProWelcome, markProWelcomeSeen]);
 
   const handleRestorePurchases = useCallback(async () => {
     const result = await restore();
@@ -681,18 +706,7 @@ export default function WalletScreen(): React.ReactElement {
     ],
     [handleOpenPrivacyPolicy, handleOpenTermsOfUse, t]
   );
-  const selectedPlanLabel = selectedPlanId === "yearly"
-    ? t("wallets.actions.planYearly", { defaultValue: "Yearly" })
-    : t("wallets.actions.planMonthly", { defaultValue: "Monthly" });
   const shouldShowRetryStore = Boolean((storeErrorCode || storeErrorMessage || !isStoreAvailable) && isProReady && !isStoreLoading);
-  const paywallPrimaryCtaLabel = !isProReady || isStoreLoading
-    ? t("wallets.actions.limitLoadingCta", { defaultValue: "Caricamento prezzi..." })
-    : !canPurchaseSelectedPlan
-    ? t("wallets.actions.limitPurchaseUnavailableCta", { defaultValue: "Acquisto non disponibile" })
-    : t("wallets.actions.limitUpgradeCta", {
-        plan: selectedPlanLabel,
-        defaultValue: "Continua con {{plan}}",
-      });
   const paywallStatusMessage = !isProReady
     ? t("wallets.actions.limitStatusSyncing", {
         defaultValue: "Sto verificando il tuo stato Balance Pro...",
@@ -1108,9 +1122,6 @@ export default function WalletScreen(): React.ReactElement {
           plans={availablePlans}
           selectedPlanId={selectedPlanId}
           onSelectPlan={setSelectedPlanId}
-          title={t("wallets.actions.limitModalTitle")}
-          subtitle={t("wallets.actions.limitModalSubtitle")}
-          ctaLabel={paywallPrimaryCtaLabel}
           primaryDisabled={!canPurchaseSelectedPlan || !isProReady || isStoreLoading}
           onSecondaryAction={handleRestorePurchases}
           secondaryActionLabel={t("wallets.actions.restorePurchases")}
@@ -1124,6 +1135,12 @@ export default function WalletScreen(): React.ReactElement {
           statusMessage={paywallStatusMessage}
           legalLinks={paywallLegalLinks}
           isStoreLoading={!isProReady || isStoreLoading}
+        />
+
+        <ProWelcomeModal
+          visible={proWelcomeVisible}
+          onContinue={handleDismissProWelcome}
+          loading={isDismissingProWelcome}
         />
 
         <Snackbar visible={purchaseNotice !== null} onDismiss={() => setPurchaseNotice(null)} duration={4000}>

@@ -57,6 +57,17 @@
       "cta": "Get started"
     }
   },
+  "pro": {
+    "welcome": {
+      "title": "Welcome to Balance Pro",
+      "body": "Your subscription is active. You now have full access to Balance Pro features.",
+      "benefit1": "Unlimited wallets",
+      "benefit2": "Advanced insights",
+      "benefit3": "Complete control of your finances",
+      "continue": "Continue",
+      "secondary": "Discover Balance Pro"
+    }
+  },
   "errors": {
     "genericTitle": "Error",
     "generic": "Something went wrong"
@@ -282,16 +293,26 @@
       "colorLabel": "Color"
     },
     "actions": {
-      "limitTitle": "Unlock Balance Pro",
-      "limitBody": "The free version includes up to 3 wallets. Choose Balance Pro to continue.",
-      "limitModalTitle": "Unlock Balance Pro",
-      "limitModalSubtitle": "The free version includes up to 3 wallets. Choose Balance Pro to continue.",
+      "limitTitle": "Upgrade to Balance Pro",
+      "limitBody": "Unlock unlimited wallets, advanced insights, and more control over your finances.",
+      "limitModalTitle": "Upgrade to Balance Pro",
+      "limitModalSubtitle": "Unlock unlimited wallets, advanced insights, and more control over your finances.",
       "limitBenefitUnlimited": "Unlimited wallets",
       "limitBenefitInsights": "Advanced insights",
-      "limitBenefitControl": "Full control over your finances",
+      "limitBenefitControl": "More control over your finances",
+      "paywallHeadlineTrial": "Try Balance Pro free",
+      "paywallHeadline": "Upgrade to Balance Pro",
+      "paywallSubtitle": "Start with a free trial and unlock a more complete way to manage your wallets, with advanced insights and more control.",
+      "paywallTrustCancelAnytime": "Free trial, cancel anytime",
+      "paywallTrialEligibleBadge": "Free trial if available",
+      "paywallBillingHelper": "Renews at {{price}} / {{cycle}}. Cancel anytime.",
+      "paywallBillingHelperTrial": "If eligible, you’ll be charged after the free trial. Then {{price}} / {{cycle}}. Cancel anytime.",
+      "paywallSecureApple": "Secure payment via Apple",
+      "paywallRestoreAvailable": "Restore purchases available",
       "planMonthly": "Monthly",
       "planYearly": "Yearly",
       "planBestValue": "Best value",
+      "planSavingsPercentage": "Save {{percent}}% vs monthly",
       "planCycleDay": "day",
       "planCycleWeek": "week",
       "planCycleMonth": "month",
@@ -307,13 +328,16 @@
       "planLoadingPrice": "Loading price...",
       "planPriceUnavailable": "Price unavailable",
       "limitUpgradeCta": "Continue with {{plan}}",
+      "limitTrialCta": "Start your free trial",
+      "limitYearlyCta": "Choose yearly",
+      "limitMonthlyCta": "Choose monthly",
       "limitLoadingCta": "Loading prices...",
       "limitPurchaseUnavailableCta": "Purchase unavailable",
       "restorePurchases": "Restore purchases",
       "privacyPolicy": "Privacy Policy",
       "termsOfUse": "Terms of Use",
       "retryStoreLoad": "Retry",
-      "limitMaybeLater": "Not now",
+      "limitMaybeLater": "Maybe later",
       "downloadPro": "Unlock Balance Pro",
       "limitStatusSyncing": "Checking your Balance Pro status...",
       "limitStatusPriceUnavailable": "Balance Pro prices are not available right now. Please retry shortly or restore your purchases.",

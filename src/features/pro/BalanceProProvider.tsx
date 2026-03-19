@@ -1,12 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
-import type {
-  ActiveSubscription,
-  ProductSubscription,
-  Purchase,
-  PurchaseError,
-  RenewalInfoIOS,
-} from "expo-iap";
 import { getPreference, setPreference } from "@/repositories/preferencesRepo";
 import {
   BALANCE_PRO_PRODUCT_ID_BY_PLAN,
@@ -15,9 +8,15 @@ import {
   type BalanceProPlanId,
 } from "@/config/entitlements";
 
-const SUBSCRIPTION_STATE_PREFERENCE_KEY = "entitlements.balancePro.subscriptionState";
+const ENTITLEMENT_PREFERENCE_KEY = "balance.pro.entitlement";
+const LEGACY_SUBSCRIPTION_STATE_PREFERENCE_KEY = "entitlements.balancePro.subscriptionState";
 const LEGACY_IS_PRO_PREFERENCE_KEY = "entitlements.balancePro.isPro";
+const PRO_WELCOME_SEEN_PREFERENCE_KEY = "entitlements.balancePro.hasSeenWelcome";
 const FALLBACK_ENTITLEMENT_CACHE_MS = 24 * 60 * 60 * 1000;
+const ENTITLEMENT_STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const NETWORK_PROBE_TIMEOUT_MS = 4000;
+const NETWORK_PROBE_URL = "https://www.apple.com/library/test/success.html";
+const ONLINE_SYNC_INTERVAL_MS = 60 * 1000;
 const BALANCE_PRO_LOG_PREFIX = "[BalancePro]";
 
 const ERROR_CODES = {
@@ -36,7 +35,7 @@ const ERROR_CODES = {
 } as const;
 
 type PurchaseProResult =
-  | { status: "success" }
+  | { status: "success"; showWelcome: boolean }
   | { status: "cancelled" }
   | { status: "pending" }
   | { status: "product-unavailable" }
@@ -49,10 +48,72 @@ type RestorePurchasesResult =
   | { status: "store-unavailable" }
   | { status: "error"; message?: string };
 
+type EntitlementSource = "store" | "cache";
+
+type RenewalInfoIOS = {
+  renewalDate?: number | null;
+};
+
+type IntroductoryPaymentModeIOS = "empty" | "free-trial" | "pay-as-you-go" | "pay-up-front";
+type SubscriptionPeriodUnitIOS = "day" | "week" | "month" | "year" | "empty";
+
+type BalanceProSubscriptionOffer = {
+  displayPrice?: string | null;
+  id: string;
+  paymentMode?: IntroductoryPaymentModeIOS | null;
+  period?: {
+    unit?: SubscriptionPeriodUnitIOS | null;
+    value?: number | null;
+  } | null;
+  periodCount?: number | null;
+  price?: number | null;
+  type?: "introductory" | "promotional" | "win-back" | null;
+};
+
+export type BalanceProProduct = {
+  currency?: string | null;
+  displayPrice?: string | null;
+  id: string;
+  introductoryPriceAsAmountIOS?: string | null;
+  introductoryPriceIOS?: string | null;
+  introductoryPriceNumberOfPeriodsIOS?: string | null;
+  introductoryPricePaymentModeIOS?: IntroductoryPaymentModeIOS | null;
+  introductoryPriceSubscriptionPeriodIOS?: SubscriptionPeriodUnitIOS | null;
+  platform?: string | null;
+  price?: number | null;
+  subscriptionOffers?: BalanceProSubscriptionOffer[] | null;
+  subscriptionPeriodNumberIOS?: string | null;
+  subscriptionPeriodUnitIOS?: Exclude<SubscriptionPeriodUnitIOS, "empty"> | null;
+  type?: string | null;
+};
+
+type Purchase = {
+  expirationDateIOS?: number | null;
+  id?: string | null;
+  productId: string;
+  purchaseState?: string | null;
+  renewalInfoIOS?: RenewalInfoIOS | null;
+  transactionDate: number;
+  transactionId?: string | null;
+};
+
+type ActiveSubscription = {
+  currentPlanId?: string | null;
+  expirationDateIOS?: number | null;
+  isActive: boolean;
+  productId: string;
+  renewalInfoIOS?: RenewalInfoIOS | null;
+  transactionDate: number;
+};
+
+type PurchaseError = Error & {
+  code?: string;
+};
+
 export type BalanceProAvailablePlan = {
   planId: BalanceProPlanId;
   productId: string;
-  product: ProductSubscription | null;
+  product: BalanceProProduct | null;
   displayPrice: string | null;
   isBestValue: boolean;
 };
@@ -62,6 +123,9 @@ type BalanceProContextValue = {
   activePlan: BalanceProPlanId | null;
   hasActiveSubscription: boolean;
   isReady: boolean;
+  entitlementSource: EntitlementSource;
+  isEntitlementStale: boolean;
+  lastValidatedAt: number;
   isStoreAvailable: boolean;
   isStoreLoading: boolean;
   storeErrorCode: string | null;
@@ -74,6 +138,7 @@ type BalanceProContextValue = {
   purchase: (plan: BalanceProPlanId) => Promise<PurchaseProResult>;
   restore: () => Promise<RestorePurchasesResult>;
   refreshProStatus: () => Promise<boolean>;
+  markProWelcomeSeen: () => Promise<void>;
 };
 
 const BalanceProContext = createContext<BalanceProContextValue | null>(null);
@@ -82,31 +147,69 @@ type BalanceProProviderProps = {
   children: React.ReactNode;
 };
 
-type PersistedSubscriptionState = {
-  version: 2;
+type PersistedEntitlement = {
+  version: 3;
+  isPro: boolean;
   activePlan: BalanceProPlanId | null;
   productId: string | null;
   expiresAt: number | null;
-  hasActiveSubscription: boolean;
   lastValidatedAt: number;
+  source: EntitlementSource;
 };
 
-type ExpoIapRuntime = typeof import("expo-iap");
+type BalanceProEntitlement = {
+  isPro: boolean;
+  activePlan: BalanceProPlanId | null;
+  productId: string | null;
+  expiresAt: number | null;
+  lastValidatedAt: number;
+  source: EntitlementSource;
+  isStale: boolean;
+};
 
-type ProductMap = Record<BalanceProPlanId, ProductSubscription | null>;
+type ExpoIapRuntime = {
+  endConnection: () => Promise<boolean>;
+  fetchProducts: (request: { skus: string[]; type: "subs" }) => Promise<BalanceProProduct[] | null | undefined>;
+  finishTransaction: (request: { purchase: Purchase; isConsumable: boolean }) => Promise<boolean>;
+  getActiveSubscriptions: (productIds: string[]) => Promise<ActiveSubscription[]>;
+  getAvailablePurchases: (options: {
+    alsoPublishToEventListenerIOS: boolean;
+    onlyIncludeActiveItemsIOS: boolean;
+  }) => Promise<Purchase[]>;
+  initConnection: () => Promise<boolean>;
+  purchaseErrorListener: (listener: (error: PurchaseError | Error) => void) => { remove: () => void };
+  purchaseUpdatedListener: (listener: (purchase: Purchase) => void) => { remove: () => void };
+  requestPurchase: (request: {
+    type: "subs";
+    request: {
+      apple: { sku: string };
+      google: { skus: string[] };
+    };
+  }) => Promise<Purchase | Purchase[] | null>;
+  restorePurchases: () => Promise<unknown>;
+};
+
+type ProductMap = Record<BalanceProPlanId, BalanceProProduct | null>;
+
+type PendingPurchaseContext = {
+  plan: BalanceProPlanId;
+  wasProAtStart: boolean;
+  allowWelcome: boolean;
+};
 
 const EMPTY_PRODUCT_MAP: ProductMap = {
   monthly: null,
   yearly: null,
 };
 
-const EMPTY_SUBSCRIPTION_STATE: PersistedSubscriptionState = {
-  version: 2,
+const EMPTY_PERSISTED_ENTITLEMENT: PersistedEntitlement = {
+  version: 3,
+  isPro: false,
   activePlan: null,
   productId: null,
   expiresAt: null,
-  hasActiveSubscription: false,
   lastValidatedAt: 0,
+  source: "cache",
 };
 
 function getExpoIapRuntime(): ExpoIapRuntime | null {
@@ -215,35 +318,37 @@ function resolveEntitlementExpiry(input: {
   return input.expirationDateIOS ?? input.renewalInfoIOS?.renewalDate ?? input.transactionDate + FALLBACK_ENTITLEMENT_CACHE_MS;
 }
 
-function createPersistedState(params: {
+function createPersistedEntitlement(params: {
+  isPro: boolean;
   productId: string | null;
   activePlan: BalanceProPlanId | null;
-  hasActiveSubscription: boolean;
   expiresAt: number | null;
   lastValidatedAt?: number;
-}): PersistedSubscriptionState {
+  source?: EntitlementSource;
+}): PersistedEntitlement {
   return {
-    version: 2,
+    version: 3,
+    isPro: params.isPro,
     productId: params.productId,
     activePlan: params.activePlan,
-    hasActiveSubscription: params.hasActiveSubscription,
     expiresAt: params.expiresAt,
     lastValidatedAt: params.lastValidatedAt ?? Date.now(),
+    source: params.source ?? "store",
   };
 }
 
-function createStateFromPurchase(purchase: Purchase): PersistedSubscriptionState {
+function createEntitlementFromPurchase(purchase: Purchase): PersistedEntitlement {
   if (!isBalanceProPurchase(purchase)) {
-    return EMPTY_SUBSCRIPTION_STATE;
+    return EMPTY_PERSISTED_ENTITLEMENT;
   }
 
   const activePlan = getPlanFromProductId(purchase.productId);
   const expirationDateIOS = "expirationDateIOS" in purchase ? purchase.expirationDateIOS : null;
   const renewalInfoIOS = "renewalInfoIOS" in purchase ? purchase.renewalInfoIOS : null;
-  return createPersistedState({
+  return createPersistedEntitlement({
+    isPro: purchase.purchaseState !== "pending" && activePlan !== null,
     productId: purchase.productId,
     activePlan,
-    hasActiveSubscription: purchase.purchaseState !== "pending" && activePlan !== null,
     expiresAt:
       purchase.purchaseState === "pending"
         ? null
@@ -252,10 +357,11 @@ function createStateFromPurchase(purchase: Purchase): PersistedSubscriptionState
             renewalInfoIOS,
             transactionDate: purchase.transactionDate,
           }),
+    source: "store",
   });
 }
 
-function createStateFromSubscription(subscription: ActiveSubscription): PersistedSubscriptionState {
+function createEntitlementFromSubscription(subscription: ActiveSubscription): PersistedEntitlement {
   const activePlan = getPlanFromProductId(subscription.currentPlanId ?? subscription.productId);
   const productId = isBalanceProProductId(subscription.currentPlanId)
     ? subscription.currentPlanId
@@ -263,71 +369,93 @@ function createStateFromSubscription(subscription: ActiveSubscription): Persiste
     ? subscription.productId
     : null;
 
-  return createPersistedState({
+  return createPersistedEntitlement({
+    isPro: subscription.isActive && activePlan !== null,
     productId,
     activePlan,
-    hasActiveSubscription: subscription.isActive && activePlan !== null,
     expiresAt: resolveEntitlementExpiry({
       expirationDateIOS: subscription.expirationDateIOS,
       renewalInfoIOS: subscription.renewalInfoIOS,
       transactionDate: subscription.transactionDate,
     }),
+    source: "store",
   });
 }
 
-function readCachedEntitlement(state: PersistedSubscriptionState): { isPro: boolean; activePlan: BalanceProPlanId | null } {
-  if (!state.hasActiveSubscription || !state.activePlan || !isBalanceProProductId(state.productId)) {
-    return { isPro: false, activePlan: null };
-  }
-
-  if (!state.expiresAt || state.expiresAt <= Date.now()) {
-    return { isPro: false, activePlan: null };
-  }
-
-  return { isPro: true, activePlan: state.activePlan };
+function isEntitlementStale(lastValidatedAt: number): boolean {
+  return lastValidatedAt > 0 && Date.now() - lastValidatedAt > ENTITLEMENT_STALE_TTL_MS;
 }
 
-function parsePersistedState(value: string | null | undefined): PersistedSubscriptionState {
+function resolveRuntimeEntitlement(
+  entitlement: PersistedEntitlement,
+  sourceOverride?: EntitlementSource
+): BalanceProEntitlement {
+  const hasValidProductId = isBalanceProProductId(entitlement.productId);
+  const activePlan = entitlement.activePlan === "monthly" || entitlement.activePlan === "yearly" ? entitlement.activePlan : null;
+  const isExpired = typeof entitlement.expiresAt === "number" && entitlement.expiresAt <= Date.now();
+  const isPro = entitlement.isPro && activePlan !== null && hasValidProductId && !isExpired;
+
+  return {
+    isPro,
+    activePlan: isPro ? activePlan : null,
+    productId: hasValidProductId ? entitlement.productId : null,
+    expiresAt: entitlement.expiresAt,
+    lastValidatedAt: entitlement.lastValidatedAt,
+    source: sourceOverride ?? entitlement.source,
+    isStale: isEntitlementStale(entitlement.lastValidatedAt),
+  };
+}
+
+function parsePersistedEntitlement(value: string | null | undefined): PersistedEntitlement {
   if (!value) {
-    return EMPTY_SUBSCRIPTION_STATE;
+    return EMPTY_PERSISTED_ENTITLEMENT;
   }
 
   try {
-    const parsed = JSON.parse(value) as Partial<PersistedSubscriptionState>;
+    const parsed = JSON.parse(value) as Partial<PersistedEntitlement> & {
+      hasActiveSubscription?: boolean;
+    };
     const productId = isBalanceProProductId(parsed.productId ?? null) ? parsed.productId ?? null : null;
     const activePlan = parsed.activePlan === "monthly" || parsed.activePlan === "yearly" ? parsed.activePlan : null;
     const expiresAt = typeof parsed.expiresAt === "number" ? parsed.expiresAt : null;
-    const hasActiveSubscription = parsed.hasActiveSubscription === true;
+    const isPro = parsed.isPro === true || parsed.hasActiveSubscription === true;
     const lastValidatedAt = typeof parsed.lastValidatedAt === "number" ? parsed.lastValidatedAt : 0;
+    const source = parsed.source === "store" || parsed.source === "cache" ? parsed.source : "cache";
 
     return {
-      version: 2,
+      version: 3,
+      isPro,
       productId,
       activePlan,
       expiresAt,
-      hasActiveSubscription,
       lastValidatedAt,
+      source,
     };
   } catch (error) {
     logBalanceProWarn("Failed to parse Balance Pro entitlement cache", error);
-    return EMPTY_SUBSCRIPTION_STATE;
+    return EMPTY_PERSISTED_ENTITLEMENT;
   }
 }
 
-async function readPersistedSubscriptionState(): Promise<PersistedSubscriptionState> {
-  const subscriptionState = await getPreference(SUBSCRIPTION_STATE_PREFERENCE_KEY);
-  if (subscriptionState?.value) {
-    return parsePersistedState(subscriptionState.value);
+async function readPersistedEntitlement(): Promise<PersistedEntitlement> {
+  const entitlement = await getPreference(ENTITLEMENT_PREFERENCE_KEY);
+  if (entitlement?.value) {
+    return parsePersistedEntitlement(entitlement.value);
+  }
+
+  const legacySubscriptionState = await getPreference(LEGACY_SUBSCRIPTION_STATE_PREFERENCE_KEY);
+  if (legacySubscriptionState?.value) {
+    return parsePersistedEntitlement(legacySubscriptionState.value);
   }
 
   // The legacy key represented a permanent non-consumable unlock. Ignore it so
   // deprecated local state does not silently grant subscription access.
   const legacyFlag = await getPreference(LEGACY_IS_PRO_PREFERENCE_KEY);
   if (legacyFlag?.value) {
-    return EMPTY_SUBSCRIPTION_STATE;
+    return EMPTY_PERSISTED_ENTITLEMENT;
   }
 
-  return EMPTY_SUBSCRIPTION_STATE;
+  return EMPTY_PERSISTED_ENTITLEMENT;
 }
 
 function sortActiveSubscriptions(subscriptions: ActiveSubscription[]): ActiveSubscription[] {
@@ -342,12 +470,63 @@ function hasLoadedProducts(products: ProductMap): boolean {
   return Object.values(products).some((product) => product !== null);
 }
 
+function resolveLocalizedDisplayPrice(product: BalanceProProduct | null): string | null {
+  const displayPrice = typeof product?.displayPrice === "string" ? product.displayPrice.trim() : "";
+  return displayPrice.length > 0 ? displayPrice : null;
+}
+
+function getProductDebugDetails(product: BalanceProProduct | null): Record<string, unknown> {
+  if (!product) {
+    return {
+      returnedProductId: null,
+      displayPrice: null,
+      currencyCode: null,
+      subscriptionPeriodUnit: null,
+      subscriptionPeriodCount: null,
+    };
+  }
+
+  const iosProduct = product.platform === "ios" ? product : null;
+  return {
+    returnedProductId: product.id,
+    displayPrice: resolveLocalizedDisplayPrice(product),
+    currencyCode: product.currency ?? null,
+    subscriptionPeriodUnit: iosProduct?.subscriptionPeriodUnitIOS ?? null,
+    subscriptionPeriodCount: iosProduct?.subscriptionPeriodNumberIOS ?? null,
+  };
+}
+
+async function readHasSeenProWelcome(): Promise<boolean> {
+  const preference = await getPreference(PRO_WELCOME_SEEN_PREFERENCE_KEY);
+  return preference?.value === "true";
+}
+
+async function checkNetworkAvailability(): Promise<boolean> {
+  const abortController = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timeoutId = setTimeout(() => {
+    abortController?.abort();
+  }, NETWORK_PROBE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(NETWORK_PROBE_URL, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: abortController?.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function createPlanEntries(products: ProductMap): BalanceProAvailablePlan[] {
   return (["yearly", "monthly"] as const).map((planId) => ({
     planId,
     productId: BALANCE_PRO_PRODUCT_ID_BY_PLAN[planId],
     product: products[planId],
-    displayPrice: products[planId]?.displayPrice ?? null,
+    displayPrice: resolveLocalizedDisplayPrice(products[planId]),
     isBestValue: planId === "yearly",
   }));
 }
@@ -356,6 +535,9 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
   const [isPro, setIsPro] = useState(false);
   const [activePlan, setActivePlan] = useState<BalanceProPlanId | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [entitlementSource, setEntitlementSource] = useState<EntitlementSource>("cache");
+  const [isEntitlementCacheStale, setIsEntitlementCacheStale] = useState(false);
+  const [lastValidatedAt, setLastValidatedAt] = useState(0);
   const [isStoreLoading, setIsStoreLoading] = useState(false);
   const [storeErrorCode, setStoreErrorCode] = useState<string | null>(null);
   const [storeErrorMessage, setStoreErrorMessage] = useState<string | null>(null);
@@ -367,27 +549,43 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
   const isProRef = useRef(isPro);
   const iapRef = useRef<ExpoIapRuntime | null>(null);
   const initStorePromiseRef = useRef<Promise<boolean> | null>(null);
+  const entitlementSyncPromiseRef = useRef<Promise<{ isPro: boolean; hasProducts: boolean }> | null>(null);
   const handledTransactionsRef = useRef(new Set<string>());
   const purchaseResolverRef = useRef<((result: PurchaseProResult) => void) | null>(null);
+  const purchaseContextRef = useRef<PendingPurchaseContext | null>(null);
   const purchaseSubscriptionRef = useRef<{ remove: () => void } | null>(null);
   const purchaseErrorSubscriptionRef = useRef<{ remove: () => void } | null>(null);
+  const hasSeenProWelcomeRef = useRef(false);
 
   useEffect(() => {
     isProRef.current = isPro;
   }, [isPro]);
 
-  const persistEntitlementState = useCallback(async (nextState: PersistedSubscriptionState) => {
-    const cachedEntitlement = readCachedEntitlement(nextState);
-    setIsPro(cachedEntitlement.isPro);
-    setActivePlan(cachedEntitlement.activePlan);
-    isProRef.current = cachedEntitlement.isPro;
-    await setPreference(SUBSCRIPTION_STATE_PREFERENCE_KEY, JSON.stringify(nextState));
+  const applyEntitlement = useCallback((nextEntitlement: PersistedEntitlement, sourceOverride?: EntitlementSource) => {
+    const runtimeEntitlement = resolveRuntimeEntitlement(nextEntitlement, sourceOverride);
+    setIsPro(runtimeEntitlement.isPro);
+    setActivePlan(runtimeEntitlement.activePlan);
+    setEntitlementSource(runtimeEntitlement.source);
+    setIsEntitlementCacheStale(runtimeEntitlement.isStale);
+    setLastValidatedAt(runtimeEntitlement.lastValidatedAt);
+    isProRef.current = runtimeEntitlement.isPro;
+    return runtimeEntitlement;
   }, []);
+
+  const persistEntitlementState = useCallback(async (nextState: PersistedEntitlement, sourceOverride?: EntitlementSource) => {
+    const persistedState = sourceOverride && sourceOverride !== nextState.source
+      ? { ...nextState, source: sourceOverride }
+      : nextState;
+    const runtimeEntitlement = applyEntitlement(persistedState, persistedState.source);
+    await setPreference(ENTITLEMENT_PREFERENCE_KEY, JSON.stringify(persistedState));
+    return runtimeEntitlement;
+  }, [applyEntitlement]);
 
   const settlePurchase = useCallback((result: PurchaseProResult) => {
     setIsPurchasePending(false);
     const resolver = purchaseResolverRef.current;
     purchaseResolverRef.current = null;
+    purchaseContextRef.current = null;
     resolver?.(result);
   }, []);
 
@@ -435,9 +633,11 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     logBalanceProInfo("Fetched Balance Pro products", {
       requestedProductIds: [...BALANCE_PRO_PRODUCT_IDS],
       returnedProductIds: products.map((item) => item.id),
-      matchedProductIds: Object.values(nextProducts)
-        .map((item) => item?.id ?? null)
-        .filter((item): item is string => Boolean(item)),
+      matchedPlans: (["monthly", "yearly"] as const).map((planId) => ({
+        planId,
+        expectedProductId: BALANCE_PRO_PRODUCT_ID_BY_PLAN[planId],
+        ...getProductDebugDetails(nextProducts[planId]),
+      })),
     });
 
     setProductsByPlan(nextProducts);
@@ -491,9 +691,9 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     const activePurchase = sortPurchases(purchases.filter(isBalanceProPurchase)).find(
       (purchase) => purchase.purchaseState !== "pending"
     );
-    const nextState = activePurchase ? createStateFromPurchase(activePurchase) : EMPTY_SUBSCRIPTION_STATE;
+    const nextState = activePurchase ? createEntitlementFromPurchase(activePurchase) : EMPTY_PERSISTED_ENTITLEMENT;
     await persistEntitlementState(nextState);
-    return nextState.hasActiveSubscription;
+    return nextState.isPro;
   }, [getIapRuntime, persistEntitlementState]);
 
   const refreshProStatusInternal = useCallback(async (runtime: ExpoIapRuntime): Promise<boolean> => {
@@ -502,9 +702,9 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       const activeSubscription = sortActiveSubscriptions(
         subscriptions.filter((subscription) => isBalanceProProductId(subscription.currentPlanId ?? subscription.productId))
       )[0];
-      const nextState = activeSubscription ? createStateFromSubscription(activeSubscription) : EMPTY_SUBSCRIPTION_STATE;
+      const nextState = activeSubscription ? createEntitlementFromSubscription(activeSubscription) : EMPTY_PERSISTED_ENTITLEMENT;
       await persistEntitlementState(nextState);
-      return nextState.hasActiveSubscription;
+      return nextState.isPro;
     } catch (error) {
       logBalanceProWarn("Failed to refresh Balance Pro subscription status", error);
       try {
@@ -532,7 +732,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
 
       const transactionKey = purchase.transactionId ?? purchase.id;
       if (transactionKey && handledTransactionsRef.current.has(transactionKey)) {
-        settlePurchase({ status: "success" });
+        settlePurchase({ status: "success", showWelcome: false });
         return;
       }
 
@@ -555,16 +755,28 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         });
       }
 
-      const optimisticState = createStateFromPurchase(purchase);
+      const optimisticState = createEntitlementFromPurchase(purchase);
       await persistEntitlementState(optimisticState);
       const hasActiveSubscription = await refreshProStatusInternal(iap);
+      const purchaseContext = purchaseContextRef.current;
+      const shouldShowWelcome = Boolean(
+        purchaseContext?.allowWelcome &&
+          purchaseContext.wasProAtStart === false &&
+          (hasActiveSubscription || optimisticState.isPro) &&
+          !hasSeenProWelcomeRef.current
+      );
       logBalanceProInfo("Balance Pro purchase processed", {
         productId: purchase.productId,
         transactionId: purchase.transactionId ?? purchase.id ?? null,
         purchaseState: purchase.purchaseState,
         hasActiveSubscription,
+        showWelcome: shouldShowWelcome,
       });
-      settlePurchase(hasActiveSubscription || optimisticState.hasActiveSubscription ? { status: "success" } : { status: "error" });
+      settlePurchase(
+        hasActiveSubscription || optimisticState.isPro
+          ? { status: "success", showWelcome: shouldShowWelcome }
+          : { status: "error" }
+      );
     },
     [getIapRuntime, persistEntitlementState, refreshProStatusInternal, settlePurchase]
   );
@@ -590,7 +802,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       if ("code" in error && error.code === ERROR_CODES.alreadyOwned) {
         const iap = getIapRuntime();
         const hasBalancePro = iap && isStoreConnected ? await refreshProStatusInternal(iap) : false;
-        settlePurchase(hasBalancePro ? { status: "success" } : { status: "error", message: error.message });
+        settlePurchase(hasBalancePro ? { status: "success", showWelcome: false } : { status: "error", message: error.message });
         return;
       }
 
@@ -676,6 +888,79 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     isStoreConnected,
   ]);
 
+  const useCachedEntitlement = useCallback(async (reason: string): Promise<BalanceProEntitlement> => {
+    const cachedEntitlement = await readPersistedEntitlement();
+    const runtimeEntitlement = applyEntitlement(cachedEntitlement, "cache");
+    logBalanceProInfo("Using cached Balance Pro entitlement", {
+      reason,
+      isPro: runtimeEntitlement.isPro,
+      lastValidatedAt: runtimeEntitlement.lastValidatedAt,
+      isStale: runtimeEntitlement.isStale,
+    });
+
+    if (runtimeEntitlement.isStale) {
+      logBalanceProWarn("Balance Pro entitlement cache is stale", undefined, {
+        reason,
+        lastValidatedAt: runtimeEntitlement.lastValidatedAt,
+      });
+    }
+
+    return runtimeEntitlement;
+  }, [applyEntitlement]);
+
+  const syncEntitlementFromCurrentConnectivity = useCallback(
+    async (options?: { reason?: string; loadCatalog?: boolean }): Promise<{ isPro: boolean; hasProducts: boolean }> => {
+      if (Platform.OS !== "ios") {
+        return { isPro: isProRef.current, hasProducts: false };
+      }
+
+      if (entitlementSyncPromiseRef.current) {
+        const inFlightResult = await entitlementSyncPromiseRef.current;
+        if (!options?.loadCatalog || inFlightResult.hasProducts) {
+          return inFlightResult;
+        }
+      }
+
+      const reason = options?.reason ?? "manual";
+      const syncPromise = (async () => {
+        const online = await checkNetworkAvailability();
+        if (!online) {
+          const cachedEntitlement = await useCachedEntitlement(`${reason}:offline`);
+          return {
+            isPro: cachedEntitlement.isPro,
+            hasProducts: hasLoadedProducts(productsByPlan),
+          };
+        }
+
+        logBalanceProInfo("Fetching Balance Pro entitlement from store", {
+          reason,
+        });
+
+        const runtime = await connectStore();
+        if (!runtime) {
+          const cachedEntitlement = await useCachedEntitlement(`${reason}:store-unavailable`);
+          return {
+            isPro: cachedEntitlement.isPro,
+            hasProducts: hasLoadedProducts(productsByPlan),
+          };
+        }
+
+        const hasProducts = options?.loadCatalog ? await loadStoreCatalog(runtime) : hasLoadedProducts(productsByPlan);
+        const hasBalancePro = await refreshProStatusInternal(runtime);
+        return {
+          isPro: hasBalancePro,
+          hasProducts,
+        };
+      })().finally(() => {
+        entitlementSyncPromiseRef.current = null;
+      });
+
+      entitlementSyncPromiseRef.current = syncPromise;
+      return syncPromise;
+    },
+    [connectStore, loadStoreCatalog, productsByPlan, refreshProStatusInternal, useCachedEntitlement]
+  );
+
   const prepareStore = useCallback(async (): Promise<boolean> => {
     if (Platform.OS !== "ios") {
       return false;
@@ -683,32 +968,27 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
 
     setIsStoreLoading(true);
     try {
-      const runtime = await connectStore();
-      if (!runtime) {
-        return false;
-      }
-
-      const hasProducts = await loadStoreCatalog(runtime);
-      await refreshProStatusInternal(runtime);
-      return hasProducts;
+      const result = await syncEntitlementFromCurrentConnectivity({
+        reason: "prepare-store",
+        loadCatalog: true,
+      });
+      return result.hasProducts;
     } finally {
       setIsStoreLoading(false);
     }
-  }, [connectStore, loadStoreCatalog, refreshProStatusInternal]);
+  }, [syncEntitlementFromCurrentConnectivity]);
 
   useEffect(() => {
     let active = true;
 
-    readPersistedSubscriptionState()
-      .then((value) => {
+    Promise.all([readPersistedEntitlement(), readHasSeenProWelcome()])
+      .then(([value, hasSeenProWelcome]) => {
         if (!active) {
           return;
         }
 
-        const cachedEntitlement = readCachedEntitlement(value);
-        setIsPro(cachedEntitlement.isPro);
-        setActivePlan(cachedEntitlement.activePlan);
-        isProRef.current = cachedEntitlement.isPro;
+        applyEntitlement(value, "cache");
+        hasSeenProWelcomeRef.current = hasSeenProWelcome;
       })
       .catch((error) => {
         logBalanceProWarn("Failed to read Balance Pro state", error);
@@ -716,42 +996,61 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       .finally(() => {
         if (active) {
           setIsReady(true);
+          void syncEntitlementFromCurrentConnectivity({
+            reason: "startup",
+          });
         }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [applyEntitlement, syncEntitlementFromCurrentConnectivity]);
 
   useEffect(() => {
-    if (Platform.OS !== "ios" || !isStoreConnected) {
+    if (Platform.OS !== "ios") {
       return undefined;
     }
 
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        void prepareStore();
+        void syncEntitlementFromCurrentConnectivity({
+          reason: "app-active",
+        });
       }
     });
 
     return () => {
       subscription.remove();
     };
-  }, [isStoreConnected, prepareStore]);
+  }, [syncEntitlementFromCurrentConnectivity]);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios" || !isReady) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      void syncEntitlementFromCurrentConnectivity({
+        reason: "online-sync-interval",
+      });
+    }, ONLINE_SYNC_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isReady, syncEntitlementFromCurrentConnectivity]);
 
   const refreshProStatus = useCallback(async (): Promise<boolean> => {
     if (Platform.OS !== "ios") {
       return isProRef.current;
     }
 
-    const iap = await connectStore();
-    if (!iap) {
-      return isProRef.current;
-    }
-
-    return refreshProStatusInternal(iap);
-  }, [connectStore, refreshProStatusInternal]);
+    const result = await syncEntitlementFromCurrentConnectivity({
+      reason: "refresh-pro-status",
+    });
+    return result.isPro;
+  }, [syncEntitlementFromCurrentConnectivity]);
 
   const purchase = useCallback(
     async (plan: BalanceProPlanId): Promise<PurchaseProResult> => {
@@ -774,6 +1073,13 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         return { status: "error" };
       }
 
+      if (isProRef.current) {
+        logBalanceProInfo("Balance Pro already active before purchase request", {
+          plan,
+        });
+        return { status: "success", showWelcome: false };
+      }
+
       let resolvedProducts = productsByPlan;
       try {
         if (!resolvedProducts[plan] && hasLoadedCatalog) {
@@ -792,6 +1098,17 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
           ? { status: "product-unavailable" }
           : { status: "store-unavailable" };
       }
+
+      purchaseContextRef.current = {
+        plan,
+        wasProAtStart: isProRef.current,
+        allowWelcome: true,
+      };
+      logBalanceProInfo("Prepared Balance Pro product for purchase", {
+        plan,
+        expectedProductId: BALANCE_PRO_PRODUCT_ID_BY_PLAN[plan],
+        ...getProductDebugDetails(selectedProduct),
+      });
 
       setIsPurchasePending(true);
 
@@ -902,6 +1219,11 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
 
   const availablePlans = useMemo(() => createPlanEntries(productsByPlan), [productsByPlan]);
 
+  const markProWelcomeSeen = useCallback(async (): Promise<void> => {
+    await setPreference(PRO_WELCOME_SEEN_PREFERENCE_KEY, "true");
+    hasSeenProWelcomeRef.current = true;
+  }, []);
+
   return (
     <BalanceProContext.Provider
       value={{
@@ -909,6 +1231,9 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         activePlan,
         hasActiveSubscription: isPro,
         isReady,
+        entitlementSource,
+        isEntitlementStale: isEntitlementCacheStale,
+        lastValidatedAt,
         isStoreAvailable: Platform.OS === "ios" && isStoreConnected && hasLoadedProducts(productsByPlan),
         isStoreLoading,
         storeErrorCode,
@@ -921,6 +1246,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         purchase,
         restore,
         refreshProStatus,
+        markProWelcomeSeen,
       }}
     >
       {children}
