@@ -3,7 +3,7 @@ import i18n from "i18next";
 
 export const PRO_WAITLIST_URL = "https://ozzirr.github.io/balance/pro-waitlist.html";
 export const PRIVACY_POLICY_URL =
-  process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL?.trim() || "https://ozzirr.github.io/balance/privacy-policy.html";
+  process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL?.trim() || "https://ozzirr.github.io/balance/privacy.html";
 export const APPLE_STANDARD_TERMS_OF_USE_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 
 function resolveLocaleParam(): "it" | "en" | "pt" {

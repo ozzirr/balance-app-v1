@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
-import { requireOptionalNativeModule } from "expo-modules-core";
 import type {
   ActiveSubscription,
   ProductSubscription,
@@ -112,11 +111,6 @@ const EMPTY_SUBSCRIPTION_STATE: PersistedSubscriptionState = {
 
 function getExpoIapRuntime(): ExpoIapRuntime | null {
   if (Platform.OS !== "ios") {
-    return null;
-  }
-
-  const nativeModule = requireOptionalNativeModule("ExpoIap");
-  if (!nativeModule) {
     return null;
   }
 

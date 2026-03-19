@@ -283,9 +283,9 @@
     },
     "actions": {
       "limitTitle": "Desbloquear Balance Pro",
-      "limitBody": "A versão gratuita inclui até 2 carteiras. Escolhe Balance Pro para continuar.",
+      "limitBody": "A versão gratuita inclui até 3 carteiras. Escolhe Balance Pro para continuar.",
       "limitModalTitle": "Desbloquear Balance Pro",
-      "limitModalSubtitle": "A versão gratuita inclui até 2 carteiras. Escolhe Balance Pro para continuar.",
+      "limitModalSubtitle": "A versão gratuita inclui até 3 carteiras. Escolhe Balance Pro para continuar.",
       "limitBenefitUnlimited": "Carteiras ilimitadas",
       "limitBenefitInsights": "Insights avançados",
       "limitBenefitControl": "Controlo total das tuas finanças",

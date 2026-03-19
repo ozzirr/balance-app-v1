@@ -27,8 +27,8 @@ Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Bal
 2. Installa una build dev/TestFlight dell'app su iPhone.
 3. In iOS esci dall'account App Store reale per la sezione sandbox se necessario:
    `Settings > Developer > Sandbox Apple Account`.
-4. Avvia l'app con 2 wallet esistenti.
-5. Prova ad aggiungere il 3° wallet:
+4. Avvia l'app con 3 wallet esistenti.
+5. Prova ad aggiungere il 4° wallet:
    - deve aprirsi la modale `Sblocca Balance Pro`;
    - la modale deve permettere di scegliere `Mensile` o `Annuale`;
    - la CTA primaria deve aprire il foglio abbonamento Apple per il piano selezionato;
@@ -41,6 +41,6 @@ Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Bal
 
 ## Note review Apple
 
-- Il paywall compare solo quando l'utente prova a superare il limite gratuito di 2 wallet.
+- Il paywall compare solo quando l'utente prova a superare il limite gratuito di 3 wallet.
 - La build deve includere nel paywall: prezzo localizzato ben visibile, durata dell'abbonamento, `Ripristina acquisti`, Privacy Policy e Terms of Use.
 - Gli abbonamenti devono essere approvabili insieme alla build; se restano in bozza, la review può bloccarsi.

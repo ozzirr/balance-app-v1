@@ -13,6 +13,6 @@ export const BALANCE_PRO_PRODUCT_ID_BY_PLAN: Record<BalanceProPlanId, (typeof BA
   yearly: BALANCE_PRO_YEARLY_PRODUCT_ID,
 };
 
-export const FREE_WALLET_LIMIT = 2;
+export const FREE_WALLET_LIMIT = 3;
 
 export const IS_PRO_VARIANT = false;

@@ -283,9 +283,9 @@
     },
     "actions": {
       "limitTitle": "Sblocca Balance Pro",
-      "limitBody": "La versione gratuita include fino a 2 wallet. Scegli Balance Pro per continuare.",
+      "limitBody": "La versione gratuita include fino a 3 wallet. Scegli Balance Pro per continuare.",
       "limitModalTitle": "Sblocca Balance Pro",
-      "limitModalSubtitle": "La versione gratuita include fino a 2 wallet. Scegli Balance Pro per continuare.",
+      "limitModalSubtitle": "La versione gratuita include fino a 3 wallet. Scegli Balance Pro per continuare.",
       "limitBenefitUnlimited": "Wallet illimitati",
       "limitBenefitInsights": "Approfondimenti avanzati",
       "limitBenefitControl": "Pieno controllo delle tue finanze",
