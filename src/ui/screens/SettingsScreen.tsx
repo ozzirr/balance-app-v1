@@ -44,6 +44,7 @@ import {
 import AppBackground from "@/ui/components/AppBackground";
 import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useBalancePro } from "@/features/pro/BalanceProProvider";
 
 type StorageAccessFrameworkLike = {
   requestDirectoryPermissionsAsync?: () => Promise<{ granted: boolean; directoryUri?: string }>;
@@ -86,6 +87,15 @@ export default function SettingsScreen(): JSX.Element {
   const { requestReplay } = useOnboardingFlow();
   const { t, i18n } = useTranslation();
   const { showInvestments, setShowInvestments, scrollBounceEnabled, setScrollBounceEnabled } = useSettings();
+  const {
+    entitlementSource,
+    isEntitlementStale,
+    isPro,
+    lastValidatedAt,
+    resetEntitlementForTesting,
+  } = useBalancePro();
+  const isProDebugResetEnabled =
+    Platform.OS === "ios" && (__DEV__ || process.env.EXPO_PUBLIC_ENABLE_PRO_DEBUG_RESET === "true");
 
   const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? "it") as SupportedLanguage;
   const languageOptions = useMemo(
@@ -261,6 +271,61 @@ export default function SettingsScreen(): JSX.Element {
     requestReplay({ seed: true });
     emitDataReset();
   };
+
+  const confirmResetBalanceProTesting = useCallback(async (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      Alert.alert(
+        t("settings.balanceProTesting.resetTitle", {
+          defaultValue: "Reset Balance Pro di test?",
+        }),
+        t("settings.balanceProTesting.resetBody", {
+          defaultValue:
+            "Cancella solo il cache locale di Balance Pro e lo stato del welcome. Non annulla l'abbonamento su App Store. Se lo store risponde ancora con un abbonamento attivo, l'app tornerà Pro al prossimo controllo.",
+        }),
+        [
+          { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+          {
+            text: t("settings.balanceProTesting.resetCta", {
+              defaultValue: "Reset test",
+            }),
+            style: "destructive",
+            onPress: () => resolve(true),
+          },
+        ],
+        { cancelable: true }
+      );
+    });
+  }, [t]);
+
+  const handleResetBalanceProTesting = useCallback(async () => {
+    const confirmed = await confirmResetBalanceProTesting();
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await resetEntitlementForTesting();
+      Alert.alert(
+        t("settings.balanceProTesting.doneTitle", {
+          defaultValue: "Reset completato",
+        }),
+        t("settings.balanceProTesting.doneBody", {
+          defaultValue:
+            "Lo stato locale di Balance Pro è stato azzerato. Ora torna ai wallet e prova di nuovo ad aprire il paywall.",
+        })
+      );
+    } catch (error) {
+      console.warn("Failed to reset Balance Pro testing state", error);
+      Alert.alert(
+        t("settings.balanceProTesting.errorTitle", {
+          defaultValue: "Reset non riuscito",
+        }),
+        t("settings.balanceProTesting.errorBody", {
+          defaultValue: "Non sono riuscito a pulire lo stato locale di Balance Pro. Riprova.",
+        })
+      );
+    }
+  }, [confirmResetBalanceProTesting, resetEntitlementForTesting, t]);
 
   useEffect(() => {
     load();
@@ -510,6 +575,43 @@ export default function SettingsScreen(): JSX.Element {
             <SmallOutlinePillButton label={t("settings.data.import")} onPress={importData} color={tokens.colors.text} fullWidth />
             <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
         </GlassCardContainer>
+
+        {isProDebugResetEnabled ? (
+          <GlassCardContainer contentStyle={styles.cardContent}>
+            <SectionHeader
+              title={t("settings.balanceProTesting.title", {
+                defaultValue: "Balance Pro Test",
+              })}
+            />
+            <Text style={[styles.debugText, { color: tokens.colors.text }]}>
+              {t("settings.balanceProTesting.status", {
+                defaultValue: "Stato locale: {{status}}",
+                status: isPro ? "PRO" : "FREE",
+              })}
+            </Text>
+            <Text style={[styles.debugText, { color: tokens.colors.muted }]}>
+              {t("settings.balanceProTesting.source", {
+                defaultValue: "Origine: {{source}} · cache stale: {{stale}}",
+                source: entitlementSource,
+                stale: isEntitlementStale ? "si" : "no",
+              })}
+            </Text>
+            <Text style={[styles.debugText, { color: tokens.colors.muted }]}>
+              {t("settings.balanceProTesting.lastCheck", {
+                defaultValue: "Ultimo controllo: {{value}}",
+                value: lastValidatedAt > 0 ? new Date(lastValidatedAt).toLocaleString() : "mai",
+              })}
+            </Text>
+            <SmallOutlinePillButton
+              label={t("settings.balanceProTesting.resetButton", {
+                defaultValue: "Reset cache Pro di test",
+              })}
+              onPress={handleResetBalanceProTesting}
+              color={tokens.colors.red}
+              fullWidth
+            />
+          </GlassCardContainer>
+        ) : null}
       </ScrollView>
     </AppBackground>
   );
@@ -583,5 +685,9 @@ const styles = StyleSheet.create({
   languageSelectorText: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  debugText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

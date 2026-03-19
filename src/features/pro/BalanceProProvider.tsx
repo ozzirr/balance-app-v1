@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
-import { getPreference, setPreference } from "@/repositories/preferencesRepo";
+import { deletePreference, getPreference, setPreference } from "@/repositories/preferencesRepo";
 import {
   BALANCE_PRO_PRODUCT_ID_BY_PLAN,
   BALANCE_PRO_PRODUCT_IDS,
@@ -139,6 +139,7 @@ type BalanceProContextValue = {
   restore: () => Promise<RestorePurchasesResult>;
   refreshProStatus: () => Promise<boolean>;
   markProWelcomeSeen: () => Promise<void>;
+  resetEntitlementForTesting: () => Promise<void>;
 };
 
 const BalanceProContext = createContext<BalanceProContextValue | null>(null);
@@ -1224,6 +1225,46 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
     hasSeenProWelcomeRef.current = true;
   }, []);
 
+  const resetEntitlementForTesting = useCallback(async (): Promise<void> => {
+    logBalanceProInfo("Resetting Balance Pro entitlement for testing");
+
+    purchaseResolverRef.current = null;
+    purchaseContextRef.current = null;
+    handledTransactionsRef.current.clear();
+    entitlementSyncPromiseRef.current = null;
+    hasSeenProWelcomeRef.current = false;
+
+    setIsPurchasePending(false);
+    setIsRestorePending(false);
+    setProductsByPlan(EMPTY_PRODUCT_MAP);
+    setIsStoreConnected(false);
+    clearStoreError();
+    applyEntitlement(EMPTY_PERSISTED_ENTITLEMENT, "cache");
+
+    purchaseSubscriptionRef.current?.remove();
+    purchaseErrorSubscriptionRef.current?.remove();
+    purchaseSubscriptionRef.current = null;
+    purchaseErrorSubscriptionRef.current = null;
+    initStorePromiseRef.current = null;
+
+    const iap = iapRef.current;
+    iapRef.current = null;
+    if (iap) {
+      try {
+        await iap.endConnection();
+      } catch (error) {
+        logBalanceProWarn("Failed to close in-app purchases connection during entitlement reset", error);
+      }
+    }
+
+    await Promise.all([
+      deletePreference(ENTITLEMENT_PREFERENCE_KEY),
+      deletePreference(LEGACY_SUBSCRIPTION_STATE_PREFERENCE_KEY),
+      deletePreference(LEGACY_IS_PRO_PREFERENCE_KEY),
+      deletePreference(PRO_WELCOME_SEEN_PREFERENCE_KEY),
+    ]);
+  }, [applyEntitlement, clearStoreError]);
+
   return (
     <BalanceProContext.Provider
       value={{
@@ -1247,6 +1288,7 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         restore,
         refreshProStatus,
         markProWelcomeSeen,
+        resetEntitlementForTesting,
       }}
     >
       {children}

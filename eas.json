@@ -5,6 +5,9 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENABLE_PRO_DEBUG_RESET": "true"
+      },
       "android": {
         "buildType": "apk",
         "credentialsSource": "remote"
