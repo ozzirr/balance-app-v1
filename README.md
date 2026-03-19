@@ -1,6 +1,6 @@
 # Balance
 
-<p align="center">
+<p align="left">
   <img src="assets/icon.png" width="96" alt="Balance app icon" />
 </p>
 
