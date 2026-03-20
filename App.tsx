@@ -47,14 +47,6 @@ type RootStackParamList = SecurityModalStackParamList & {
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
-function WalletScreenWithBalancePro(): React.ReactElement {
-  return (
-    <BalanceProProvider>
-      <WalletScreen />
-    </BalanceProProvider>
-  );
-}
-
 let splashPrevented = false;
 if (!splashPrevented) {
   void SplashScreen.preventAutoHideAsync();
@@ -220,61 +212,63 @@ export default function App(): React.JSX.Element | null {
                                     shouldSeedOnComplete={shouldSeedOnComplete}
                                   />
                                 ) : (
-                                  <Tab.Navigator
-                                    screenOptions={({ route }) => ({
-                                      headerTitleAlign: "center",
-                                      headerTransparent: true,
-                                      headerBackground: () =>
-                                        Platform.OS === "android" ? (
-                                          <View
-                                            style={[
-                                              StyleSheet.absoluteFill,
-                                              {
-                                                borderBottomWidth: 1,
-                                                borderBottomColor: headerBorder,
-                                                backgroundColor: paperTheme.dark ? "#141923" : "#FFFFFF",
-                                              },
-                                            ]}
-                                          />
-                                        ) : (
-                                          <GlassBlur
-                                            intensity={35}
-                                            tint={headerBlurTint}
-                                            fallbackColor="transparent"
-                                            style={[
-                                              StyleSheet.absoluteFill,
-                                              {
-                                                borderBottomWidth: 1,
-                                                borderBottomColor: headerBorder,
-                                                backgroundColor: headerOverlay,
-                                              },
-                                            ]}
+                                  <BalanceProProvider>
+                                    <Tab.Navigator
+                                      screenOptions={({ route }) => ({
+                                        headerTitleAlign: "center",
+                                        headerTransparent: true,
+                                        headerBackground: () =>
+                                          Platform.OS === "android" ? (
+                                            <View
+                                              style={[
+                                                StyleSheet.absoluteFill,
+                                                {
+                                                  borderBottomWidth: 1,
+                                                  borderBottomColor: headerBorder,
+                                                  backgroundColor: paperTheme.dark ? "#141923" : "#FFFFFF",
+                                                },
+                                              ]}
+                                            />
+                                          ) : (
+                                            <GlassBlur
+                                              intensity={35}
+                                              tint={headerBlurTint}
+                                              fallbackColor="transparent"
+                                              style={[
+                                                StyleSheet.absoluteFill,
+                                                {
+                                                  borderBottomWidth: 1,
+                                                  borderBottomColor: headerBorder,
+                                                  backgroundColor: headerOverlay,
+                                                },
+                                              ]}
+                                            />
+                                          ),
+                                        headerLeft: () => (
+                                          <ProfileButton
+                                            isSettingsScreen={route.name === "Impostazioni"}
+                                            position="left"
                                           />
                                         ),
-                                      headerLeft: () => (
-                                        <ProfileButton
-                                          isSettingsScreen={route.name === "Impostazioni"}
-                                          position="left"
-                                        />
-                                      ),
-                                      tabBarStyle: { display: "none" },
-                                    })}
-                                    tabBar={(props) => <GlassTabBar {...props} />}
-                                  >
-                                    <Tab.Screen name="Dashboard" component={DashboardScreen} />
-                                    <Tab.Screen name="Snapshot" component={SnapshotScreen} />
-                                    <Tab.Screen
-                                      name="Balance"
-                                      component={EntriesScreen}
-                                      options={{ tabBarLabel: "Balance" }}
-                                    />
-                                    <Tab.Screen name="Wallet" component={WalletScreenWithBalancePro} />
-                                    <Tab.Screen
-                                      name="Impostazioni"
-                                      component={SettingsScreen}
-                                      options={{ tabBarButton: () => null }}
-                                    />
-                                  </Tab.Navigator>
+                                        tabBarStyle: { display: "none" },
+                                      })}
+                                      tabBar={(props) => <GlassTabBar {...props} />}
+                                    >
+                                      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+                                      <Tab.Screen name="Snapshot" component={SnapshotScreen} />
+                                      <Tab.Screen
+                                        name="Balance"
+                                        component={EntriesScreen}
+                                        options={{ tabBarLabel: "Balance" }}
+                                      />
+                                      <Tab.Screen name="Wallet" component={WalletScreen} />
+                                      <Tab.Screen
+                                        name="Impostazioni"
+                                        component={SettingsScreen}
+                                        options={{ tabBarButton: () => null }}
+                                      />
+                                    </Tab.Navigator>
+                                  </BalanceProProvider>
                                 )
                               }
                             </RootStack.Screen>

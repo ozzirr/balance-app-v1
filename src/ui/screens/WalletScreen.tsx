@@ -34,6 +34,7 @@ import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
 type WalletRouteParams = {
   walletId?: number;
   startSetup?: boolean;
+  openPaywall?: boolean;
 };
 
 const presetColors = [
@@ -153,6 +154,7 @@ export default function WalletScreen(): React.ReactElement {
   const routeParams = route.params as WalletRouteParams | undefined;
   const targetWalletId = routeParams?.walletId;
   const startSetup = routeParams?.startSetup;
+  const openPaywall = routeParams?.openPaywall;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -237,6 +239,15 @@ export default function WalletScreen(): React.ReactElement {
     setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: true }));
     navigation.setParams({ startSetup: undefined });
   }, [navigation, startSetup, wallets.length, showAddWallet.LIQUIDITY]);
+
+  useEffect(() => {
+    if (!openPaywall) {
+      return;
+    }
+
+    setLimitModalVisible(true);
+    navigation.setParams({ openPaywall: undefined });
+  }, [navigation, openPaywall]);
 
   const load = useCallback(async () => {
     const walletList = await listWallets();
