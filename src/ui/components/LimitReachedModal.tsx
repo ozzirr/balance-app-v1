@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Button, Modal, Portal, Text } from "react-native-paper";
-import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import type { BalanceProPlanId } from "@/config/entitlements";
 import type { BalanceProAvailablePlan, BalanceProProduct } from "@/features/pro/BalanceProProvider";
@@ -43,6 +43,17 @@ type Props = {
 };
 
 type PlanCycleUnit = "day" | "week" | "month" | "year";
+type BenefitItem = {
+  iconName: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+  key: string;
+  label: string;
+};
+
+const DEFAULT_BENEFIT_ICON_NAMES: BenefitItem["iconName"][] = [
+  "wallet-bifold-outline",
+  "chart-box-outline",
+  "shield-check-outline",
+];
 
 function isPlanCycleUnit(value: string | null | undefined): value is PlanCycleUnit {
   return value === "day" || value === "week" || value === "month" || value === "year";
@@ -179,14 +190,19 @@ export default function LimitReachedModal({
   const { width, height } = useWindowDimensions();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.96)).current;
+  const annualBadgeMotion = useRef(new Animated.Value(0)).current;
 
-  const resolvedBenefits = useMemo(
+  const resolvedBenefitItems = useMemo<BenefitItem[]>(
     () =>
-      benefits ?? [
+      (benefits ?? [
         t("wallets.actions.limitBenefitUnlimited"),
         t("wallets.actions.limitBenefitInsights"),
         t("wallets.actions.limitBenefitControl"),
-      ],
+      ]).map((label, index) => ({
+        iconName: DEFAULT_BENEFIT_ICON_NAMES[index] ?? "check-circle-outline",
+        key: `${index}-${label}`,
+        label,
+      })),
     [benefits, t]
   );
 
@@ -199,6 +215,7 @@ export default function LimitReachedModal({
   const selectedPlanHasProduct = Boolean(selectedPlan?.product);
   const selectedPlanTrialOffer = getFreeTrialOffer(selectedPlan?.product ?? null);
   const hasSelectedPlanTrial = Boolean(selectedPlanTrialOffer);
+  const shouldAnimateAnnualBadge = visible && shouldShowPlans && selectedPlanId === "monthly";
   const monthlyPlan = useMemo(
     () => paywallPlans.find((plan) => plan.planId === "monthly") ?? null,
     [paywallPlans]
@@ -212,26 +229,39 @@ export default function LimitReachedModal({
     return getPlanSavingsPercentage(yearlyPlan, monthlyPlan);
   }, [monthlyPlan, paywallPlans]);
 
-  const resolvedHeadline = shouldShowPlans
-    ? t("wallets.actions.paywallHeadline", { defaultValue: "Upgrade to Balance Pro" })
-    : title ?? t("wallets.actions.limitModalTitle");
+  const resolvedHeadline =
+    title ??
+    (shouldShowPlans
+      ? t("wallets.actions.paywallHeadline", { defaultValue: "Your finances, fully under control" })
+      : t("wallets.actions.limitModalTitle"));
 
-  const resolvedSubtitle = shouldShowPlans
-    ? t("wallets.actions.paywallSubtitle", {
-        defaultValue:
-          "Start with a free trial and unlock a more complete way to manage your wallets, with advanced insights and more control.",
-      })
-    : subtitle ?? t("wallets.actions.limitModalSubtitle");
+  const resolvedSubtitle =
+    subtitle ??
+    (shouldShowPlans
+      ? hasSelectedPlanTrial
+        ? t("wallets.actions.paywallSubtitle", {
+            defaultValue:
+              "Start your free trial and get a clear, complete view of your money with powerful insights and full control.",
+          })
+        : t("wallets.actions.paywallSubtitleNoTrial", {
+            defaultValue:
+              "Unlock a clear, complete view of your money with powerful insights and full control.",
+          })
+      : t("wallets.actions.limitModalSubtitle"));
 
   const resolvedSecondaryLabel = secondaryLabel ?? t("wallets.actions.limitMaybeLater");
   const resolvedIconName = iconName ?? "wallet-outline";
   const resolvedCtaLabel = shouldShowPlans
     ? ctaLabel ??
       (hasSelectedPlanTrial
-        ? t("wallets.actions.limitTrialCta", { defaultValue: "Start your free trial" })
-        : selectedPlanId === "yearly"
-        ? t("wallets.actions.limitYearlyCta", { defaultValue: "Choose yearly" })
-        : t("wallets.actions.limitMonthlyCta", { defaultValue: "Choose monthly" }))
+        ? t("wallets.actions.limitTrialCta", { defaultValue: "Try it free" })
+        : t("wallets.actions.limitUpgradeCta", {
+            defaultValue: "Continue with {{plan}}",
+            plan:
+              selectedPlanId === "yearly"
+                ? t("wallets.actions.planYearly", { defaultValue: "Yearly" }).toLowerCase()
+                : t("wallets.actions.planMonthly", { defaultValue: "Monthly" }).toLowerCase(),
+          }))
     : ctaLabel ?? t("common.continue", { defaultValue: "Continue" });
   const resolvedPrimaryDisabled = primaryDisabled || secondaryActionLoading || tertiaryActionLoading;
 
@@ -279,27 +309,6 @@ export default function LimitReachedModal({
       : t("wallets.actions.planDurationMonths", { count, defaultValue: `${count} months subscription` });
   };
 
-  const billingHelper = useMemo(() => {
-    if (!shouldShowPlans || !selectedPlanHasProduct || !selectedPlan?.displayPrice) {
-      return null;
-    }
-
-    const cycle = resolveCycleLabel(selectedPlan);
-    if (hasSelectedPlanTrial) {
-      return t("wallets.actions.paywallBillingHelperTrial", {
-        price: selectedPlan.displayPrice,
-        cycle,
-        defaultValue: "If eligible, you'll be charged after the free trial. Then {{price}} / {{cycle}}. Cancel anytime.",
-      });
-    }
-
-    return t("wallets.actions.paywallBillingHelper", {
-      price: selectedPlan.displayPrice,
-      cycle,
-      defaultValue: "Renews at {{price}} / {{cycle}}. Cancel anytime.",
-    });
-  }, [hasSelectedPlanTrial, selectedPlan, selectedPlanHasProduct, shouldShowPlans, t]);
-
   const isTabletLayout = width >= 768;
   const cardWidth = Math.min(width - 32, isTabletLayout ? 560 : 398);
   const cardMaxHeight = Math.max(440, height - (isTabletLayout ? 48 : 72));
@@ -321,7 +330,7 @@ export default function LimitReachedModal({
   const subtleTextColor = isDark ? tokens.colors.muted : "rgba(16, 21, 34, 0.58)";
   const cardMutedBackground = isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.54)";
   const cardMutedBorder = isDark ? "rgba(255,255,255,0.1)" : "rgba(16,24,40,0.08)";
-  const annualPlanBackground = isDark ? "rgba(169,124,255,0.08)" : "rgba(255,255,255,0.28)";
+  const annualPlanBackground = isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.22)";
   const selectedPlanBackground = isDark ? "rgba(169,124,255,0.14)" : "rgba(169,124,255,0.12)";
   const monthlyPlanBackground = isDark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.2)";
   const premiumChipBackground = isDark ? "rgba(169,124,255,0.1)" : "rgba(255,255,255,0.22)";
@@ -329,6 +338,15 @@ export default function LimitReachedModal({
   const skeletonColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(16,24,40,0.08)";
   const glassShine = isDark ? "rgba(255,255,255,0.055)" : "rgba(255,255,255,0.38)";
   const yearlyPlanTint = isDark ? "rgba(169,124,255,0.06)" : "rgba(169,124,255,0.04)";
+  const yearlyPlanTintMuted = isDark ? "rgba(169,124,255,0.025)" : "rgba(169,124,255,0.015)";
+  const annualBadgeTranslateX = annualBadgeMotion.interpolate({
+    inputRange: [0, 0.32, 0.68, 1],
+    outputRange: [0, 3, -2, 0],
+  });
+  const annualBadgeScale = annualBadgeMotion.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [1, 1.04, 1],
+  });
 
   useEffect(() => {
     if (visible) {
@@ -350,6 +368,38 @@ export default function LimitReachedModal({
       Animated.timing(scale, { toValue: 0.96, duration: 140, useNativeDriver: true }),
     ]).start();
   }, [opacity, scale, visible]);
+
+  useEffect(() => {
+    if (!shouldAnimateAnnualBadge) {
+      annualBadgeMotion.stopAnimation();
+      annualBadgeMotion.setValue(0);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(annualBadgeMotion, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1500),
+        Animated.timing(annualBadgeMotion, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+      annualBadgeMotion.stopAnimation();
+      annualBadgeMotion.setValue(0);
+    };
+  }, [annualBadgeMotion, shouldAnimateAnnualBadge]);
 
   return (
     <Portal>
@@ -431,25 +481,17 @@ export default function LimitReachedModal({
               <Text variant="bodyLarge" style={[styles.subtitle, { color: subtitleColor }]}>
                 {resolvedSubtitle}
               </Text>
-              {shouldShowPlans ? (
-                <View style={styles.trustLine}>
-                  <MaterialCommunityIcons name="shield-check-outline" size={14} color={tokens.colors.accentPurple} />
-                  <Text style={[styles.trustText, { color: subtleTextColor }]}>
-                    {t("wallets.actions.paywallTrustCancelAnytime", { defaultValue: "Free trial, cancel anytime" })}
-                  </Text>
-                </View>
-              ) : null}
             </View>
 
-            {resolvedBenefits.length > 0 ? (
+            {resolvedBenefitItems.length > 0 ? (
               <View style={styles.benefits}>
-                {resolvedBenefits.map((benefit) => (
-                  <View key={benefit} style={styles.benefitRow}>
+                {resolvedBenefitItems.map((benefit) => (
+                  <View key={benefit.key} style={styles.benefitRow}>
                     <View style={[styles.benefitIcon, { backgroundColor: tokens.colors.accentPurple }]}>
-                      <MaterialIcons name="check" size={14} color="#FFFFFF" />
+                      <MaterialCommunityIcons name={benefit.iconName} size={14} color="#FFFFFF" />
                     </View>
                     <Text variant="bodyLarge" style={[styles.benefitText, { color: tokens.colors.text }]}>
-                      {benefit}
+                      {benefit.label}
                     </Text>
                   </View>
                 ))}
@@ -471,24 +513,33 @@ export default function LimitReachedModal({
                   const planBorderColor = isSelected
                     ? tokens.colors.accent
                     : isYearlyPlan
-                    ? `${tokens.colors.accentPurple}66`
+                    ? `${tokens.colors.accentPurple}30`
                     : cardMutedBorder;
-                  const planTitleColor = isYearlyPlan ? tokens.colors.text : subtleTextColor;
+                  const planTitleColor = isSelected ? tokens.colors.text : subtleTextColor;
                   const planShadowStyle = isYearlyPlan
                     ? {
                         shadowColor: premiumChipText,
-                        shadowOpacity: isSelected ? 0.24 : 0.14,
+                        shadowOpacity: isSelected ? 0.24 : 0.08,
                         shadowRadius: isSelected ? 18 : 12,
                         shadowOffset: { width: 0, height: 6 },
                         elevation: isSelected ? 7 : 4,
                       }
                     : null;
                   const planBadgeBackground = isYearlyPlan
-                    ? isDark
-                      ? "rgba(169,124,255,0.16)"
-                      : "rgba(169,124,255,0.14)"
+                    ? isSelected
+                      ? isDark
+                        ? "rgba(169,124,255,0.16)"
+                        : "rgba(169,124,255,0.14)"
+                      : isDark
+                      ? "rgba(169,124,255,0.09)"
+                      : "rgba(169,124,255,0.08)"
                     : premiumChipBackground;
-                  const planBadgeBorder = isYearlyPlan ? `${premiumChipText}38` : `${premiumChipText}22`;
+                  const planBadgeBorder = isYearlyPlan
+                    ? isSelected
+                      ? `${premiumChipText}38`
+                      : `${premiumChipText}22`
+                    : `${premiumChipText}22`;
+                  const yearlyPromoColor = isSelected ? tokens.colors.accentPurple : subtleTextColor;
 
                   return (
                     <Pressable
@@ -503,21 +554,33 @@ export default function LimitReachedModal({
                         {
                           backgroundColor: planBackground,
                           borderColor: planBorderColor,
-                          borderWidth: isYearlyPlan ? 2 : 1.5,
+                          borderWidth: isSelected ? 2 : 1.5,
                           opacity: pressed ? 0.92 : planHasProduct ? 1 : 0.7,
                         },
                         planShadowStyle,
                       ]}
                     >
                       <GlassBlur intensity={18} tint={blurTint} fallbackColor="transparent" />
-                      <View pointerEvents="none" style={[styles.planTint, { backgroundColor: isYearlyPlan ? yearlyPlanTint : "transparent" }]} />
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          styles.planTint,
+                          {
+                            backgroundColor: isYearlyPlan
+                              ? isSelected
+                                ? yearlyPlanTint
+                                : yearlyPlanTintMuted
+                              : "transparent",
+                          },
+                        ]}
+                      />
                       <View
                         pointerEvents="none"
                         style={[
                           styles.planSheen,
                           {
                             backgroundColor: glassShine,
-                            opacity: isYearlyPlan ? 1 : 0.7,
+                            opacity: isYearlyPlan ? (isSelected ? 1 : 0.4) : 0.7,
                           },
                         ]}
                       />
@@ -531,17 +594,22 @@ export default function LimitReachedModal({
 
                         <View style={styles.planBadges}>
                           {plan.isBestValue ? (
-                            <View
+                            <Animated.View
                               style={[
                                 styles.planBadge,
                                 isYearlyPlan ? styles.planBadgeAnnual : null,
                                 { backgroundColor: planBadgeBackground, borderColor: planBadgeBorder },
+                                isYearlyPlan && shouldAnimateAnnualBadge
+                                  ? {
+                                      transform: [{ translateX: annualBadgeTranslateX }, { scale: annualBadgeScale }],
+                                    }
+                                  : null,
                               ]}
                             >
-                              <Text style={[styles.planBadgeText, { color: premiumChipText }]}>
+                              <Text style={[styles.planBadgeText, { color: isSelected ? premiumChipText : subtleTextColor }]}>
                                 {t("wallets.actions.planBestValue", { defaultValue: "Best value" })}
                               </Text>
-                            </View>
+                            </Animated.View>
                           ) : null}
                         </View>
                       </View>
@@ -566,11 +634,15 @@ export default function LimitReachedModal({
                         )}
 
                         {plan.planId === "yearly" && planSavingsPercentage ? (
-                          <Text style={[styles.planAnchor, { color: tokens.colors.accentPurple }]}>
+                          <Text style={[styles.planAnchor, { color: yearlyPromoColor }]}>
                             {t("wallets.actions.planSavingsPercentage", {
                               percent: planSavingsPercentage,
-                              defaultValue: "Save {{percent}}% compared with monthly",
+                              defaultValue: "Best value. Save {{percent}}%",
                             })}
+                          </Text>
+                        ) : plan.planId === "monthly" && plan.displayPrice ? (
+                          <Text style={[styles.planMeta, { color: subtleTextColor }]}>
+                            {t("wallets.actions.planMonthlyNote", { defaultValue: "Monthly plan" })}
                           </Text>
                         ) : plan.planId === "yearly" && !plan.displayPrice && isStoreLoading ? (
                           <Text style={[styles.planMeta, { color: subtleTextColor }]}>
@@ -605,10 +677,13 @@ export default function LimitReachedModal({
                 {resolvedCtaLabel}
               </Button>
 
-              {billingHelper ? (
-                <Text variant="bodySmall" style={[styles.billingHelper, { color: subtleTextColor }]}>
-                  {billingHelper}
-                </Text>
+              {shouldShowPlans ? (
+                <View style={styles.trustLine}>
+                  <MaterialCommunityIcons name="shield-check-outline" size={14} color={tokens.colors.accentPurple} />
+                  <Text style={[styles.trustText, { color: subtleTextColor }]}>
+                    {t("wallets.actions.paywallTrustCancelAnytime", { defaultValue: "Cancel anytime" })}
+                  </Text>
+                </View>
               ) : null}
             </View>
 
@@ -768,7 +843,9 @@ const styles = StyleSheet.create({
   trustLine: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
+    alignSelf: "center",
   },
   trustText: {
     fontSize: 13,
@@ -791,6 +868,7 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     flex: 1,
+    fontSize: 17,
     fontWeight: "600",
   },
   plans: {
@@ -908,10 +986,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   ctaSection: {
+    width: "100%",
     gap: 10,
     marginTop: 8,
+    alignItems: "center",
   },
   primaryButton: {
+    width: "100%",
     borderRadius: 999,
   },
   primaryButtonContent: {

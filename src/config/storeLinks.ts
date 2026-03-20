@@ -1,5 +1,6 @@
 import { Linking, Platform } from "react-native";
 import i18n from "i18next";
+import { resolveSupportedLanguage } from "@/i18n";
 
 export const PRO_WAITLIST_URL = "https://ozzirr.github.io/balance/pro-waitlist.html";
 export const PRIVACY_POLICY_URL =
@@ -7,15 +8,7 @@ export const PRIVACY_POLICY_URL =
 export const APPLE_STANDARD_TERMS_OF_USE_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 
 function resolveLocaleParam(): "it" | "en" | "pt" {
-  const language = i18n.resolvedLanguage ?? i18n.language ?? "it";
-  const normalized = String(language).toLowerCase();
-  if (normalized.startsWith("en")) {
-    return "en";
-  }
-  if (normalized.startsWith("pt")) {
-    return "pt";
-  }
-  return "it";
+  return resolveSupportedLanguage(i18n.resolvedLanguage ?? i18n.language ?? "en");
 }
 
 function buildProWaitlistUrl(): string {

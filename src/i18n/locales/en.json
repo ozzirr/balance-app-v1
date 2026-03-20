@@ -97,10 +97,11 @@
     }
   },
   "settings": {
-    "title": "Settings",
+    "title": "Profile",
     "profile": {
       "title": "Profile",
-      "nameLabel": "Nickname"
+      "nameLabel": "Nickname",
+      "languageLabel": "Language"
     },
     "preferences": {
       "title": "Preferences",
@@ -121,6 +122,14 @@
       "export": "Export",
       "import": "Import",
       "loadTestData": "Load test data"
+    },
+    "balancePro": {
+      "title": "Your plan",
+      "statusFree": "Balance Free",
+      "statusActive": "Balance Pro",
+      "summaryFree": "With Balance Free you can create up to {{count}} wallets. Upgrade to Balance Pro for unlimited wallets and advanced insights.",
+      "summaryActive": "Your subscription is active. You can manage or cancel it in your Apple account subscription settings.",
+      "upgrade": "Discover Balance Pro"
     },
     "onboarding": {
       "title": "Onboarding",
@@ -293,26 +302,30 @@
       "colorLabel": "Color"
     },
     "actions": {
-      "limitTitle": "Upgrade to Balance Pro",
+      "limitTitle": "Wallet limit reached",
       "limitBody": "Unlock unlimited wallets, advanced insights, and more control over your finances.",
-      "limitModalTitle": "Upgrade to Balance Pro",
+      "limitModalTitle": "Wallet limit reached",
       "limitModalSubtitle": "Unlock unlimited wallets, advanced insights, and more control over your finances.",
       "limitBenefitUnlimited": "Unlimited wallets",
       "limitBenefitInsights": "Advanced insights",
-      "limitBenefitControl": "More control over your finances",
-      "paywallHeadlineTrial": "Try Balance Pro free",
-      "paywallHeadline": "Upgrade to Balance Pro",
-      "paywallSubtitle": "Start with a free trial and unlock a more complete way to manage your wallets, with advanced insights and more control.",
-      "paywallTrustCancelAnytime": "Free trial, cancel anytime",
+      "limitBenefitControl": "Full control",
+      "paywallHeadlineTrial": "Wallet limit reached",
+      "paywallHeadline": "Wallet limit reached",
+      "paywallSubtitle": "Start your free trial and get a clear, complete view of your money with powerful insights and full control.",
+      "paywallSubtitleNoTrial": "Get a clear, complete view of your money with powerful insights and full control.",
+      "paywallHeadlineSettings": "Upgrade to Balance Pro",
+      "paywallSubtitleSettings": "Unlimited wallets, advanced insights, and full control of your finances.",
+      "paywallTrustCancelAnytime": "Cancel anytime",
       "paywallTrialEligibleBadge": "Free trial if available",
-      "paywallBillingHelper": "Renews at {{price}} / {{cycle}}. Cancel anytime.",
-      "paywallBillingHelperTrial": "If eligible, you’ll be charged after the free trial. Then {{price}} / {{cycle}}. Cancel anytime.",
+      "paywallBillingHelper": "Renews at {{price}} / {{cycle}}.",
+      "paywallBillingHelperTrial": "If eligible, you’ll be charged after the free trial. Then {{price}} / {{cycle}}.",
       "paywallSecureApple": "Secure payment via Apple",
       "paywallRestoreAvailable": "Restore purchases available",
       "planMonthly": "Monthly",
       "planYearly": "Yearly",
       "planBestValue": "Best value",
-      "planSavingsPercentage": "Save {{percent}}% vs monthly",
+      "planSavingsPercentage": "Best value. Save {{percent}}%",
+      "planMonthlyNote": "Monthly plan",
       "planCycleDay": "day",
       "planCycleWeek": "week",
       "planCycleMonth": "month",

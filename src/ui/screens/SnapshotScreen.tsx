@@ -11,7 +11,7 @@ import {
   updateSnapshotWithLines,
   deleteSnapshot,
 } from "@/repositories/snapshotsRepo";
-import { listWallets } from "@/repositories/walletsRepo";
+import { DEFAULT_WALLET_COLOR, listWallets } from "@/repositories/walletsRepo";
 import { getPreference } from "@/repositories/preferencesRepo";
 import type { Snapshot, SnapshotLineDetail, Wallet, Currency } from "@/repositories/types";
 import { isIsoDate, todayIso } from "@/utils/dates";
@@ -68,6 +68,15 @@ const formatAmount = (value: number): string => amountFormatter.format(value);
 
 const normalizeInputAmount = (value: string): string =>
   value.replace(/\./g, "").replace(",", ".").trim();
+
+const withAlpha = (color: string, alphaHex: string): string => {
+  const match = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(color.trim());
+  if (!match) {
+    return color;
+  }
+
+  return `#${match[1]}${alphaHex}`;
+};
 
 const monthKeyFromDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -691,6 +700,7 @@ export default function SnapshotScreen(): JSX.Element {
               />
               {draftLines.map((line, index) => {
                 const wallet = orderedWallets.find((item) => item.id === line.walletId);
+                const walletAccent = withAlpha(wallet?.color ?? DEFAULT_WALLET_COLOR, "88");
                 const walletTitle = wallet
                   ? wallet.type === "INVEST"
                     ? `${wallet.tag || t("wallets.snapshot.investmentTypeFallback")} - ${wallet.name} - ${
@@ -709,7 +719,7 @@ export default function SnapshotScreen(): JSX.Element {
                   updateDraftLine(index, { amount: value });
                 };
                 return (
-                  <GlassCardContainer key={`${line.walletId}-${index}`}>
+                  <GlassCardContainer key={`${line.walletId}-${index}`} style={{ borderColor: walletAccent }}>
                     <SectionHeader title={walletTitle} />
                     <View style={styles.lineInputRow}>
                         <TextInput

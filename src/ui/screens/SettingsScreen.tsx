@@ -32,7 +32,7 @@ import { disableSecurityFlow } from "@/security/securityFlowsDisableOnly";
 import { handleBiometryToggle as handleBiometryToggleFlow } from "@/security/securityFlowsBiometryOnly";
 import type { SecurityModalStackParamList } from "@/security/securityFlowsTypes";
 import { useTranslation } from "react-i18next";
-import { STORAGE_KEY, SUPPORTED_LANGUAGES, SupportedLanguage } from "@/i18n";
+import { STORAGE_KEY, SUPPORTED_LANGUAGES, SupportedLanguage, resolveSupportedLanguage } from "@/i18n";
 import { useSettings } from "@/settings/useSettings";
 import { useOnboardingFlow } from "@/onboarding/flowContext";
 import {
@@ -45,6 +45,7 @@ import AppBackground from "@/ui/components/AppBackground";
 import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
+import { FREE_WALLET_LIMIT } from "@/config/entitlements";
 
 type StorageAccessFrameworkLike = {
   requestDirectoryPermissionsAsync?: () => Promise<{ granted: boolean; directoryUri?: string }>;
@@ -87,21 +88,9 @@ export default function SettingsScreen(): JSX.Element {
   const { requestReplay } = useOnboardingFlow();
   const { t, i18n } = useTranslation();
   const { showInvestments, setShowInvestments, scrollBounceEnabled, setScrollBounceEnabled } = useSettings();
-  const {
-    activePlan,
-    entitlementSource,
-    isEntitlementStale,
-    isPro,
-    isReady,
-    lastValidatedAt,
-    refreshProStatus,
-    resetEntitlementForTesting,
-  } = useBalancePro();
-  const isProDebugResetEnabled =
-    Platform.OS === "ios" && (__DEV__ || process.env.EXPO_PUBLIC_ENABLE_PRO_DEBUG_RESET === "true");
-  const [isRefreshingBalancePro, setIsRefreshingBalancePro] = useState(false);
+  const { isPro, isReady } = useBalancePro();
 
-  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? "it") as SupportedLanguage;
+  const currentLanguage = resolveSupportedLanguage(i18n.resolvedLanguage ?? i18n.language ?? "en");
   const languageOptions = useMemo(
     () =>
       SUPPORTED_LANGUAGES.map((lang) => ({
@@ -128,107 +117,30 @@ export default function SettingsScreen(): JSX.Element {
     void handleLanguageChange(next);
   }, [currentLanguage, handleLanguageChange]);
 
-  const activePlanLabel = useMemo(() => {
-    if (activePlan === "yearly") {
-      return t("settings.balancePro.planYearly", {
-        defaultValue: "annuale",
-      });
-    }
-
-    if (activePlan === "monthly") {
-      return t("settings.balancePro.planMonthly", {
-        defaultValue: "mensile",
-      });
-    }
-
-    return null;
-  }, [activePlan, t]);
-
   const balanceProStatusTitle = useMemo(() => {
-    if (!isReady || isRefreshingBalancePro) {
-      return t("settings.balancePro.statusChecking", {
-        defaultValue: "Sto verificando il tuo piano...",
-      });
-    }
-
     return isPro
       ? t("settings.balancePro.statusActive", {
-          defaultValue: "Balance Pro attivo",
+          defaultValue: "Balance Pro",
         })
       : t("settings.balancePro.statusFree", {
-          defaultValue: "Piano Free",
+          defaultValue: "Balance Free",
         });
-  }, [isPro, isReady, isRefreshingBalancePro, t]);
+  }, [isPro, t]);
 
   const balanceProSummary = useMemo(() => {
-    if (!isReady || isRefreshingBalancePro) {
-      return t("settings.balancePro.summaryChecking", {
-        defaultValue: "Sto chiedendo conferma ad Apple sullo stato dell'abbonamento.",
-      });
-    }
-
     if (isPro) {
-      return activePlanLabel
-        ? t("settings.balancePro.summaryActivePlan", {
-            defaultValue: "Abbonamento attivo sul piano {{plan}}.",
-            plan: activePlanLabel,
-          })
-        : t("settings.balancePro.summaryActive", {
-            defaultValue: "Abbonamento attivo.",
-          });
+      return t("settings.balancePro.summaryActive", {
+        defaultValue:
+          "Abbonamento attivo. Puoi gestire o annullare l'abbonamento dalle impostazioni del tuo account Apple.",
+      });
     }
 
     return t("settings.balancePro.summaryFree", {
-      defaultValue: "Sblocca wallet illimitati e insight avanzati con Balance Pro.",
+      defaultValue:
+        "Con Balance Free puoi creare fino a {{count}} wallet. Passa a Balance Pro per wallet illimitati e insight avanzati.",
+      count: FREE_WALLET_LIMIT,
     });
-  }, [activePlanLabel, isPro, isReady, isRefreshingBalancePro, t]);
-
-  const balanceProSourceLabel = useMemo(() => {
-    if (!isReady) {
-      return t("settings.balancePro.sourceChecking", {
-        defaultValue: "Origine stato: controllo iniziale in corso",
-      });
-    }
-
-    if (entitlementSource === "store") {
-      return t("settings.balancePro.sourceStore", {
-        defaultValue: "Origine stato: confermato da Apple",
-      });
-    }
-
-    return t("settings.balancePro.sourceCache", {
-      defaultValue: "Origine stato: cache locale del dispositivo",
-    });
-  }, [entitlementSource, isReady, t]);
-
-  const balanceProSourceHelper = useMemo(() => {
-    if (!isReady) {
-      return null;
-    }
-
-    if (entitlementSource === "store") {
-      return t("settings.balancePro.sourceStoreHelper", {
-        defaultValue: "Questo stato arriva dallo store Apple.",
-      });
-    }
-
-    if (isEntitlementStale) {
-      return t("settings.balancePro.sourceCacheStaleHelper", {
-        defaultValue: "Questo stato arriva dal cache locale e potrebbe essere datato. Tocca \"Controlla adesso\".",
-      });
-    }
-
-    return t("settings.balancePro.sourceCacheHelper", {
-      defaultValue: "Questo stato arriva dal cache locale. Tocca \"Controlla adesso\" per verificare con Apple.",
-    });
-  }, [entitlementSource, isEntitlementStale, isReady, t]);
-
-  const balanceProLastCheckLabel = useMemo(() => {
-    return t("settings.balancePro.lastCheck", {
-      defaultValue: "Ultimo controllo: {{value}}",
-      value: lastValidatedAt > 0 ? new Date(lastValidatedAt).toLocaleString() : "mai",
-    });
-  }, [lastValidatedAt, t]);
+  }, [isPro, t]);
 
   const load = useCallback(async () => {
     const [name, prefill, points] = await Promise.all([
@@ -248,23 +160,8 @@ export default function SettingsScreen(): JSX.Element {
   };
 
   const handleOpenBalanceProPlans = useCallback(() => {
-    navigation.navigate("Wallet", { openPaywall: true });
+    navigation.navigate("Wallet", { paywallSource: "settings-upsell" });
   }, [navigation]);
-
-  const handleRefreshBalancePro = useCallback(async () => {
-    if (isRefreshingBalancePro) {
-      return;
-    }
-
-    setIsRefreshingBalancePro(true);
-    try {
-      await refreshProStatus();
-    } catch (error) {
-      console.warn("Failed to refresh Balance Pro status", error);
-    } finally {
-      setIsRefreshingBalancePro(false);
-    }
-  }, [isRefreshingBalancePro, refreshProStatus]);
 
   const confirmWipeAndReplace = async (titleKey: string, bodyKey: string): Promise<boolean> =>
     new Promise((resolve) => {
@@ -396,61 +293,6 @@ export default function SettingsScreen(): JSX.Element {
     requestReplay({ seed: true });
     emitDataReset();
   };
-
-  const confirmResetBalanceProTesting = useCallback(async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      Alert.alert(
-        t("settings.balanceProTesting.resetTitle", {
-          defaultValue: "Reset Balance Pro di test?",
-        }),
-        t("settings.balanceProTesting.resetBody", {
-          defaultValue:
-            "Cancella solo il cache locale di Balance Pro e lo stato del welcome. Non annulla l'abbonamento su App Store. Se lo store risponde ancora con un abbonamento attivo, l'app tornerà Pro al prossimo controllo.",
-        }),
-        [
-          { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
-          {
-            text: t("settings.balanceProTesting.resetCta", {
-              defaultValue: "Reset test",
-            }),
-            style: "destructive",
-            onPress: () => resolve(true),
-          },
-        ],
-        { cancelable: true }
-      );
-    });
-  }, [t]);
-
-  const handleResetBalanceProTesting = useCallback(async () => {
-    const confirmed = await confirmResetBalanceProTesting();
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await resetEntitlementForTesting();
-      Alert.alert(
-        t("settings.balanceProTesting.doneTitle", {
-          defaultValue: "Reset completato",
-        }),
-        t("settings.balanceProTesting.doneBody", {
-          defaultValue:
-            "Lo stato locale di Balance Pro è stato azzerato. Ora torna ai wallet e prova di nuovo ad aprire il paywall.",
-        })
-      );
-    } catch (error) {
-      console.warn("Failed to reset Balance Pro testing state", error);
-      Alert.alert(
-        t("settings.balanceProTesting.errorTitle", {
-          defaultValue: "Reset non riuscito",
-        }),
-        t("settings.balanceProTesting.errorBody", {
-          defaultValue: "Non sono riuscito a pulire lo stato locale di Balance Pro. Riprova.",
-        })
-      );
-    }
-  }, [confirmResetBalanceProTesting, resetEntitlementForTesting, t]);
 
   useEffect(() => {
     load();
@@ -587,59 +429,35 @@ export default function SettingsScreen(): JSX.Element {
                 void updatePreference("profile_name", next.trim());
               }}
             />
-        </GlassCardContainer>
-
-        <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader
-              title={t("settings.balancePro.title", {
-                defaultValue: "Balance Pro",
-              })}
-            />
-            <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
-              {balanceProStatusTitle}
-            </Text>
-            <Text style={[styles.balanceProBody, { color: tokens.colors.text }]}>
-              {balanceProSummary}
-            </Text>
-            <Text style={[styles.balanceProMeta, { color: tokens.colors.muted }]}>
-              {balanceProSourceLabel}
-            </Text>
-            {balanceProSourceHelper ? (
-              <Text style={[styles.balanceProMeta, { color: tokens.colors.muted }]}>
-                {balanceProSourceHelper}
-              </Text>
-            ) : null}
-            <Text style={[styles.balanceProMeta, { color: tokens.colors.muted }]}>
-              {balanceProLastCheckLabel}
-            </Text>
-            <PrimaryPillButton
-              label={isPro
-                ? t("settings.balancePro.openPlans", {
-                    defaultValue: "Apri i piani Balance Pro",
-                  })
-                : t("settings.balancePro.upgrade", {
-                    defaultValue: "Fai l'upgrade del piano",
-                  })}
-              onPress={handleOpenBalanceProPlans}
-              color={tokens.colors.accent}
-              disabled={!isReady || isRefreshingBalancePro}
-            />
-            <SmallOutlinePillButton
-              label={t("settings.balancePro.checkNow", {
-                defaultValue: "Controlla adesso",
-              })}
-              onPress={() => {
-                void handleRefreshBalancePro();
-              }}
-              color={tokens.colors.text}
-              fullWidth
-            />
-        </GlassCardContainer>
-
-        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
-            <SectionHeader title={t("settings.preferences.title")} />
             <View style={styles.row}>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.darkTheme")}</Text>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>
+                {t("settings.profile.languageLabel", {
+                  defaultValue: "Lingua",
+                })}
+              </Text>
+              <View style={styles.segmentControl}>
+                <Pressable
+                  onPress={cycleLanguage}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("settings.profile.languageLabel", {
+                    defaultValue: "Lingua",
+                  })}
+                  style={({ pressed }) => [
+                    styles.languageSelector,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={[styles.languageSelectorText, { color: tokens.colors.accent }]}>
+                    {languageOptions.find((option) => option.value === currentLanguage)?.label ?? currentLanguage}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={tokens.colors.accent} />
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>
+                {t("settings.preferences.darkTheme")}
+              </Text>
               <Switch
                 value={mode === "dark"}
                 onValueChange={(value) => {
@@ -650,6 +468,34 @@ export default function SettingsScreen(): JSX.Element {
                 color={tokens.colors.accent}
               />
             </View>
+        </GlassCardContainer>
+
+        <GlassCardContainer contentStyle={styles.cardContent}>
+            <SectionHeader
+              title={t("settings.balancePro.title", {
+                defaultValue: "Il tuo piano",
+              })}
+            />
+            <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
+              {balanceProStatusTitle}
+            </Text>
+            <Text style={[styles.balanceProBody, { color: tokens.colors.text }]}>
+              {balanceProSummary}
+            </Text>
+            {!isPro ? (
+              <PrimaryPillButton
+                label={t("settings.balancePro.upgrade", {
+                  defaultValue: "Scopri Balance Pro",
+                })}
+                onPress={handleOpenBalanceProPlans}
+                color={tokens.colors.accent}
+                disabled={!isReady}
+              />
+            ) : null}
+        </GlassCardContainer>
+
+        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
+            <SectionHeader title={t("settings.preferences.title")} />
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.prefillSnapshot")}</Text>
               <Switch
@@ -707,25 +553,6 @@ export default function SettingsScreen(): JSX.Element {
                 />
               </View>
             </View>
-            <View style={styles.row}>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.languageLabel")}</Text>
-              <View style={styles.segmentControl}>
-                <Pressable
-                  onPress={cycleLanguage}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("settings.preferences.languageLabel")}
-                  style={({ pressed }) => [
-                    styles.languageSelector,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                >
-                  <Text style={[styles.languageSelectorText, { color: tokens.colors.accent }]}>
-                    {languageOptions.find((option) => option.value === currentLanguage)?.label ?? currentLanguage}
-                  </Text>
-                  <MaterialCommunityIcons name="chevron-right" size={18} color={tokens.colors.accent} />
-                </Pressable>
-              </View>
-            </View>
         </GlassCardContainer>
 
         <SecuritySettingsSection
@@ -747,43 +574,6 @@ export default function SettingsScreen(): JSX.Element {
             <SmallOutlinePillButton label={t("settings.data.import")} onPress={importData} color={tokens.colors.text} fullWidth />
             <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
         </GlassCardContainer>
-
-        {isProDebugResetEnabled ? (
-          <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader
-              title={t("settings.balanceProTesting.title", {
-                defaultValue: "Balance Pro Test",
-              })}
-            />
-            <Text style={[styles.debugText, { color: tokens.colors.text }]}>
-              {t("settings.balanceProTesting.status", {
-                defaultValue: "Stato locale: {{status}}",
-                status: isPro ? "PRO" : "FREE",
-              })}
-            </Text>
-            <Text style={[styles.debugText, { color: tokens.colors.muted }]}>
-              {t("settings.balanceProTesting.source", {
-                defaultValue: "Origine: {{source}} · cache stale: {{stale}}",
-                source: entitlementSource,
-                stale: isEntitlementStale ? "si" : "no",
-              })}
-            </Text>
-            <Text style={[styles.debugText, { color: tokens.colors.muted }]}>
-              {t("settings.balanceProTesting.lastCheck", {
-                defaultValue: "Ultimo controllo: {{value}}",
-                value: lastValidatedAt > 0 ? new Date(lastValidatedAt).toLocaleString() : "mai",
-              })}
-            </Text>
-            <SmallOutlinePillButton
-              label={t("settings.balanceProTesting.resetButton", {
-                defaultValue: "Reset cache Pro di test",
-              })}
-              onPress={handleResetBalanceProTesting}
-              color={tokens.colors.red}
-              fullWidth
-            />
-          </GlassCardContainer>
-        ) : null}
       </ScrollView>
     </AppBackground>
   );
@@ -865,13 +655,5 @@ const styles = StyleSheet.create({
   balanceProBody: {
     fontSize: 14,
     lineHeight: 20,
-  },
-  balanceProMeta: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  debugText: {
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

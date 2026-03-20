@@ -31,10 +31,12 @@ import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import type { BalanceProPlanId } from "@/config/entitlements";
 import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
 
+type BalanceProPaywallSource = "wallet-limit" | "settings-upsell";
+
 type WalletRouteParams = {
   walletId?: number;
   startSetup?: boolean;
-  openPaywall?: boolean;
+  paywallSource?: BalanceProPaywallSource;
 };
 
 const presetColors = [
@@ -154,7 +156,7 @@ export default function WalletScreen(): React.ReactElement {
   const routeParams = route.params as WalletRouteParams | undefined;
   const targetWalletId = routeParams?.walletId;
   const startSetup = routeParams?.startSetup;
-  const openPaywall = routeParams?.openPaywall;
+  const requestedPaywallSource = routeParams?.paywallSource;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -198,6 +200,7 @@ export default function WalletScreen(): React.ReactElement {
   const [proWelcomeVisible, setProWelcomeVisible] = useState(false);
   const [isDismissingProWelcome, setIsDismissingProWelcome] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<BalanceProPlanId>("yearly");
+  const [paywallSource, setPaywallSource] = useState<BalanceProPaywallSource>("wallet-limit");
   const {
     isPro,
     activePlan,
@@ -241,13 +244,14 @@ export default function WalletScreen(): React.ReactElement {
   }, [navigation, startSetup, wallets.length, showAddWallet.LIQUIDITY]);
 
   useEffect(() => {
-    if (!openPaywall) {
+    if (!requestedPaywallSource) {
       return;
     }
 
+    setPaywallSource(requestedPaywallSource);
     setLimitModalVisible(true);
-    navigation.setParams({ openPaywall: undefined });
-  }, [navigation, openPaywall]);
+    navigation.setParams({ paywallSource: undefined });
+  }, [navigation, requestedPaywallSource]);
 
   const load = useCallback(async () => {
     const walletList = await listWallets();
@@ -539,6 +543,7 @@ export default function WalletScreen(): React.ReactElement {
   const addWallet = async (type: "LIQUIDITY" | "INVEST") => {
     if (!newWalletDraft.name.trim()) return;
     if (!canCreateAnotherWallet) {
+      setPaywallSource("wallet-limit");
       setPendingWalletType(type);
       setLimitModalVisible(true);
       return;
@@ -564,6 +569,7 @@ export default function WalletScreen(): React.ReactElement {
 
   const handleRequestAddWallet = (type: "LIQUIDITY" | "INVEST") => {
     if (!canCreateAnotherWallet) {
+      setPaywallSource("wallet-limit");
       setPendingWalletType(type);
       setLimitModalVisible(true);
       return;
@@ -589,6 +595,7 @@ export default function WalletScreen(): React.ReactElement {
     switch (result.status) {
       case "success":
         setLimitModalVisible(false);
+        setPaywallSource("wallet-limit");
         if (result.showWelcome) {
           setPurchaseNotice(null);
           setProWelcomeVisible(true);
@@ -648,6 +655,7 @@ export default function WalletScreen(): React.ReactElement {
       case "restored":
         setPurchaseNotice(t("wallets.actions.restoreSuccess", { defaultValue: "Abbonamento ripristinato." }));
         setLimitModalVisible(false);
+        setPaywallSource("wallet-limit");
         return;
       case "nothing-to-restore":
         setPurchaseNotice(t("wallets.actions.restoreEmpty", { defaultValue: "Nessun acquisto da ripristinare." }));
@@ -717,6 +725,24 @@ export default function WalletScreen(): React.ReactElement {
     ],
     [handleOpenPrivacyPolicy, handleOpenTermsOfUse, t]
   );
+  const paywallTitle =
+    paywallSource === "settings-upsell"
+      ? t("wallets.actions.paywallHeadlineSettings", {
+          defaultValue: "Passa a Balance Pro",
+        })
+      : t("wallets.actions.paywallHeadline", {
+          defaultValue: "Limite wallet raggiunto",
+        });
+  const paywallSubtitle =
+    paywallSource === "settings-upsell"
+      ? t("wallets.actions.paywallSubtitleSettings", {
+          defaultValue: "Wallet illimitati, insight avanzati e controllo completo delle tue finanze.",
+        })
+      : undefined;
+  const paywallDismissLabel =
+    paywallSource === "settings-upsell"
+      ? t("common.close", { defaultValue: "Chiudi" })
+      : t("wallets.actions.limitMaybeLater");
   const shouldShowRetryStore = Boolean((storeErrorCode || storeErrorMessage || !isStoreAvailable) && isProReady && !isStoreLoading);
   const paywallStatusMessage = !isProReady
     ? t("wallets.actions.limitStatusSyncing", {
@@ -733,6 +759,11 @@ export default function WalletScreen(): React.ReactElement {
     : storeErrorMessage
     ? t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." })
     : undefined;
+  const closePaywall = useCallback(() => {
+    setLimitModalVisible(false);
+    setPendingWalletType(null);
+    setPaywallSource("wallet-limit");
+  }, []);
   const closeReorderModal = useCallback(() => setReorderMode(false), []);
   const reorderSheetBackground =
     Platform.OS === "android"
@@ -1125,20 +1156,19 @@ export default function WalletScreen(): React.ReactElement {
 
         <LimitReachedModal
           visible={limitModalVisible}
-          onClose={() => {
-            setLimitModalVisible(false);
-            setPendingWalletType(null);
-          }}
+          onClose={closePaywall}
           onUpgrade={handlePurchasePro}
           plans={availablePlans}
           selectedPlanId={selectedPlanId}
           onSelectPlan={setSelectedPlanId}
+          title={paywallTitle}
+          subtitle={paywallSubtitle}
           primaryDisabled={!canPurchaseSelectedPlan || !isProReady || isStoreLoading}
           onSecondaryAction={handleRestorePurchases}
           secondaryActionLabel={t("wallets.actions.restorePurchases")}
           onTertiaryAction={shouldShowRetryStore ? handleRetryStore : undefined}
           tertiaryActionLabel={shouldShowRetryStore ? t("wallets.actions.retryStoreLoad", { defaultValue: "Riprova" }) : undefined}
-          secondaryLabel={t("wallets.actions.limitMaybeLater")}
+          secondaryLabel={paywallDismissLabel}
           benefits={balanceProBenefits}
           primaryLoading={isPurchasePending}
           secondaryActionLoading={isRestorePending}

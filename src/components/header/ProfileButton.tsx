@@ -53,7 +53,7 @@ export default function ProfileButton({
       {avatarUri ? (
         <Image source={{ uri: avatarUri }} style={styles.avatar} />
       ) : (
-        <MaterialCommunityIcons name="cog-outline" size={20} color={tokens.colors.text} />
+        <MaterialCommunityIcons name="account-outline" size={20} color={tokens.colors.text} />
       )}
     </Pressable>
   );

@@ -97,10 +97,11 @@
     }
   },
   "settings": {
-    "title": "Impostazioni",
+    "title": "Profilo",
     "profile": {
       "title": "Profilo",
-      "nameLabel": "Nickname"
+      "nameLabel": "Nickname",
+      "languageLabel": "Lingua"
     },
     "preferences": {
       "title": "Preferenze",
@@ -121,6 +122,14 @@
       "export": "Esporta",
       "import": "Importa",
       "loadTestData": "Carica dati di test"
+    },
+    "balancePro": {
+      "title": "Il tuo piano",
+      "statusFree": "Balance Free",
+      "statusActive": "Balance Pro",
+      "summaryFree": "Con Balance Free puoi creare fino a {{count}} wallet. Passa a Balance Pro per wallet illimitati e insight avanzati.",
+      "summaryActive": "Abbonamento attivo. Puoi gestire o annullare l'abbonamento dalle impostazioni del tuo account Apple.",
+      "upgrade": "Scopri Balance Pro"
     },
     "onboarding": {
       "title": "Onboarding",
@@ -293,26 +302,30 @@
       "colorLabel": "Colore"
     },
     "actions": {
-      "limitTitle": "Passa a Balance Pro",
+      "limitTitle": "Limite wallet raggiunto",
       "limitBody": "Sblocca wallet senza limiti, insight avanzati e più controllo sulle tue finanze.",
-      "limitModalTitle": "Passa a Balance Pro",
+      "limitModalTitle": "Limite wallet raggiunto",
       "limitModalSubtitle": "Sblocca wallet senza limiti, insight avanzati e più controllo sulle tue finanze.",
-      "limitBenefitUnlimited": "Wallet senza limiti",
+      "limitBenefitUnlimited": "Wallet illimitati",
       "limitBenefitInsights": "Insight avanzati",
-      "limitBenefitControl": "Più controllo sulle tue finanze",
-      "paywallHeadlineTrial": "Prova Balance Pro gratis",
-      "paywallHeadline": "Passa a Balance Pro",
-      "paywallSubtitle": "Inizia con una prova gratuita e passa a un modo più completo di gestire i tuoi wallet, con insight avanzati e più controllo.",
-      "paywallTrustCancelAnytime": "Prova gratuita, annulli quando vuoi",
+      "limitBenefitControl": "Controllo completo",
+      "paywallHeadlineTrial": "Limite wallet raggiunto",
+      "paywallHeadline": "Limite wallet raggiunto",
+      "paywallSubtitle": "Inizia la prova gratuita e ottieni una visione chiara e completa delle tue finanze, con insight avanzati e controllo totale.",
+      "paywallSubtitleNoTrial": "Ottieni una visione chiara e completa delle tue finanze, con insight avanzati e controllo totale.",
+      "paywallHeadlineSettings": "Passa a Balance Pro",
+      "paywallSubtitleSettings": "Wallet illimitati, insight avanzati e controllo completo delle tue finanze.",
+      "paywallTrustCancelAnytime": "Annulla quando vuoi",
       "paywallTrialEligibleBadge": "Prova gratuita se disponibile",
-      "paywallBillingHelper": "Rinnovo automatico a {{price}} / {{cycle}}. Annulla quando vuoi.",
-      "paywallBillingHelperTrial": "Se idoneo, paghi dopo la prova gratuita. Poi {{price}} / {{cycle}}. Annulla quando vuoi.",
+      "paywallBillingHelper": "Rinnovo automatico a {{price}} / {{cycle}}.",
+      "paywallBillingHelperTrial": "Se idoneo, paghi dopo la prova gratuita. Poi {{price}} / {{cycle}}.",
       "paywallSecureApple": "Pagamento sicuro con Apple",
       "paywallRestoreAvailable": "Ripristino acquisti disponibile",
       "planMonthly": "Mensile",
       "planYearly": "Annuale",
       "planBestValue": "Più conveniente",
-      "planSavingsPercentage": "Risparmi il {{percent}}% sul mensile",
+      "planSavingsPercentage": "Offerta migliore. Risparmia il {{percent}}%",
+      "planMonthlyNote": "Piano mensile",
       "planCycleDay": "giorno",
       "planCycleWeek": "settimana",
       "planCycleMonth": "mese",

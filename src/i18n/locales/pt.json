@@ -97,10 +97,11 @@
     }
   },
   "settings": {
-    "title": "Definições",
+    "title": "Perfil",
     "profile": {
       "title": "Perfil",
-      "nameLabel": "Nome"
+      "nameLabel": "Nome",
+      "languageLabel": "Idioma"
     },
     "preferences": {
       "title": "Preferências",
@@ -121,6 +122,14 @@
       "export": "Exportar",
       "import": "Importar",
       "loadTestData": "Carregar dados de teste"
+    },
+    "balancePro": {
+      "title": "O teu plano",
+      "statusFree": "Balance Free",
+      "statusActive": "Balance Pro",
+      "summaryFree": "Com o Balance Free podes criar até {{count}} carteiras. Passa para Balance Pro para carteiras ilimitadas e insights avançados.",
+      "summaryActive": "A tua subscrição está ativa. Podes geri-la ou cancelá-la nas definições de subscrições da tua conta Apple.",
+      "upgrade": "Descobrir Balance Pro"
     },
     "onboarding": {
       "title": "Onboarding",
@@ -293,26 +302,30 @@
       "colorLabel": "Cor"
     },
     "actions": {
-      "limitTitle": "Passa ao Balance Pro",
+      "limitTitle": "Limite de carteiras atingido",
       "limitBody": "Desbloqueia carteiras sem limites, insights avançados e mais controlo sobre as tuas finanças.",
-      "limitModalTitle": "Passa ao Balance Pro",
+      "limitModalTitle": "Limite de carteiras atingido",
       "limitModalSubtitle": "Desbloqueia carteiras sem limites, insights avançados e mais controlo sobre as tuas finanças.",
-      "limitBenefitUnlimited": "Carteiras sem limites",
+      "limitBenefitUnlimited": "Carteiras ilimitadas",
       "limitBenefitInsights": "Insights avançados",
-      "limitBenefitControl": "Mais controlo sobre as tuas finanças",
-      "paywallHeadlineTrial": "Experimenta o Balance Pro grátis",
-      "paywallHeadline": "Passa ao Balance Pro",
-      "paywallSubtitle": "Começa com um teste gratuito e desbloqueia uma forma mais completa de gerir as tuas carteiras, com insights avançados e mais controlo.",
-      "paywallTrustCancelAnytime": "Teste gratuito, cancela quando quiseres",
+      "limitBenefitControl": "Controlo total",
+      "paywallHeadlineTrial": "Limite de carteiras atingido",
+      "paywallHeadline": "Limite de carteiras atingido",
+      "paywallSubtitle": "Começa o teste gratuito e obtém uma visão clara e completa do teu dinheiro, com insights poderosos e controlo total.",
+      "paywallSubtitleNoTrial": "Obtém uma visão clara e completa do teu dinheiro, com insights poderosos e controlo total.",
+      "paywallHeadlineSettings": "Passa para Balance Pro",
+      "paywallSubtitleSettings": "Carteiras ilimitadas, insights avançados e controlo completo das tuas finanças.",
+      "paywallTrustCancelAnytime": "Cancela quando quiseres",
       "paywallTrialEligibleBadge": "Teste gratuito se disponível",
-      "paywallBillingHelper": "Renova por {{price}} / {{cycle}}. Cancela quando quiseres.",
-      "paywallBillingHelperTrial": "Se elegível, só pagas após o teste gratuito. Depois {{price}} / {{cycle}}. Cancela quando quiseres.",
+      "paywallBillingHelper": "Renova por {{price}} / {{cycle}}.",
+      "paywallBillingHelperTrial": "Se elegível, só pagas após o teste gratuito. Depois {{price}} / {{cycle}}.",
       "paywallSecureApple": "Pagamento seguro via Apple",
       "paywallRestoreAvailable": "Restauração de compras disponível",
       "planMonthly": "Mensal",
       "planYearly": "Anual",
       "planBestValue": "Melhor valor",
-      "planSavingsPercentage": "Poupa {{percent}}% face ao mensal",
+      "planSavingsPercentage": "Melhor valor. Poupa {{percent}}%",
+      "planMonthlyNote": "Plano mensal",
       "planCycleDay": "dia",
       "planCycleWeek": "semana",
       "planCycleMonth": "mês",
@@ -328,7 +341,7 @@
       "planLoadingPrice": "A carregar preço...",
       "planPriceUnavailable": "Preço indisponível",
       "limitUpgradeCta": "Continuar com {{plan}}",
-      "limitTrialCta": "Começar teste gratuito",
+      "limitTrialCta": "Iniciar teste gratuito",
       "limitYearlyCta": "Escolher anual",
       "limitMonthlyCta": "Escolher mensal",
       "limitLoadingCta": "A carregar preços...",

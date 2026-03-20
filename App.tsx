@@ -34,9 +34,9 @@ import VerifyPinModal from "@/security/modals/VerifyPinModal";
 import { getSecurityConfig } from "@/security/securityStorage";
 import type { SecurityModalStackParamList } from "@/security/securityFlowsTypes";
 import { initI18n } from "@/i18n";
-import i18n from "i18next";
 import { SettingsProvider } from "@/settings/useSettings";
 import { BalanceProProvider } from "@/features/pro/BalanceProProvider";
+import { useTranslation } from "react-i18next";
 
 enableScreens(false);
 
@@ -55,6 +55,7 @@ if (!splashPrevented) {
 
 export default function App(): React.JSX.Element | null {
   const { ready, error, themeMode, setThemeMode, retry } = useAppBootstrap();
+  const { t } = useTranslation();
   const [i18nReady, setI18nReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
   const [manualOnboarding, setManualOnboarding] = useState(false);
@@ -265,7 +266,10 @@ export default function App(): React.JSX.Element | null {
                                       <Tab.Screen
                                         name="Impostazioni"
                                         component={SettingsScreen}
-                                        options={{ tabBarButton: () => null }}
+                                        options={{
+                                          tabBarButton: () => null,
+                                          title: t("settings.title", { defaultValue: "Profilo" }),
+                                        }}
                                       />
                                     </Tab.Navigator>
                                   </BalanceProProvider>

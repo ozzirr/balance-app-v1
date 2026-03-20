@@ -19,18 +19,21 @@ const RESOURCES = {
 
 let initPromise: Promise<void> | null = null;
 
-function resolveSupportedLanguage(language?: string | null): SupportedLanguage {
+export function resolveSupportedLanguage(language?: string | null): SupportedLanguage {
   if (!language) {
-    return "it";
+    return "en";
   }
   const normalized = language.toLowerCase();
+  if (normalized.startsWith("it")) {
+    return "it";
+  }
   if (normalized.startsWith("en")) {
     return "en";
   }
   if (normalized.startsWith("pt")) {
     return "pt";
   }
-  return "it";
+  return "en";
 }
 
 async function loadInitialLanguage(): Promise<SupportedLanguage> {
@@ -51,7 +54,7 @@ export function initI18n(): Promise<void> {
       await i18n.use(initReactI18next).init({
         resources: RESOURCES,
         lng: finalLanguage,
-        fallbackLng: "it",
+        fallbackLng: "en",
         supportedLngs: [...SUPPORTED_LANGUAGES],
         debug: false,
         interpolation: {
