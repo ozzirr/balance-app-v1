@@ -13,6 +13,12 @@ Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Bal
 4. Imposta prezzo, localizzazioni e screenshot review per entrambi i piani.
 5. Salva i prodotti e portali in stato `Ready to Submit`.
 6. Quando carichi la build TestFlight/App Store, associa gli abbonamenti alla submission.
+7. Nel campo `Privacy Policy` inserisci un link pubblico funzionante.
+8. Nel metadata App Store aggiungi anche il link ai `Terms of Use (EULA)`:
+   - se usi la EULA standard Apple, aggiungi questa riga nella descrizione:
+     `Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`
+   - se usi una EULA custom, compilala nel campo `EULA` di App Store Connect.
+9. Nel campo `App Review Information > Notes` indica come raggiungere il paywall e specifica che la schermata mostra prezzo, durata, `Ripristina acquisti`, Privacy Policy e Terms of Use.
 
 ## Expo / native config
 
@@ -44,3 +50,7 @@ Il nome installato dell'app resta `Balance`; `Balance: Finanza Personale` e `Bal
 - Il paywall compare solo quando l'utente prova a superare il limite gratuito di 3 wallet.
 - La build deve includere nel paywall: prezzo localizzato ben visibile, durata dell'abbonamento, `Ripristina acquisti`, Privacy Policy e Terms of Use.
 - Gli abbonamenti devono essere approvabili insieme alla build; se restano in bozza, la review può bloccarsi.
+- Testo consigliato per la descrizione App Store se usi la EULA standard Apple:
+  `Terms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`
+- Testo consigliato per `App Review Notes`:
+  `Balance Pro appears when the user tries to create a fourth wallet from Wallets. The paywall includes the subscription title, localized price, subscription duration, Restore Purchases, Privacy Policy, and Terms of Use.`

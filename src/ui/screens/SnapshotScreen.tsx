@@ -505,7 +505,7 @@ export default function SnapshotScreen(): JSX.Element {
   }, [activeMonthKey, displayMonthGroups]);
 
   const activeMonth = displayMonthGroups.find((group) => group.key === activeMonthKey) ?? displayMonthGroups[0];
-  const historyMonthGroups = [...monthGroups].reverse();
+  const historyMonthGroups = monthGroups;
   const activeIndex = displayMonthGroups.findIndex((group) => group.key === activeMonthKey);
   const prevMonthKey =
     activeIndex >= 0 && activeIndex < displayMonthGroups.length - 1 ? displayMonthGroups[activeIndex + 1]?.key : null;

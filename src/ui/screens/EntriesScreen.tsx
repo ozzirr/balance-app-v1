@@ -12,7 +12,7 @@ import {
   deleteExpenseCategory,
 } from "@/repositories/expenseCategoriesRepo";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
-import { addMonths, compareIsoDates, isIsoDate, todayIso } from "@/utils/dates";
+import { addDays, addMonths, compareIsoDates, isIsoDate, todayIso } from "@/utils/dates";
 import { listOccurrencesInRange } from "@/domain/recurrence";
 import { formatEUR, formatMonthLabel, formatShortDate } from "@/ui/dashboard/formatters";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
@@ -639,26 +639,31 @@ export default function EntriesScreen(): JSX.Element {
     return `${dd}-${mm}-${yy}`;
   };
 
-  const horizonStart = todayIso();
-  const horizonEnd = addMonths(horizonStart, 12);
+  const today = todayIso();
+  const defaultVisibleStart = addDays(today, -1);
+  const historyWindowStart = addMonths(today, -12);
+  const horizonEnd = addMonths(today, 12);
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const expandedEntries = useMemo<EntryOccurrence[]>(() => {
     const result: EntryOccurrence[] = [];
     entries.forEach((entry) => {
       const isRecurring = Boolean(entry.recurrence_frequency && entry.one_shot === 0);
       if (isRecurring) {
-        const dates = listOccurrencesInRange(entry, horizonStart, horizonEnd);
+        const dates = listOccurrencesInRange(entry, historyWindowStart, horizonEnd);
         dates.forEach((date) => {
           result.push({ base: entry, date, occurrence: true });
         });
         return;
       }
-      if (compareIsoDates(entry.start_date, horizonStart) >= 0 && compareIsoDates(entry.start_date, horizonEnd) <= 0) {
+      if (
+        compareIsoDates(entry.start_date, historyWindowStart) >= 0 &&
+        compareIsoDates(entry.start_date, horizonEnd) <= 0
+      ) {
         result.push({ base: entry, date: entry.start_date, occurrence: false });
       }
     });
     return result;
-  }, [entries, horizonEnd, horizonStart]);
+  }, [entries, historyWindowStart, horizonEnd]);
 
   const entriesAfterCategoryAndSearch = useMemo(() => {
     let result = expandedEntries;
@@ -674,6 +679,11 @@ export default function EntriesScreen(): JSX.Element {
     return result;
   }, [expandedEntries, entryType, categoryFilter, normalizedSearch]);
 
+  const defaultVisibleEntries = useMemo(
+    () => entriesAfterCategoryAndSearch.filter((entry) => compareIsoDates(entry.date, defaultVisibleStart) >= 0),
+    [defaultVisibleStart, entriesAfterCategoryAndSearch]
+  );
+
   const availableMonthKeys = useMemo(() => {
     const keys = Array.from(
       new Set(
@@ -687,18 +697,23 @@ export default function EntriesScreen(): JSX.Element {
 
   const filteredEntries = useMemo(() => {
     if (monthFilter === "all") {
-      return entriesAfterCategoryAndSearch;
+      return defaultVisibleEntries;
     }
     return entriesAfterCategoryAndSearch.filter((entry) => entry.date.startsWith(monthFilter));
-  }, [entriesAfterCategoryAndSearch, monthFilter]);
+  }, [defaultVisibleEntries, entriesAfterCategoryAndSearch, monthFilter]);
 
   const sortedEntries = useMemo(() => {
     return [...filteredEntries].sort((a, b) => {
+      if (monthFilter === "all") {
+        if (a.date < b.date) return -1;
+        if (a.date > b.date) return 1;
+        return 0;
+      }
       if (a.date > b.date) return -1;
       if (a.date < b.date) return 1;
       return 0;
     });
-  }, [filteredEntries]);
+  }, [filteredEntries, monthFilter]);
 
   const entryAccent = entryType === "income" ? tokens.colors.income : tokens.colors.expense;
   const expenseCategoryCount = useMemo(() => {
@@ -719,7 +734,11 @@ export default function EntriesScreen(): JSX.Element {
   const shouldShowEntriesCard = entries.length > 0;
   const shouldShowCategoryFilter =
     entryType === "expense" && entries.length >= 5 && expenseCategoryCount >= 2;
-  const shouldShowMonthFilter = availableMonthKeys.length > 1;
+  const hasHiddenPastEntries = useMemo(
+    () => entriesAfterCategoryAndSearch.some((entry) => compareIsoDates(entry.date, defaultVisibleStart) < 0),
+    [defaultVisibleStart, entriesAfterCategoryAndSearch]
+  );
+  const shouldShowMonthFilter = availableMonthKeys.length > 1 || hasHiddenPastEntries;
   const canSubmitNewCategory = showAddCategory && newCategory.trim().length > 0;
   const categoryIdNumber = Number(form.categoryId);
   const isCategorySelected = entryType !== "expense" || (Number.isFinite(categoryIdNumber) && categoryIdNumber > 0);

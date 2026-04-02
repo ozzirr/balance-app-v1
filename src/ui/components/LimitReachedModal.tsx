@@ -215,6 +215,21 @@ export default function LimitReachedModal({
   const selectedPlanHasProduct = Boolean(selectedPlan?.product);
   const selectedPlanTrialOffer = getFreeTrialOffer(selectedPlan?.product ?? null);
   const hasSelectedPlanTrial = Boolean(selectedPlanTrialOffer);
+  const selectedPlanCycleLabel = selectedPlan ? resolveCycleLabel(selectedPlan) : null;
+  const selectedPlanBillingHelper =
+    selectedPlan?.displayPrice && selectedPlanCycleLabel
+      ? hasSelectedPlanTrial
+        ? t("wallets.actions.paywallBillingHelperTrial", {
+            defaultValue: "If eligible, you'll be charged after the free trial. Then {{price}} / {{cycle}}.",
+            price: selectedPlan.displayPrice,
+            cycle: selectedPlanCycleLabel,
+          })
+        : t("wallets.actions.paywallBillingHelper", {
+            defaultValue: "Renews at {{price}} / {{cycle}}.",
+            price: selectedPlan.displayPrice,
+            cycle: selectedPlanCycleLabel,
+          })
+      : null;
   const shouldAnimateAnnualBadge = visible && shouldShowPlans && selectedPlanId === "monthly";
   const monthlyPlan = useMemo(
     () => paywallPlans.find((plan) => plan.planId === "monthly") ?? null,
@@ -265,7 +280,7 @@ export default function LimitReachedModal({
     : ctaLabel ?? t("common.continue", { defaultValue: "Continue" });
   const resolvedPrimaryDisabled = primaryDisabled || secondaryActionLoading || tertiaryActionLoading;
 
-  const resolveCycleLabel = (plan: BalanceProAvailablePlan): string => {
+  function resolveCycleLabel(plan: BalanceProAvailablePlan): string {
     const unit = getPlanCycleUnit(plan);
     if (unit === "year") {
       return t("wallets.actions.planCycleYear", { defaultValue: "year" });
@@ -280,9 +295,9 @@ export default function LimitReachedModal({
     }
 
     return t("wallets.actions.planCycleMonth", { defaultValue: "month" });
-  };
+  }
 
-  const resolveDurationLabel = (plan: BalanceProAvailablePlan): string => {
+  function resolveDurationLabel(plan: BalanceProAvailablePlan): string {
     const count = getPlanCycleCount(plan);
     const unit = getPlanCycleUnit(plan);
 
@@ -307,7 +322,7 @@ export default function LimitReachedModal({
     return count === 1
       ? t("wallets.actions.planDurationMonth", { defaultValue: "1 month subscription" })
       : t("wallets.actions.planDurationMonths", { count, defaultValue: `${count} months subscription` });
-  };
+  }
 
   const isTabletLayout = width >= 768;
   const cardWidth = Math.min(width - 32, isTabletLayout ? 560 : 398);
@@ -633,22 +648,17 @@ export default function LimitReachedModal({
                           </View>
                         )}
 
-                        {plan.planId === "yearly" && planSavingsPercentage ? (
-                          <Text style={[styles.planAnchor, { color: yearlyPromoColor }]}>
-                            {t("wallets.actions.planSavingsPercentage", {
-                              percent: planSavingsPercentage,
-                              defaultValue: "Best value. Save {{percent}}%",
-                            })}
-                          </Text>
-                        ) : plan.planId === "monthly" && plan.displayPrice ? (
-                          <Text style={[styles.planMeta, { color: subtleTextColor }]}>
-                            {t("wallets.actions.planMonthlyNote", { defaultValue: "Monthly plan" })}
-                          </Text>
-                        ) : plan.planId === "yearly" && !plan.displayPrice && isStoreLoading ? (
-                          <Text style={[styles.planMeta, { color: subtleTextColor }]}>
-                            {resolveDurationLabel(plan)}
-                          </Text>
-                        ) : null}
+                        <View style={styles.planMetaGroup}>
+                          <Text style={[styles.planMeta, { color: subtleTextColor }]}>{resolveDurationLabel(plan)}</Text>
+                          {plan.planId === "yearly" && planSavingsPercentage ? (
+                            <Text style={[styles.planAnchor, { color: yearlyPromoColor }]}>
+                              {t("wallets.actions.planSavingsPercentage", {
+                                percent: planSavingsPercentage,
+                                defaultValue: "Best value. Save {{percent}}%",
+                              })}
+                            </Text>
+                          ) : null}
+                        </View>
                       </View>
                     </Pressable>
                   );
@@ -684,6 +694,10 @@ export default function LimitReachedModal({
                     {t("wallets.actions.paywallTrustCancelAnytime", { defaultValue: "Cancel anytime" })}
                   </Text>
                 </View>
+              ) : null}
+
+              {selectedPlanBillingHelper ? (
+                <Text style={[styles.billingHelper, { color: subtleTextColor }]}>{selectedPlanBillingHelper}</Text>
               ) : null}
             </View>
 
@@ -936,6 +950,9 @@ const styles = StyleSheet.create({
   },
   planPriceBlock: {
     gap: 6,
+  },
+  planMetaGroup: {
+    gap: 4,
   },
   planPriceRow: {
     flexDirection: "row",
