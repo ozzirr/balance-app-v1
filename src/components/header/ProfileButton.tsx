@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { Image, Pressable, StyleSheet } from "react-native";
+import React from "react";
+import { Pressable, StyleSheet } from "react-native";
 import { useNavigation, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { getPreference } from "@/repositories/preferencesRepo";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 const BUTTON_SIZE = 36;
@@ -18,13 +17,6 @@ export default function ProfileButton({
 }: Props): JSX.Element {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const { tokens } = useDashboardTheme();
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
-
-  useEffect(() => {
-    getPreference("profile_avatar").then((pref) => {
-      setAvatarUri(pref?.value ?? null);
-    });
-  }, []);
 
   const handlePress = () => {
     const targetNav = navigation.getParent() ?? navigation;
@@ -48,13 +40,9 @@ export default function ProfileButton({
         ]}
         hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
         accessibilityRole="button"
-        accessibilityLabel="Apri profilo"
+        accessibilityLabel="Apri impostazioni"
       >
-      {avatarUri ? (
-        <Image source={{ uri: avatarUri }} style={styles.avatar} />
-      ) : (
-        <MaterialCommunityIcons name="account-outline" size={20} color={tokens.colors.text} />
-      )}
+      <MaterialCommunityIcons name="cog-outline" size={20} color={tokens.colors.text} />
     </Pressable>
   );
 }
@@ -76,10 +64,5 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
-  },
-  avatar: {
-    width: BUTTON_SIZE - 4,
-    height: BUTTON_SIZE - 4,
-    borderRadius: (BUTTON_SIZE - 4) / 2,
   },
 });

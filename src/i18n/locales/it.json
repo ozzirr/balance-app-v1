@@ -97,7 +97,7 @@
     }
   },
   "settings": {
-    "title": "Profilo",
+    "title": "Impostazioni",
     "profile": {
       "title": "Profilo",
       "nameLabel": "Nickname",
@@ -145,6 +145,15 @@
     "emptyCta": "Configura Balance",
     "greeting": "Ciao",
     "greetingWithName": "Ciao {{name}}",
+    "firstRun": {
+      "title": "La tua dashboard si costruisce da qui",
+      "bodyLine1": "1. Configura i tuoi wallet.",
+      "bodyLine2": "2. Aggiungi il primo snapshot.",
+      "bodyLine3": "3. Aggiungi entrate e uscite in Balance.",
+      "ctaSnapshot": "Aggiungi i tuoi primi snapshot",
+      "ctaWallet": "Configura i tuoi wallet",
+      "ctaBalance": "Aggiungi entrate e uscite"
+    },
     "section": {
       "trend": "Andamento nel tempo",
       "distribution": "Distribuzione patrimonio",
@@ -205,7 +214,8 @@
     "kpi": {
       "liquidity": "Liquidità",
       "investments": "Investimenti",
-      "netWorth": "Patrimonio"
+      "netWorth": "Patrimonio",
+      "awaitingComparison": "In attesa di confronto"
     },
     "range": {
       "label": "Periodo",
@@ -221,7 +231,7 @@
     },
     "locked": {
       "title": "Come sbloccarla",
-      "subtitle": "Nessun dato disponibile.",
+      "subtitle": "Tocca per vedere come si attiva.",
       "trend": "Aggiungi almeno 2 snapshot in date diverse per vedere l’andamento nel tempo.",
       "distribution": "Aggiungi il tuo primo snapshot per vedere la distribuzione del patrimonio.",
       "cashflow": "Inserisci entrate e/o uscite ricorrenti per attivare il Cash Flow.",
@@ -300,6 +310,13 @@
       "brokerLabel": "Broker",
       "investmentTypeLabel": "Tipo investimento",
       "colorLabel": "Colore"
+    },
+    "guide": {
+      "title": "Qui sotto hai il tuo primo wallet per partire subito",
+      "bodyLine1": "Puoi rinominarlo con il nome della tua banca principale.",
+      "bodyLine2": "Se vuoi, puoi aggiungerne altri per separare meglio le diverse parti del tuo patrimonio.",
+      "cta": "Modifica wallet",
+      "ctaNew": "Aggiungi nuovo"
     },
     "actions": {
       "limitTitle": "Limite wallet raggiunto",
@@ -419,6 +436,16 @@
     "actions": {
       "toggleForm": "Aggiungi voce"
     },
+    "guide": {
+      "title": "Come funziona questa sezione",
+      "incomeLine1": "Le entrate servono a stimare quanto incasserai nei prossimi mesi.",
+      "incomeLine2": "Aggiungi una voce una tantum o ricorrente per alimentare il cash flow.",
+      "expenseNoCategoriesLine1": "Per registrare un'uscita crea prima almeno una categoria.",
+      "expenseLine1": "Le uscite servono a stimare cosa pagherai nei prossimi mesi.",
+      "expenseLine2": "Aggiungi spese una tantum o ricorrenti per rendere piu preciso il cash flow.",
+      "cta": "Aggiungi voce",
+      "ctaCategories": "Configura categorie"
+    },
     "empty": {
       "noEntries": "Aggiungi la tua prima voce per iniziare.",
       "noCategoriesActivePrefix": "Nessuna categoria attiva.",
@@ -502,7 +529,7 @@
     },
     "guide": {
       "title": "Aggiungi il tuo primo snapshot",
-      "bodyLine1": "Uno snapshot è il saldo del wallet in una data.",
+      "bodyLine1": "Qui uno snapshot e il saldo di tutti i tuoi wallet in una data specifica.",
       "bodyLine2": "Inizia inserendo il saldo di oggi.",
       "cta": "Aggiungi snapshot"
     },

@@ -150,6 +150,11 @@ export default function DashboardScreen(): JSX.Element {
   const [showPrivacyCard, setShowPrivacyCard] = useState(false);
   const [kpiDeltaRange, setKpiDeltaRange] = useState<KpiDeltaRange>("28D");
   const [availableRanges, setAvailableRanges] = useState<KpiDeltaRange[]>([]);
+  const [dashboardCounts, setDashboardCounts] = useState({
+    snapshots: 0,
+    incomeEntries: 0,
+    expenseEntries: 0,
+  });
   const [sectionAvailability, setSectionAvailability] = useState<Record<SectionId, boolean>>({
     andamento: true,
     distribuzione: true,
@@ -218,6 +223,11 @@ export default function DashboardScreen(): JSX.Element {
 
       const chartPointsRaw = pref ? Number(pref.value) : 6;
       const chartPoints = Number.isFinite(chartPointsRaw) ? Math.min(12, Math.max(3, chartPointsRaw)) : 6;
+      setDashboardCounts({
+        snapshots: snapshots.length,
+        incomeEntries: incomeEntries.length,
+        expenseEntries: expenseEntries.length,
+      });
       const data = buildDashboardData(
         {
           latestLines,
@@ -374,7 +384,12 @@ export default function DashboardScreen(): JSX.Element {
   }, [t]);
 
   const emptyState = walletsCount === 0 && !loading;
-  const lockedSubtitle = t("dashboard.locked.subtitle", { defaultValue: "Nessun dato disponibile" });
+  const isFirstRunDashboard =
+    !loading &&
+    dashboardCounts.snapshots === 0 &&
+    dashboardCounts.incomeEntries === 0 &&
+    dashboardCounts.expenseEntries === 0;
+  const lockedSubtitle = t("dashboard.locked.subtitle", { defaultValue: "Tocca per vedere come si attiva" });
 
   useEffect(() => {
     if (loading || !dashboard) return;
@@ -501,6 +516,35 @@ export default function DashboardScreen(): JSX.Element {
     [tokens.radius.md]
   );
 
+  const firstRunActions = useMemo(
+    () => (
+      <View style={styles.onboardingActions}>
+        <SmallOutlinePillButton
+          label={t("dashboard.firstRun.ctaWallet", { defaultValue: "Configura i tuoi wallet" })}
+          onPress={() => navigation.navigate("Wallet")}
+          color={tokens.colors.accent}
+          fullWidth
+          size="large"
+        />
+        <SmallOutlinePillButton
+          label={t("dashboard.firstRun.ctaSnapshot", { defaultValue: "Aggiungi i tuoi primi snapshot" })}
+          onPress={() => navigation.navigate("Snapshot", { openNew: true })}
+          color={tokens.colors.accent}
+          fullWidth
+          size="large"
+        />
+        <SmallOutlinePillButton
+          label={t("dashboard.firstRun.ctaBalance", { defaultValue: "Aggiungi entrate e uscite" })}
+          onPress={() => navigation.navigate("Balance")}
+          color={tokens.colors.accent}
+          fullWidth
+          size="large"
+        />
+      </View>
+    ),
+    [navigation, t, tokens.colors.accent]
+  );
+
   return (
     <View style={styles.screenRoot}>
       <AppBackground>
@@ -526,7 +570,7 @@ export default function DashboardScreen(): JSX.Element {
             </PremiumCard>
           ) : null}
 
-          {emptyState ? (
+          {emptyState && !isFirstRunDashboard ? (
             <CoachTipCard
               lines={[t("dashboard.emptyBody")]}
               ctaLabel={t("dashboard.emptyCta", { defaultValue: "Configura Balance" })}
@@ -544,7 +588,7 @@ export default function DashboardScreen(): JSX.Element {
                       ? t("dashboard.greetingWithName", { name: profileName })
                       : t("dashboard.greeting")}
                   </Text>
-                  {kpiRangeOptions.length > 1 ? (
+                  {!isFirstRunDashboard && kpiRangeOptions.length > 1 ? (
                     <View style={styles.rangeRow}>
                       <RangeSelector
                         selectedRange={kpiDeltaRange}
@@ -555,9 +599,11 @@ export default function DashboardScreen(): JSX.Element {
                     </View>
                   ) : null}
                 </View>
-                <View style={styles.kpiBlock}>
-                  <KPIStrip items={dashboard.kpis} />
-                </View>
+                {!isFirstRunDashboard ? (
+                  <View style={styles.kpiBlock}>
+                    <KPIStrip items={dashboard.kpis} />
+                  </View>
+                ) : null}
               </View>
               {showPrivacyCard && (
                 <CoachTipCard
@@ -581,8 +627,10 @@ export default function DashboardScreen(): JSX.Element {
                 }
                 />
               )}
+              {isFirstRunDashboard ? firstRunActions : null}
 
-              {orderedSections.map((sectionId) => {
+              {!isFirstRunDashboard &&
+                orderedSections.map((sectionId) => {
                 const isAvailable = sectionAvailability[sectionId];
                 if (sectionId === "andamento") {
                   return (
@@ -715,7 +763,7 @@ export default function DashboardScreen(): JSX.Element {
                 </SectionAccordion>
               );
               })}
-              {canReorderSections && (
+              {!isFirstRunDashboard && canReorderSections && (
                 <View style={styles.orderToggleRow}>
                   <PressScale onPress={openReorderSheet} style={styles.orderToggleLink}>
                     <Text style={[styles.orderToggleText, { color: tokens.colors.accent }]}>
@@ -848,10 +896,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-end",
   },
+  onboardingActions: {
+    flexDirection: "column",
+    gap: 8,
+    alignItems: "stretch",
+    width: "100%",
+  },
   privacyActions: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    width: "100%",
   },
   privacyLink: {
     paddingVertical: 4,

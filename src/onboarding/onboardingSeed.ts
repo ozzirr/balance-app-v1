@@ -168,7 +168,7 @@ export async function seedInitialData({ hasInvestments }: { hasInvestments: bool
     if (wallets.length === 0) {
       await createWallet("Liquidità", "LIQUIDITY", "EUR", "Liquidità", 1);
       if (hasInvestments) {
-        await createWallet("Investimenti", "INVEST", "EUR", "Investimenti", 1);
+        await createWallet("Investimenti", "INVEST", "EUR", null, 1);
       }
     }
 

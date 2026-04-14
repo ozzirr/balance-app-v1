@@ -21,6 +21,7 @@ export type OnboardingStackParamList = {
 
 type Props = {
   onComplete: () => void;
+  onSkip: () => void;
   shouldSeedOnComplete?: boolean;
 };
 
@@ -28,6 +29,7 @@ const Stack = createNativeStackNavigator<OnboardingStackParamList>();
 
 export default function OnboardingNavigator({
   onComplete,
+  onSkip,
   shouldSeedOnComplete = true,
 }: Props): JSX.Element {
   const isProVariant = IS_PRO_VARIANT;
@@ -39,7 +41,7 @@ export default function OnboardingNavigator({
           <OnboardingWelcome
             variant={isProVariant ? "pro" : "free"}
             onNext={() => navigation.navigate("OnboardingName")}
-            onSkip={onComplete}
+            onSkip={onSkip}
             onImport={isProVariant ? () => navigation.navigate("OnboardingProImport") : undefined}
           />
         )}
@@ -58,7 +60,7 @@ export default function OnboardingNavigator({
         {({ navigation }) => (
           <OnboardingName
             onNext={() => navigation.navigate("OnboardingInvestments")}
-            onSkip={onComplete}
+            onSkip={onSkip}
           />
         )}
       </Stack.Screen>

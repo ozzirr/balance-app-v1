@@ -88,7 +88,7 @@ export async function ensureDefaultWallets(): Promise<void> {
   const wallets = await listWallets();
   if (wallets.length > 0) return;
   await createWallet("Liquidità", "LIQUIDITY", "EUR", "Liquidità", 1);
-  await createWallet("Investimenti", "INVEST", "EUR", "Investimenti", 1);
+  await createWallet("Investimenti", "INVEST", "EUR", null, 1);
 }
 
 export async function updateWalletSortOrders(updates: { id: number; sortOrder: number }[]): Promise<void> {

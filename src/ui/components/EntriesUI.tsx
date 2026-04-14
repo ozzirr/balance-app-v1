@@ -140,12 +140,14 @@ export function SmallOutlinePillButton({
   color,
   icon,
   fullWidth = false,
+  size = "small",
 }: {
   label: string;
   onPress: () => void;
   color: string;
   icon?: React.ReactNode;
   fullWidth?: boolean;
+  size?: "small" | "large";
 }): JSX.Element {
   const iconOnly = Boolean(icon) && !label;
   return (
@@ -153,13 +155,14 @@ export function SmallOutlinePillButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.smallOutline,
+        size === "large" && styles.smallOutlineLarge,
         iconOnly && styles.smallOutlineIconOnly,
         fullWidth && styles.smallOutlineFullWidth,
         { borderColor: color, opacity: pressed ? 0.85 : 1 },
       ]}
     >
       {icon ? <View style={styles.smallOutlineIcon}>{icon}</View> : null}
-      {label ? <Text style={[styles.smallOutlineText, { color }]}>{label}</Text> : null}
+      {label ? <Text style={[styles.smallOutlineText, size === "large" && styles.smallOutlineTextLarge, { color }]}>{label}</Text> : null}
     </Pressable>
   );
 }
@@ -253,6 +256,11 @@ const styles = StyleSheet.create({
     gap: 6,
     justifyContent: "center",
   },
+  smallOutlineLarge: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    minHeight: 50,
+  },
   smallOutlineIconOnly: {
     width: 38,
     height: 38,
@@ -282,6 +290,9 @@ const styles = StyleSheet.create({
   smallOutlineText: {
     fontWeight: "700",
     fontSize: 13,
+  },
+  smallOutlineTextLarge: {
+    fontSize: 16,
   },
   datePill: {
     width: 56,

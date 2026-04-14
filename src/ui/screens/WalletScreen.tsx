@@ -30,6 +30,7 @@ import { orderWalletsForUI, type WalletGroupOrder } from "@/domain/walletOrderin
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import type { BalanceProPlanId } from "@/config/entitlements";
 import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
+import CoachTipCard from "@/ui/components/CoachTipCard";
 
 type BalanceProPaywallSource = "wallet-limit" | "settings-upsell";
 
@@ -56,6 +57,30 @@ function nextPresetColor(current: string): string {
   const index = presetColors.indexOf(current);
   if (index === -1) return presetColors[0];
   return presetColors[(index + 1) % presetColors.length];
+}
+
+function isSeededDefaultWallet(wallet: Wallet): boolean {
+  if (wallet.currency !== "EUR" || wallet.active !== 1) {
+    return false;
+  }
+
+  if (wallet.type === "LIQUIDITY") {
+    return wallet.name === "Liquidità" && wallet.tag === "Liquidità";
+  }
+
+  if (wallet.type === "INVEST") {
+    return wallet.name === "Investimenti" && (!wallet.tag || wallet.tag === "Investimenti");
+  }
+
+  return false;
+}
+
+function normalizeInvestmentTag(wallet: Wallet, tag: string | null | undefined): string {
+  const normalized = tag?.trim() ?? "";
+  if (wallet.type === "INVEST" && isSeededDefaultWallet(wallet) && normalized === "Investimenti") {
+    return "";
+  }
+  return normalized;
 }
 
 type AccordionItemProps = {
@@ -260,7 +285,7 @@ export default function WalletScreen(): React.ReactElement {
     walletList.forEach((wallet) => {
       edits[wallet.id] = {
         name: wallet.name,
-        tag: wallet.tag ?? "",
+        tag: normalizeInvestmentTag(wallet, wallet.tag),
         currency: wallet.currency,
         color: wallet.color ?? DEFAULT_WALLET_COLOR,
       };
@@ -303,7 +328,7 @@ export default function WalletScreen(): React.ReactElement {
       if (!wallet) return;
       const current = walletEdits[walletId] ?? {
         name: wallet.name,
-        tag: wallet.tag ?? "",
+        tag: normalizeInvestmentTag(wallet, wallet.tag),
         currency: wallet.currency,
         color: wallet.color ?? DEFAULT_WALLET_COLOR,
       };
@@ -378,6 +403,9 @@ export default function WalletScreen(): React.ReactElement {
   const noWallets = wallets.length === 0;
   const shouldPulseAdd = noWallets && !showAddWallet.LIQUIDITY && tab === "LIQUIDITY";
   const getWalletDisplayColor = (wallet: Wallet) => walletEdits[wallet.id]?.color ?? wallet.color ?? DEFAULT_WALLET_COLOR;
+  const activeWallets = tab === "LIQUIDITY" ? liquidityWallets : investmentWallets;
+  const guideWallet = activeWallets.length === 1 && isSeededDefaultWallet(activeWallets[0]) ? activeWallets[0] : null;
+  const shouldShowWalletGuide = Boolean(guideWallet);
 
   useEffect(() => {
     let animation: Animated.CompositeAnimation | null = null;
@@ -818,6 +846,16 @@ export default function WalletScreen(): React.ReactElement {
       </PressScale>
     </View>
   ) : null;
+  const handleWalletGuidePress = useCallback(() => {
+    if (!guideWallet) {
+      return;
+    }
+    setExpandedWalletId(guideWallet.id);
+  }, [guideWallet]);
+
+  const handleWalletGuideAddNew = useCallback(() => {
+    handleRequestAddWallet(tab);
+  }, [handleRequestAddWallet, tab]);
 
   return (
     <View style={styles.screenRoot}>
@@ -844,6 +882,28 @@ export default function WalletScreen(): React.ReactElement {
                 ]}
               />
             )}
+
+            {shouldShowWalletGuide ? (
+              <CoachTipCard
+                title={t("wallets.guide.title")}
+                lines={[t("wallets.guide.bodyLine1"), t("wallets.guide.bodyLine2")]}
+                leadingIcon={<MaterialCommunityIcons name="lightbulb-outline" size={18} color={tokens.colors.accent} />}
+                actions={
+                  <View style={styles.guideActions}>
+                    <SmallOutlinePillButton
+                      label={t("wallets.guide.cta")}
+                      onPress={handleWalletGuidePress}
+                      color={tokens.colors.accent}
+                    />
+                    <SmallOutlinePillButton
+                      label={t("wallets.guide.ctaNew", { defaultValue: "Aggiungi nuovo" })}
+                      onPress={handleWalletGuideAddNew}
+                      color={tokens.colors.accent}
+                    />
+                  </View>
+                }
+              />
+            ) : null}
 
             {tab === "LIQUIDITY" && (
               <>
@@ -986,8 +1046,9 @@ export default function WalletScreen(): React.ReactElement {
             {showInvestments && tab === "INVEST" && (
               <>
                 {investmentWallets.map((wallet) => {
+                  const investmentTag = normalizeInvestmentTag(wallet, walletEdits[wallet.id]?.tag ?? wallet.tag);
                   const subtitle = `${walletEdits[wallet.id]?.currency ?? wallet.currency}${
-                    walletEdits[wallet.id]?.tag || wallet.tag ? ` · ${walletEdits[wallet.id]?.tag ?? wallet.tag}` : ""
+                    investmentTag ? ` · ${investmentTag}` : ""
                   }`;
                   const editColor = walletEdits[wallet.id]?.color ?? wallet.color ?? DEFAULT_WALLET_COLOR;
                   return (
@@ -1043,7 +1104,7 @@ export default function WalletScreen(): React.ReactElement {
                       </View>
                       <TextInput
                         label={t("wallets.form.investmentTypeLabel")}
-                        value={walletEdits[wallet.id]?.tag ?? wallet.tag ?? ""}
+                        value={investmentTag}
                         {...inputProps}
                         onChangeText={(value) =>
                           void persistWalletEdit(wallet.id, { tag: value })
@@ -1345,6 +1406,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingTop: 4,
     paddingRight: 6,
+  },
+  guideActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
   orderToggleLink: {
     paddingVertical: 2,

@@ -17,6 +17,7 @@ const ICONS: Record<string, IconName> = {
   Snapshot: "calendar-month-outline",
   Balance: "swap-vertical",
   Wallet: "wallet-outline",
+  Impostazioni: "cog-outline",
 };
 
 const BAR_HEIGHT = 72;

@@ -60,6 +60,7 @@ export default function App(): React.JSX.Element | null {
   const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
   const [manualOnboarding, setManualOnboarding] = useState(false);
   const [seedOnCompleteRequested, setSeedOnCompleteRequested] = useState(false);
+  const [postOnboardingInitialTab, setPostOnboardingInitialTab] = useState<"Dashboard" | "Snapshot">("Dashboard");
 
   useEffect(() => {
     let mounted = true;
@@ -90,6 +91,15 @@ export default function App(): React.JSX.Element | null {
   const handleOnboardingComplete = useCallback(() => {
     setManualOnboarding(false);
     setSeedOnCompleteRequested(false);
+    setPostOnboardingInitialTab("Snapshot");
+    void setOnboardingCompleted(true);
+    setOnboardingCompletedState(true);
+  }, []);
+
+  const handleOnboardingSkip = useCallback(() => {
+    setManualOnboarding(false);
+    setSeedOnCompleteRequested(false);
+    setPostOnboardingInitialTab("Dashboard");
     void setOnboardingCompleted(true);
     setOnboardingCompletedState(true);
   }, []);
@@ -210,11 +220,14 @@ export default function App(): React.JSX.Element | null {
                                 !onboardingCompleted || manualOnboarding ? (
                                   <OnboardingNavigator
                                     onComplete={handleOnboardingComplete}
+                                    onSkip={handleOnboardingSkip}
                                     shouldSeedOnComplete={shouldSeedOnComplete}
                                   />
                                 ) : (
                                   <BalanceProProvider>
                                     <Tab.Navigator
+                                      key={`main-tabs-${postOnboardingInitialTab}`}
+                                      initialRouteName={postOnboardingInitialTab}
                                       screenOptions={({ route }) => ({
                                         headerTitleAlign: "center",
                                         headerTransparent: true,
@@ -268,7 +281,7 @@ export default function App(): React.JSX.Element | null {
                                         component={SettingsScreen}
                                         options={{
                                           tabBarButton: () => null,
-                                          title: t("settings.title", { defaultValue: "Profilo" }),
+                                          title: t("settings.title", { defaultValue: "Impostazioni" }),
                                         }}
                                       />
                                     </Tab.Navigator>

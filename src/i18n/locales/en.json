@@ -97,7 +97,7 @@
     }
   },
   "settings": {
-    "title": "Profile",
+    "title": "Settings",
     "profile": {
       "title": "Profile",
       "nameLabel": "Nickname",
@@ -145,6 +145,15 @@
     "emptyCta": "Set up Balance",
     "greeting": "Hi",
     "greetingWithName": "Hi {{name}}",
+    "firstRun": {
+      "title": "Your dashboard starts here",
+      "bodyLine1": "1. Set up your wallets.",
+      "bodyLine2": "2. Add your first snapshot.",
+      "bodyLine3": "3. Add incomes and expenses in Balance.",
+      "ctaSnapshot": "Add your first snapshots",
+      "ctaWallet": "Set up your wallets",
+      "ctaBalance": "Add incomes and expenses"
+    },
     "section": {
       "trend": "Trend over time",
       "distribution": "Portfolio distribution",
@@ -205,7 +214,8 @@
     "kpi": {
       "liquidity": "Liquidity",
       "investments": "Investments",
-      "netWorth": "Net worth"
+      "netWorth": "Net worth",
+      "awaitingComparison": "Waiting for a comparison"
     },
     "range": {
       "label": "Period",
@@ -221,7 +231,7 @@
     },
     "locked": {
       "title": "How to unlock it",
-      "subtitle": "No data available.",
+      "subtitle": "Tap to see how to unlock it.",
       "trend": "Add at least 2 snapshots on different dates to see the trend over time.",
       "distribution": "Add your first snapshot to see the portfolio distribution.",
       "cashflow": "Add recurring incomes and/or expenses to enable Cash Flow.",
@@ -300,6 +310,13 @@
       "brokerLabel": "Broker",
       "investmentTypeLabel": "Investment type",
       "colorLabel": "Color"
+    },
+    "guide": {
+      "title": "Below you already have your first wallet to get started",
+      "bodyLine1": "You can rename it using the name of your main bank.",
+      "bodyLine2": "If you want, you can add more wallets to better separate the different parts of your wealth.",
+      "cta": "Edit wallet",
+      "ctaNew": "Add new"
     },
     "actions": {
       "limitTitle": "Wallet limit reached",
@@ -419,6 +436,16 @@
     "actions": {
       "toggleForm": "Add entry"
     },
+    "guide": {
+      "title": "How this section works",
+      "incomeLine1": "Income entries help estimate how much you will receive in the coming months.",
+      "incomeLine2": "Add a one-time or recurring income to feed cash flow.",
+      "expenseNoCategoriesLine1": "To log an expense, first create at least one category.",
+      "expenseLine1": "Expense entries help estimate what you will pay in the coming months.",
+      "expenseLine2": "Add one-time or recurring expenses to make cash flow more accurate.",
+      "cta": "Add entry",
+      "ctaCategories": "Set up categories"
+    },
     "empty": {
       "noEntries": "Add your first entry to get started.",
       "noCategoriesActivePrefix": "No active categories.",
@@ -502,7 +529,7 @@
     },
     "guide": {
       "title": "Add your first snapshot",
-      "bodyLine1": "A snapshot is your wallet balance at a specific date.",
+      "bodyLine1": "Here, a snapshot is the balance of all your wallets on a specific date.",
       "bodyLine2": "Start by entering today's balance.",
       "cta": "Add snapshot"
     },

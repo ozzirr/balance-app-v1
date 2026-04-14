@@ -18,6 +18,7 @@ import { isIsoDate, todayIso } from "@/utils/dates";
 import { totalsByWalletType } from "@/domain/calculations";
 import { orderWalletsForUI } from "@/domain/walletOrdering";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
+import Skeleton from "@/ui/dashboard/components/Skeleton";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -166,7 +167,10 @@ export default function SnapshotScreen(): JSX.Element {
   const [confirmSnapshotDeleteLoading, setConfirmSnapshotDeleteLoading] = useState(false);
   const [confirmSnapshotDeleteError, setConfirmSnapshotDeleteError] = useState<string | null>(null);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
+  const monthsScrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
+  const monthChipLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
   const inputRefs = useRef<Record<number, React.ComponentRef<typeof TextInput> | null>>({});
+  const [monthsViewportWidth, setMonthsViewportWidth] = useState(0);
 
   const load = useCallback(async () => {
     const [snap, walletList, onboardingDone] = await Promise.all([
@@ -493,6 +497,10 @@ export default function SnapshotScreen(): JSX.Element {
     const extras = monthGroups.filter((group) => !baseKeys.has(group.key));
     return [...merged, ...extras];
   }, [monthGroups]);
+  const visibleMonthGroups = useMemo(
+    () => [...displayMonthGroups].reverse(),
+    [displayMonthGroups]
+  );
 
   useEffect(() => {
     if (displayMonthGroups.length === 0) return;
@@ -504,8 +512,24 @@ export default function SnapshotScreen(): JSX.Element {
     }
   }, [activeMonthKey, displayMonthGroups]);
 
+  useEffect(() => {
+    if (visibleMonthGroups.length === 0) return;
+    requestAnimationFrame(() => {
+      monthsScrollRef.current?.scrollToEnd({ animated: false });
+    });
+  }, [visibleMonthGroups.length]);
+
+  useEffect(() => {
+    if (!activeMonthKey || monthsViewportWidth <= 0) return;
+    requestAnimationFrame(() => {
+      const layout = monthChipLayoutsRef.current[activeMonthKey];
+      if (!layout) return;
+      const targetX = Math.max(0, layout.x + layout.width / 2 - monthsViewportWidth / 2);
+      monthsScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    });
+  }, [activeMonthKey, monthsViewportWidth]);
+
   const activeMonth = displayMonthGroups.find((group) => group.key === activeMonthKey) ?? displayMonthGroups[0];
-  const historyMonthGroups = monthGroups;
   const activeIndex = displayMonthGroups.findIndex((group) => group.key === activeMonthKey);
   const prevMonthKey =
     activeIndex >= 0 && activeIndex < displayMonthGroups.length - 1 ? displayMonthGroups[activeIndex + 1]?.key : null;
@@ -557,6 +581,7 @@ export default function SnapshotScreen(): JSX.Element {
 
   const shouldShowFirstSnapshotTip =
     onboardingCompleted && snapshots.length === 0 && wallets.length > 0 && !showForm;
+  const shouldShowEmptySnapshotPreview = snapshots.length === 0 && wallets.length > 0 && !showForm;
 
   return (
     <View style={styles.screenRoot}>
@@ -636,34 +661,48 @@ export default function SnapshotScreen(): JSX.Element {
               </Pressable>
             </View>
 
+            {visibleMonthGroups.length > 0 ? (
+              <ScrollView
+                ref={monthsScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recentRow}
+                onLayout={({ nativeEvent }) => {
+                  setMonthsViewportWidth(nativeEvent.layout.width);
+                }}
+              >
+                {visibleMonthGroups.map((group) => (
+                  <View
+                    key={group.key}
+                    onLayout={({ nativeEvent }) => {
+                      monthChipLayoutsRef.current[group.key] = {
+                        x: nativeEvent.layout.x,
+                        width: nativeEvent.layout.width,
+                      };
+                    }}
+                  >
+                    <PillChip
+                      label={monthLabelFromKey(group.key)}
+                      selected={group.key === activeMonthKey}
+                      onPress={() => {
+                        setActiveMonthKey(group.key);
+                        const nextId = group.snapshots[0]?.id ?? null;
+                        if (nextId) {
+                          setSelectedSnapshotId(nextId);
+                          void loadLines(nextId);
+                        }
+                      }}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
+
             <PrimaryPillButton
               label={heroCtaLabel}
               onPress={handleHeroCta}
               color={tokens.colors.accent}
             />
-          </GlassCardContainer>
-        )}
-
-        {historyMonthGroups.length > 0 && (
-          <GlassCardContainer contentStyle={{ gap: 12 }}>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.hero.recentMonths")}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recentRow}>
-              {historyMonthGroups.map((group) => (
-                <PillChip
-                  key={group.key}
-                  label={monthLabelFromKey(group.key)}
-                  selected={group.key === activeMonthKey}
-                  onPress={() => {
-                    setActiveMonthKey(group.key);
-                    const nextId = group.snapshots[0]?.id ?? null;
-                    if (nextId) {
-                      setSelectedSnapshotId(nextId);
-                      void loadLines(nextId);
-                    }
-                  }}
-                />
-              ))}
-            </ScrollView>
           </GlassCardContainer>
         )}
 
@@ -682,6 +721,7 @@ export default function SnapshotScreen(): JSX.Element {
             ctaLabel={t("snapshot.guide.cta", { defaultValue: "Aggiungi snapshot" })}
             onPress={handleHeroCta}
             ctaColor={tokens.colors.accent}
+            leadingIcon={<MaterialCommunityIcons name="lightbulb-outline" size={18} color={tokens.colors.accent} />}
           />
         )}
 
@@ -701,11 +741,12 @@ export default function SnapshotScreen(): JSX.Element {
               {draftLines.map((line, index) => {
                 const wallet = orderedWallets.find((item) => item.id === line.walletId);
                 const walletAccent = withAlpha(wallet?.color ?? DEFAULT_WALLET_COLOR, "88");
+                const walletInvestmentTag = wallet?.tag?.trim() ?? "";
                 const walletTitle = wallet
                   ? wallet.type === "INVEST"
-                    ? `${wallet.tag || t("wallets.snapshot.investmentTypeFallback")} - ${wallet.name} - ${
-                        wallet.currency
-                      }`
+                    ? walletInvestmentTag
+                      ? `${walletInvestmentTag} - ${wallet.name} - ${wallet.currency}`
+                      : `${wallet.name} - ${wallet.currency}`
                     : `${wallet.name} - ${wallet.currency}`
                   : t("wallets.snapshot.walletFallback", { id: line.walletId });
                 const toggleSign = () => {
@@ -800,6 +841,43 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
+        {shouldShowEmptySnapshotPreview && lines.length === 0 && (
+          <GlassCardContainer contentStyle={{ gap: 10 }}>
+            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.summary.title")}</Text>
+            <View style={styles.kpiRow}>
+              <View
+                style={[
+                  styles.kpiChip,
+                  { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                ]}
+              >
+                <Skeleton width="52%" height={12} radius={8} />
+                <Skeleton width="46%" height={20} radius={10} />
+              </View>
+              {showInvestments && (
+                <View
+                  style={[
+                    styles.kpiChip,
+                    { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                  ]}
+                >
+                  <Skeleton width="58%" height={12} radius={8} />
+                  <Skeleton width="46%" height={20} radius={10} />
+                </View>
+              )}
+              <View
+                style={[
+                  styles.kpiChip,
+                  { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                ]}
+              >
+                <Skeleton width="50%" height={12} radius={8} />
+                <Skeleton width="48%" height={20} radius={10} />
+              </View>
+            </View>
+          </GlassCardContainer>
+        )}
+
         {displayMonthGroups.length > 0 && (
           <GlassCardContainer contentStyle={{ gap: 12 }}>
             <SectionHeader
@@ -825,9 +903,24 @@ export default function SnapshotScreen(): JSX.Element {
             />
             <View style={{ gap: 8 }}>
               {lines.length === 0 && (
-                <Text style={{ color: tokens.colors.muted }}>
-                  {t("snapshot.detail.emptyLines")}
-                </Text>
+                <View style={styles.detailSkeletonList}>
+                  {[0, 1, 2].map((index) => (
+                    <View key={`snapshot-skeleton-${index}`} style={styles.accountRow}>
+                      <View
+                        style={[
+                          styles.accountIconBadge,
+                          { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                        ]}
+                      >
+                        <Skeleton width={16} height={16} radius={8} />
+                      </View>
+                      <View style={styles.detailSkeletonNameWrap}>
+                        <Skeleton width={index === 1 ? "68%" : "76%"} height={14} radius={8} />
+                      </View>
+                      <Skeleton width={72} height={14} radius={8} />
+                    </View>
+                  ))}
+                </View>
               )}
               {sortedLines.map((line) => {
                 const walletLabel =
@@ -976,6 +1069,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  detailSkeletonList: {
+    gap: 8,
+  },
+  detailSkeletonNameWrap: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
   },
   sectionSub: {
     fontSize: 12,

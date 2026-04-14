@@ -97,7 +97,7 @@
     }
   },
   "settings": {
-    "title": "Perfil",
+    "title": "Definições",
     "profile": {
       "title": "Perfil",
       "nameLabel": "Nome",
@@ -145,6 +145,15 @@
     "emptyCta": "Configurar Balance",
     "greeting": "Olá",
     "greetingWithName": "Olá {{name}}",
+    "firstRun": {
+      "title": "A tua dashboard começa aqui",
+      "bodyLine1": "1. Configura as tuas carteiras.",
+      "bodyLine2": "2. Adiciona o teu primeiro snapshot.",
+      "bodyLine3": "3. Adiciona entradas e despesas no Balance.",
+      "ctaSnapshot": "Adicionar os teus primeiros snapshots",
+      "ctaWallet": "Configura as tuas carteiras",
+      "ctaBalance": "Adicionar entradas e despesas"
+    },
     "section": {
       "trend": "Evolução no tempo",
       "distribution": "Distribuição do património",
@@ -205,7 +214,8 @@
     "kpi": {
       "liquidity": "Liquidez",
       "investments": "Investimentos",
-      "netWorth": "Património líquido"
+      "netWorth": "Património líquido",
+      "awaitingComparison": "A aguardar comparação"
     },
     "range": {
       "label": "Período",
@@ -221,7 +231,7 @@
     },
     "locked": {
       "title": "Como desbloquear",
-      "subtitle": "Nenhum dado disponível.",
+      "subtitle": "Toca para ver como se ativa.",
       "trend": "Adiciona pelo menos 2 snapshots em datas diferentes para ver a evolução no tempo.",
       "distribution": "Adiciona o teu primeiro snapshot para ver a distribuição do património.",
       "cashflow": "Adiciona entradas e/ou despesas recorrentes para ativar o Cash Flow.",
@@ -300,6 +310,13 @@
       "brokerLabel": "Broker",
       "investmentTypeLabel": "Tipo de investimento",
       "colorLabel": "Cor"
+    },
+    "guide": {
+      "title": "Aqui em baixo ja tens a tua primeira carteira para começar",
+      "bodyLine1": "Podes mudar o nome para o da tua conta bancária principal.",
+      "bodyLine2": "Se quiseres, podes adicionar outras para separar melhor as diferentes partes do teu património.",
+      "cta": "Editar carteira",
+      "ctaNew": "Adicionar nova"
     },
     "actions": {
       "limitTitle": "Limite de carteiras atingido",
@@ -417,6 +434,16 @@
     "actions": {
       "toggleForm": "Adicionar entrada"
     },
+    "guide": {
+      "title": "Como funciona esta secção",
+      "incomeLine1": "As entradas ajudam a estimar quanto vais receber nos próximos meses.",
+      "incomeLine2": "Adiciona uma entrada pontual ou recorrente para alimentar o cash flow.",
+      "expenseNoCategoriesLine1": "Para registar uma despesa, cria primeiro pelo menos uma categoria.",
+      "expenseLine1": "As despesas ajudam a estimar quanto vais pagar nos próximos meses.",
+      "expenseLine2": "Adiciona despesas pontuais ou recorrentes para tornar o cash flow mais preciso.",
+      "cta": "Adicionar entrada",
+      "ctaCategories": "Configurar categorias"
+    },
     "empty": {
       "noEntries": "Adiciona a tua primeira entrada para começar.",
       "noCategoriesActivePrefix": "Sem categorias ativas.",
@@ -500,7 +527,7 @@
     },
     "guide": {
       "title": "Adiciona o teu primeiro snapshot",
-      "bodyLine1": "Um snapshot é o saldo da tua carteira numa data específica.",
+      "bodyLine1": "Aqui, um snapshot é o saldo de todas as tuas carteiras numa data específica.",
       "bodyLine2": "Começa por inserir o saldo de hoje.",
       "cta": "Adicionar snapshot"
     },

@@ -34,6 +34,7 @@ import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
 import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
+import CoachTipCard from "@/ui/components/CoachTipCard";
 import { useSettings } from "@/settings/useSettings";
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
@@ -750,6 +751,36 @@ export default function EntriesScreen(): JSX.Element {
     entryType === "income"
       ? t("entries.form.newIncomeTitle", { defaultValue: "Nuova voce in entrata" })
       : t("entries.form.newExpenseTitle", { defaultValue: "Nuova voce in uscita" });
+  const shouldShowEmptyEntriesGuide = entries.length === 0 && !showNewEntry;
+  const emptyEntriesGuideTitle = t("entries.guide.title", {
+    defaultValue: "Come funziona questa sezione",
+  });
+  const emptyEntriesGuideLines =
+    entryType === "income"
+      ? [
+          t("entries.guide.incomeLine1", {
+            defaultValue: "Le entrate servono a stimare quanto incasserai nei prossimi mesi.",
+          }),
+          t("entries.guide.incomeLine2", {
+            defaultValue: "Aggiungi una voce una tantum o ricorrente per alimentare il cash flow.",
+          }),
+        ]
+      : [
+          activeCategories.length === 0
+            ? t("entries.guide.expenseNoCategoriesLine1", {
+                defaultValue: "Per registrare un'uscita crea prima almeno una categoria.",
+              })
+            : t("entries.guide.expenseLine1", {
+                defaultValue: "Le uscite servono a stimare cosa pagherai nei prossimi mesi.",
+              }),
+          t("entries.guide.expenseLine2", {
+            defaultValue: "Aggiungi spese una tantum o ricorrenti per rendere piu preciso il cash flow.",
+          }),
+        ];
+  const emptyEntriesGuideCtaLabel =
+    entryType === "expense" && activeCategories.length === 0
+      ? t("entries.guide.ctaCategories", { defaultValue: "Configura categorie" })
+      : t("entries.guide.cta", { defaultValue: "Aggiungi voce" });
 
   useEffect(() => {
     if (!shouldShowCategoryFilter && categoryFilter !== "all") {
@@ -864,6 +895,16 @@ export default function EntriesScreen(): JSX.Element {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
 
+  const handleEmptyEntriesGuidePress = useCallback(() => {
+    if (entryType === "expense" && activeCategories.length === 0) {
+      openCategorySection();
+      return;
+    }
+    resetToCreateMode();
+    setShowNewEntry(true);
+    setTimeout(scrollToForm, 80);
+  }, [activeCategories.length, entryType, openCategorySection, scrollToForm]);
+
   const handleRowAction = useCallback(
     (entry: IncomeEntry | ExpenseEntry) => {
       (navigation as any).setParams({
@@ -909,6 +950,17 @@ export default function EntriesScreen(): JSX.Element {
             color={tokens.colors.purplePrimary}
           />
         </GlassCardContainer>
+
+        {shouldShowEmptyEntriesGuide ? (
+          <CoachTipCard
+            title={emptyEntriesGuideTitle}
+            lines={emptyEntriesGuideLines}
+            ctaLabel={emptyEntriesGuideCtaLabel}
+            onPress={handleEmptyEntriesGuidePress}
+            ctaColor={tokens.colors.accent}
+            leadingIcon={<MaterialCommunityIcons name="lightbulb-outline" size={18} color={tokens.colors.accent} />}
+          />
+        ) : null}
 
         {showNewEntry && (
           <GlassCardContainer style={{ borderColor: entryAccent }}>
@@ -1290,15 +1342,15 @@ export default function EntriesScreen(): JSX.Element {
             />
             {canLoadMoreRows ? (
               <View style={styles.loadMoreRow}>
-                <Button
-                  mode="outlined"
+                <PressScale
                   onPress={handleLoadMoreRows}
-                  icon="chevron-down"
-                  textColor={tokens.colors.accent}
-                  style={[styles.loadMoreButton, { borderColor: tokens.colors.accent }]}
+                  style={styles.loadMoreButton}
                 >
-                  {loadMoreLabel}
-                </Button>
+                  <Text style={[styles.loadMoreButtonText, { color: tokens.colors.accent }]}>
+                    {loadMoreLabel}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={tokens.colors.accent} />
+                </PressScale>
               </View>
             ) : null}
           </GlassCardContainer>
@@ -1592,6 +1644,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   loadMoreButton: {
-    borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  loadMoreButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

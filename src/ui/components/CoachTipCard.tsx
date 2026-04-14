@@ -92,10 +92,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   ctaRow: {
-    alignItems: "flex-start",
+    alignItems: "flex-end",
     marginTop: 4,
   },
   actionsRow: {
     marginTop: 6,
+    alignItems: "flex-end",
   },
 });

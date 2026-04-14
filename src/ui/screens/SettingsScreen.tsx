@@ -454,6 +454,10 @@ export default function SettingsScreen(): JSX.Element {
                 </Pressable>
               </View>
             </View>
+        </GlassCardContainer>
+
+        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
+            <SectionHeader title={t("settings.preferences.title")} />
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>
                 {t("settings.preferences.darkTheme")}
@@ -468,34 +472,6 @@ export default function SettingsScreen(): JSX.Element {
                 color={tokens.colors.accent}
               />
             </View>
-        </GlassCardContainer>
-
-        <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader
-              title={t("settings.balancePro.title", {
-                defaultValue: "Il tuo piano",
-              })}
-            />
-            <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
-              {balanceProStatusTitle}
-            </Text>
-            <Text style={[styles.balanceProBody, { color: tokens.colors.text }]}>
-              {balanceProSummary}
-            </Text>
-            {!isPro ? (
-              <PrimaryPillButton
-                label={t("settings.balancePro.upgrade", {
-                  defaultValue: "Scopri Balance Pro",
-                })}
-                onPress={handleOpenBalanceProPlans}
-                color={tokens.colors.accent}
-                disabled={!isReady}
-              />
-            ) : null}
-        </GlassCardContainer>
-
-        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
-            <SectionHeader title={t("settings.preferences.title")} />
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.prefillSnapshot")}</Text>
               <Switch
@@ -573,6 +549,30 @@ export default function SettingsScreen(): JSX.Element {
             <PrimaryPillButton label={t("settings.data.export")} onPress={exportData} color={tokens.colors.accent} />
             <SmallOutlinePillButton label={t("settings.data.import")} onPress={importData} color={tokens.colors.text} fullWidth />
             <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
+        </GlassCardContainer>
+
+        <GlassCardContainer contentStyle={styles.cardContent}>
+            <SectionHeader
+              title={t("settings.balancePro.title", {
+                defaultValue: "Il tuo piano",
+              })}
+            />
+            <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
+              {balanceProStatusTitle}
+            </Text>
+            <Text style={[styles.balanceProBody, { color: tokens.colors.text }]}>
+              {balanceProSummary}
+            </Text>
+            {!isPro ? (
+              <PrimaryPillButton
+                label={t("settings.balancePro.upgrade", {
+                  defaultValue: "Scopri Balance Pro",
+                })}
+                onPress={handleOpenBalanceProPlans}
+                color={tokens.colors.accent}
+                disabled={!isReady}
+              />
+            ) : null}
         </GlassCardContainer>
       </ScrollView>
     </AppBackground>
