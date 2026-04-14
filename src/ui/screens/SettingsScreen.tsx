@@ -1,6 +1,6 @@
 /// <reference types="react" />
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert, Keyboard, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Switch, Text, TextInput } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
@@ -42,10 +42,22 @@ import {
   setOnboardingCompleted,
 } from "@/onboarding/onboardingStorage";
 import AppBackground from "@/ui/components/AppBackground";
-import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
+import { FrequencyPillGroup, GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import { FREE_WALLET_LIMIT } from "@/config/entitlements";
+import {
+  cancelSnapshotReminderSchedule,
+  requestSnapshotReminderPermissions,
+  SNAPSHOT_REMINDER_ENABLED_KEY,
+  SNAPSHOT_REMINDER_FREQUENCY_KEY,
+  syncSnapshotReminderSchedule,
+} from "@/notifications/snapshotReminder";
+import {
+  coerceSnapshotReminderFrequency,
+  DEFAULT_SNAPSHOT_REMINDER_FREQUENCY,
+  type SnapshotReminderFrequency,
+} from "@/domain/snapshotReminder";
 
 type StorageAccessFrameworkLike = {
   requestDirectoryPermissionsAsync?: () => Promise<{ granted: boolean; directoryUri?: string }>;
@@ -74,6 +86,10 @@ export default function SettingsScreen(): JSX.Element {
   const [profileName, setProfileName] = useState("");
   const [prefillSnapshot, setPrefillSnapshot] = useState(true);
   const [chartMonths, setChartMonths] = useState(6);
+  const [snapshotReminderEnabled, setSnapshotReminderEnabled] = useState(false);
+  const [snapshotReminderFrequency, setSnapshotReminderFrequency] = useState<SnapshotReminderFrequency>(
+    DEFAULT_SNAPSHOT_REMINDER_FREQUENCY
+  );
   const [securityEnabled, setSecurityEnabledState] = useState(false);
   const [biometryEnabled, setBiometryEnabledState] = useState(false);
   const [pinHashExists, setPinHashExists] = useState(false);
@@ -99,6 +115,29 @@ export default function SettingsScreen(): JSX.Element {
           defaultValue: lang.toUpperCase(),
         }),
       })),
+    [t]
+  );
+  const snapshotReminderOptions = useMemo(
+    () => [
+      {
+        value: "daily",
+        label: t("settings.preferences.snapshotReminder.frequencies.daily", {
+          defaultValue: "Giornaliera",
+        }),
+      },
+      {
+        value: "weekly",
+        label: t("settings.preferences.snapshotReminder.frequencies.weekly", {
+          defaultValue: "Settimanale",
+        }),
+      },
+      {
+        value: "monthly",
+        label: t("settings.preferences.snapshotReminder.frequencies.monthly", {
+          defaultValue: "Mensile",
+        }),
+      },
+    ],
     [t]
   );
 
@@ -143,21 +182,81 @@ export default function SettingsScreen(): JSX.Element {
   }, [isPro, t]);
 
   const load = useCallback(async () => {
-    const [name, prefill, points] = await Promise.all([
+    const [name, prefill, points, reminderEnabledPref, reminderFrequencyPref] = await Promise.all([
       getPreference("profile_name"),
       getPreference("prefill_snapshot"),
       getPreference("chart_points"),
+      getPreference(SNAPSHOT_REMINDER_ENABLED_KEY),
+      getPreference(SNAPSHOT_REMINDER_FREQUENCY_KEY),
     ]);
     setProfileName(name?.value ?? "");
     setPrefillSnapshot(prefill ? prefill.value === "true" : true);
     const parsedPoints = points ? Number(points.value) : 6;
     const safePoints = Number.isFinite(parsedPoints) ? Math.min(12, Math.max(3, parsedPoints)) : 6;
     setChartMonths(safePoints);
+    setSnapshotReminderEnabled(reminderEnabledPref?.value === "true");
+    setSnapshotReminderFrequency(coerceSnapshotReminderFrequency(reminderFrequencyPref?.value));
   }, []);
 
   const updatePreference = async (key: string, value: string) => {
     await setPreference(key, value);
   };
+
+  const handleSnapshotReminderToggle = useCallback(
+    async (next: boolean) => {
+      if (next) {
+        const permissions = await requestSnapshotReminderPermissions();
+        if (!permissions.granted) {
+          setSnapshotReminderEnabled(false);
+          await updatePreference(SNAPSHOT_REMINDER_ENABLED_KEY, "false");
+          Alert.alert(
+            t("settings.preferences.snapshotReminder.permissionTitle", {
+              defaultValue: "Permesso notifiche richiesto",
+            }),
+            t("settings.preferences.snapshotReminder.permissionBody", {
+              defaultValue:
+                "Abilita le notifiche di Balance dalle impostazioni del dispositivo per ricevere i promemoria snapshot.",
+            }),
+            permissions.canAskAgain
+              ? [{ text: t("common.ok") }]
+              : [
+                  { text: t("common.cancel") },
+                  {
+                    text: t("common.openSettings", { defaultValue: "Apri impostazioni" }),
+                    onPress: () => {
+                      void Linking.openSettings();
+                    },
+                  },
+                ]
+          );
+          return;
+        }
+      }
+
+      setSnapshotReminderEnabled(next);
+      await updatePreference(SNAPSHOT_REMINDER_ENABLED_KEY, String(next));
+      await syncSnapshotReminderSchedule({
+        enabled: next,
+        frequency: snapshotReminderFrequency,
+      });
+    },
+    [snapshotReminderFrequency, t]
+  );
+
+  const handleSnapshotReminderFrequencyChange = useCallback(
+    async (next: string) => {
+      const frequency = coerceSnapshotReminderFrequency(next);
+      setSnapshotReminderFrequency(frequency);
+      await updatePreference(SNAPSHOT_REMINDER_FREQUENCY_KEY, frequency);
+      if (snapshotReminderEnabled) {
+        await syncSnapshotReminderSchedule({
+          enabled: true,
+          frequency,
+        });
+      }
+    },
+    [snapshotReminderEnabled]
+  );
 
   const handleOpenBalanceProPlans = useCallback(() => {
     navigation.navigate("Wallet", { paywallSource: "settings-upsell" });
@@ -189,6 +288,7 @@ export default function SettingsScreen(): JSX.Element {
       );
       if (!confirmed) return;
       await importFromFile(result.assets[0].uri);
+      await syncSnapshotReminderSchedule();
     } catch (error) {
       console.warn(error);
     }
@@ -271,6 +371,7 @@ export default function SettingsScreen(): JSX.Element {
   const resetData = async () => {
     const confirmed = await confirmReset();
     if (!confirmed) return;
+    await cancelSnapshotReminderSchedule();
     await withTransaction(async (db) => {
       const tables = [
         "snapshot_lines",
@@ -416,6 +517,30 @@ export default function SettingsScreen(): JSX.Element {
         ]}
       >
         <GlassCardContainer contentStyle={styles.cardContent}>
+            <SectionHeader
+              title={t("settings.balancePro.title", {
+                defaultValue: "Il tuo piano",
+              })}
+            />
+            <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
+              {balanceProStatusTitle}
+            </Text>
+            <Text style={[styles.balanceProBody, { color: tokens.colors.text }]}>
+              {balanceProSummary}
+            </Text>
+            {!isPro ? (
+              <PrimaryPillButton
+                label={t("settings.balancePro.upgrade", {
+                  defaultValue: "Scopri Balance Pro",
+                })}
+                onPress={handleOpenBalanceProPlans}
+                color={tokens.colors.accent}
+                disabled={!isReady}
+              />
+            ) : null}
+        </GlassCardContainer>
+
+        <GlassCardContainer contentStyle={styles.cardContent}>
             <SectionHeader title={t("settings.profile.title")} />
             <TextInput
               label={t("settings.profile.nameLabel")}
@@ -483,6 +608,44 @@ export default function SettingsScreen(): JSX.Element {
                 color={tokens.colors.accent}
               />
             </View>
+            <View style={[styles.row, styles.preferenceTopAlignedRow]}>
+              <View style={styles.preferenceTextBlock}>
+                <Text style={[styles.label, { color: tokens.colors.text }]}>
+                  {t("settings.preferences.snapshotReminder.label", {
+                    defaultValue: "Promemoria snapshot",
+                  })}
+                </Text>
+                <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
+                  {t("settings.preferences.snapshotReminder.helper", {
+                    defaultValue:
+                      "Ricevi un promemoria locale alle 20:00 per aggiungere lo snapshot del giorno, in base alla frequenza scelta.",
+                  })}
+                </Text>
+              </View>
+              <Switch
+                value={snapshotReminderEnabled}
+                onValueChange={(value) => {
+                  void handleSnapshotReminderToggle(value);
+                }}
+                color={tokens.colors.accent}
+              />
+            </View>
+            {snapshotReminderEnabled ? (
+              <View style={styles.preferenceBlock}>
+                <Text style={[styles.label, { color: tokens.colors.text }]}>
+                  {t("settings.preferences.snapshotReminder.frequencyLabel", {
+                    defaultValue: "Frequenza",
+                  })}
+                </Text>
+                <FrequencyPillGroup
+                  value={snapshotReminderFrequency}
+                  options={snapshotReminderOptions}
+                  onChange={(value) => {
+                    void handleSnapshotReminderFrequencyChange(value);
+                  }}
+                />
+              </View>
+            ) : null}
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.showInvestments")}</Text>
               <Switch
@@ -550,30 +713,6 @@ export default function SettingsScreen(): JSX.Element {
             <SmallOutlinePillButton label={t("settings.data.import")} onPress={importData} color={tokens.colors.text} fullWidth />
             <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
         </GlassCardContainer>
-
-        <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader
-              title={t("settings.balancePro.title", {
-                defaultValue: "Il tuo piano",
-              })}
-            />
-            <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
-              {balanceProStatusTitle}
-            </Text>
-            <Text style={[styles.balanceProBody, { color: tokens.colors.text }]}>
-              {balanceProSummary}
-            </Text>
-            {!isPro ? (
-              <PrimaryPillButton
-                label={t("settings.balancePro.upgrade", {
-                  defaultValue: "Scopri Balance Pro",
-                })}
-                onPress={handleOpenBalanceProPlans}
-                color={tokens.colors.accent}
-                disabled={!isReady}
-              />
-            ) : null}
-        </GlassCardContainer>
       </ScrollView>
     </AppBackground>
   );
@@ -597,10 +736,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
+  preferenceTopAlignedRow: {
+    alignItems: "flex-start",
+  },
+  preferenceBlock: {
+    gap: 10,
+  },
+  preferenceTextBlock: {
+    flex: 1,
+    gap: 4,
+  },
   label: {
     fontSize: 14,
     fontWeight: "600",
     flex: 1,
+  },
+  helperText: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   counterRow: {
     alignItems: "center",

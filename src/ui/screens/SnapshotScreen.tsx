@@ -36,6 +36,7 @@ import {
 import CoachTipCard from "@/ui/components/CoachTipCard";
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { syncSnapshotReminderSchedule } from "@/notifications/snapshotReminder";
 
 type DraftLine = {
   walletId: number;
@@ -425,6 +426,11 @@ export default function SnapshotScreen(): JSX.Element {
     const id = editingSnapshotId
       ? await updateSnapshotWithLines(editingSnapshotId, snapshotDate, cleaned)
       : await createSnapshotWithLines(snapshotDate, cleaned);
+    try {
+      await syncSnapshotReminderSchedule();
+    } catch (scheduleError) {
+      console.warn("Failed to sync snapshot reminder schedule", scheduleError);
+    }
     setShowForm(false);
     setEditingSnapshotId(null);
     setSelectedSnapshotId(id);

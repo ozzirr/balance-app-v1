@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { runMigrations } from "@/db/db";
+import { syncSnapshotReminderSchedule } from "@/notifications/snapshotReminder";
 import { ensureDefaultWallets } from "@/repositories/walletsRepo";
 import { getPreference } from "@/repositories/preferencesRepo";
 import type { ThemeMode } from "@/ui/theme";
@@ -31,6 +32,11 @@ export function useAppBootstrap(): AppBootstrap {
       await runMigrations();
       await ensureDefaultWallets();
       const pref = await getPreference("theme");
+      try {
+        await syncSnapshotReminderSchedule();
+      } catch (notificationError) {
+        console.warn("Failed to sync snapshot reminders on bootstrap", notificationError);
+      }
       if (mountedRef.current) {
         setThemeMode(pref?.value === "light" ? "light" : "dark");
       }

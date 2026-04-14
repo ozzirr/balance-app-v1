@@ -15,7 +15,8 @@
     "create": "Criar",
     "update": "Atualizar",
     "reset": "Repor",
-    "all": "Todos"
+    "all": "Todos",
+    "openSettings": "Abrir definições"
   },
   "onboardingV2": {
     "common": {
@@ -107,6 +108,18 @@
       "title": "Preferências",
       "darkTheme": "Tema escuro",
       "prefillSnapshot": "Pré-preencher snapshot",
+      "snapshotReminder": {
+        "label": "Lembrete de snapshot",
+        "helper": "Notificação local às 20:00 para te lembrar de atualizar o snapshot.",
+        "frequencyLabel": "Frequência",
+        "permissionTitle": "Permissão de notificações necessária",
+        "permissionBody": "Ativa as notificações do Balance nas definições do dispositivo para receber lembretes de snapshot.",
+        "frequencies": {
+          "daily": "Diária",
+          "weekly": "Semanal",
+          "monthly": "Mensal"
+        }
+      },
       "showInvestments": "Mostrar investimentos",
       "scrollBounce": "Ressalto do scroll",
       "monthsInChart": "Meses no gráfico",

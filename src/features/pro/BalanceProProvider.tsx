@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { getPreference, setPreference } from "@/repositories/preferencesRepo";
 import {
   BALANCE_PRO_PRODUCT_ID_BY_PLAN,
@@ -214,8 +215,20 @@ const EMPTY_PERSISTED_ENTITLEMENT: PersistedEntitlement = {
 
 let hasWarnedMissingBalanceProProvider = false;
 
+function isExpoGoStoreClient(): boolean {
+  return (
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+    Constants.appOwnership === "expo"
+  );
+}
+
 function getExpoIapRuntime(): ExpoIapRuntime | null {
   if (Platform.OS !== "ios") {
+    return null;
+  }
+
+  if (isExpoGoStoreClient()) {
+    logBalanceProInfo("Skipping expo-iap runtime inside Expo Go");
     return null;
   }
 
@@ -846,6 +859,13 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
       return null;
     }
 
+    if (isExpoGoStoreClient()) {
+      setIsStoreConnected(false);
+      setStoreErrorCode(ERROR_CODES.runtimeUnavailable);
+      setStoreErrorMessage("In-app purchases are unavailable in Expo Go");
+      return null;
+    }
+
     if (initStorePromiseRef.current) {
       const connected = await initStorePromiseRef.current;
       return connected ? getIapRuntime() : null;
@@ -1259,7 +1279,11 @@ export function BalanceProProvider({ children }: BalanceProProviderProps): React
         entitlementSource,
         isEntitlementStale: isEntitlementCacheStale,
         lastValidatedAt,
-        isStoreAvailable: Platform.OS === "ios" && isStoreConnected && hasLoadedProducts(productsByPlan),
+        isStoreAvailable:
+          Platform.OS === "ios" &&
+          !isExpoGoStoreClient() &&
+          isStoreConnected &&
+          hasLoadedProducts(productsByPlan),
         isStoreLoading,
         storeErrorCode,
         storeErrorMessage,

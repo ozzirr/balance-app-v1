@@ -15,7 +15,8 @@
     "create": "Create",
     "update": "Update",
     "reset": "Reset",
-    "all": "All"
+    "all": "All",
+    "openSettings": "Open settings"
   },
   "onboardingV2": {
     "common": {
@@ -107,6 +108,18 @@
       "title": "Preferences",
       "darkTheme": "Dark theme",
       "prefillSnapshot": "Prefill snapshot",
+      "snapshotReminder": {
+        "label": "Snapshot reminder",
+        "helper": "Local notification at 20:00 to remind you to update your snapshot.",
+        "frequencyLabel": "Frequency",
+        "permissionTitle": "Notification permission required",
+        "permissionBody": "Enable Balance notifications in your device settings to receive snapshot reminders.",
+        "frequencies": {
+          "daily": "Daily",
+          "weekly": "Weekly",
+          "monthly": "Monthly"
+        }
+      },
       "showInvestments": "Show investments",
       "scrollBounce": "Scroll bounce",
       "monthsInChart": "Months in chart",

@@ -10,6 +10,7 @@ import { enableScreens } from "react-native-screens";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import GlassBlur from "@/ui/components/GlassBlur";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import AnimatedSplashOverlay from "@/ui/splash/AnimatedSplashOverlay";
 import { useAppBootstrap } from "@/app/useAppBootstrap";
 import DashboardScreen from "@/ui/screens/DashboardScreen";
@@ -39,6 +40,15 @@ import { BalanceProProvider } from "@/features/pro/BalanceProProvider";
 import { useTranslation } from "react-i18next";
 
 enableScreens(false);
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const Tab = createBottomTabNavigator();
 type RootStackParamList = SecurityModalStackParamList & {

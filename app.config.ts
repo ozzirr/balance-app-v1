@@ -8,7 +8,13 @@ const ANDROID_PACKAGE = "com.andrearizzo.balance";
 const IS_STORE_PROFILE = process.env.EAS_BUILD_PROFILE === "production";
 
 // Added "expo-font" to satisfy @expo/vector-icons peer dependency for standalone builds.
-const BASE_PLUGINS = ["expo-sqlite", "@react-native-community/datetimepicker", "expo-font", "expo-iap"];
+const BASE_PLUGINS = [
+  "expo-sqlite",
+  "@react-native-community/datetimepicker",
+  "expo-font",
+  "expo-iap",
+  "expo-notifications",
+];
 
 const FACE_ID_USAGE_DESCRIPTION = "Usiamo Face ID per proteggere l'accesso a Balance.";
 

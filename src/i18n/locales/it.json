@@ -15,7 +15,8 @@
     "create": "Crea",
     "update": "Aggiorna",
     "reset": "Reset",
-    "all": "Tutti"
+    "all": "Tutti",
+    "openSettings": "Apri impostazioni"
   },
   "onboardingV2": {
     "common": {
@@ -107,6 +108,18 @@
       "title": "Preferenze",
       "darkTheme": "Tema scuro",
       "prefillSnapshot": "Precompila snapshot",
+      "snapshotReminder": {
+        "label": "Promemoria snapshot",
+        "helper": "Ricevi un promemoria locale alle 20:00 per aggiungere lo snapshot del giorno, in base alla frequenza scelta.",
+        "frequencyLabel": "Frequenza",
+        "permissionTitle": "Permesso notifiche richiesto",
+        "permissionBody": "Abilita le notifiche di Balance dalle impostazioni del dispositivo per ricevere i promemoria snapshot.",
+        "frequencies": {
+          "daily": "Giornaliera",
+          "weekly": "Settimanale",
+          "monthly": "Mensile"
+        }
+      },
       "showInvestments": "Mostra investimenti",
       "scrollBounce": "Rimbalzo scroll",
       "monthsInChart": "Mesi nel grafico",
@@ -529,7 +542,7 @@
     },
     "guide": {
       "title": "Aggiungi il tuo primo snapshot",
-      "bodyLine1": "Qui uno snapshot e il saldo di tutti i tuoi wallet in una data specifica.",
+      "bodyLine1": "Uno snapshot è il saldo di tutti i tuoi wallet in una data specifica.",
       "bodyLine2": "Inizia inserendo il saldo di oggi.",
       "cta": "Aggiungi snapshot"
     },
