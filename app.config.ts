@@ -34,7 +34,7 @@ export default function ({ config }: ConfigContext): ExpoConfig {
     ...config,
     name: APP_NAME,
     slug: "balance",
-    version: "1.1",
+    version: "1.2",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",

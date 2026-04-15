@@ -104,8 +104,11 @@
       "nameLabel": "Nickname",
       "languageLabel": "Lingua"
     },
+    "notifications": {
+      "title": "Notifiche"
+    },
     "preferences": {
-      "title": "Preferenze",
+      "title": "Generali",
       "darkTheme": "Tema scuro",
       "prefillSnapshot": "Precompila snapshot",
       "snapshotReminder": {

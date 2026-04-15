@@ -581,33 +581,12 @@ export default function SettingsScreen(): JSX.Element {
             </View>
         </GlassCardContainer>
 
-        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
-            <SectionHeader title={t("settings.preferences.title")} />
-            <View style={styles.row}>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>
-                {t("settings.preferences.darkTheme")}
-              </Text>
-              <Switch
-                value={mode === "dark"}
-                onValueChange={(value) => {
-                  const next = value ? "dark" : "light";
-                  setMode(next);
-                  updatePreference("theme", next);
-                }}
-                color={tokens.colors.accent}
-              />
-            </View>
-            <View style={styles.row}>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.prefillSnapshot")}</Text>
-              <Switch
-                value={prefillSnapshot}
-                onValueChange={(value) => {
-                  setPrefillSnapshot(value);
-                  updatePreference("prefill_snapshot", String(value));
-                }}
-                color={tokens.colors.accent}
-              />
-            </View>
+        <GlassCardContainer contentStyle={styles.cardContent}>
+            <SectionHeader
+              title={t("settings.notifications.title", {
+                defaultValue: "Notifiche",
+              })}
+            />
             <View style={[styles.row, styles.preferenceTopAlignedRow]}>
               <View style={styles.preferenceTextBlock}>
                 <Text style={[styles.label, { color: tokens.colors.text }]}>
@@ -646,6 +625,35 @@ export default function SettingsScreen(): JSX.Element {
                 />
               </View>
             ) : null}
+        </GlassCardContainer>
+
+        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
+            <SectionHeader title={t("settings.preferences.title")} />
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>
+                {t("settings.preferences.darkTheme")}
+              </Text>
+              <Switch
+                value={mode === "dark"}
+                onValueChange={(value) => {
+                  const next = value ? "dark" : "light";
+                  setMode(next);
+                  updatePreference("theme", next);
+                }}
+                color={tokens.colors.accent}
+              />
+            </View>
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.prefillSnapshot")}</Text>
+              <Switch
+                value={prefillSnapshot}
+                onValueChange={(value) => {
+                  setPrefillSnapshot(value);
+                  updatePreference("prefill_snapshot", String(value));
+                }}
+                color={tokens.colors.accent}
+              />
+            </View>
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.showInvestments")}</Text>
               <Switch
