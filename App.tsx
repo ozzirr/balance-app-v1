@@ -283,7 +283,10 @@ export default function App(): React.JSX.Element | null {
                                       <Tab.Screen
                                         name="Balance"
                                         component={EntriesScreen}
-                                        options={{ tabBarLabel: "Balance" }}
+                                        options={{
+                                          tabBarLabel: t("navigation.tabEntries", { defaultValue: "Cashflow" }),
+                                          title: t("navigation.tabEntries", { defaultValue: "Cashflow" }),
+                                        }}
                                       />
                                       <Tab.Screen name="Wallet" component={WalletScreen} />
                                       <Tab.Screen

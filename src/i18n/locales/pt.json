@@ -542,13 +542,16 @@
       "firstHint": "Depois de configurares as carteiras, adiciona aqui o teu primeiro snapshot."
     },
     "guide": {
-      "title": "Adiciona o teu primeiro snapshot",
-      "bodyLine1": "Aqui, um snapshot é o saldo de todas as tuas carteiras numa data específica.",
+      "title": "Olá, adiciona aqui o teu primeiro snapshot",
+      "titleNamed": "Olá {{name}}, adiciona aqui o teu primeiro snapshot",
+      "bodyLine1": "Um snapshot é o saldo de todas as tuas carteiras numa data específica.",
       "bodyLine2": "Começa por inserir o saldo de hoje.",
       "cta": "Adicionar snapshot"
     },
     "form": {
-      "dateLabel": "Data"
+      "dateLabel": "Data",
+      "emptyLinesError": "Insere pelo menos um saldo válido para continuar.",
+      "noWalletsError": "Cria a tua primeira carteira em Wallet para continuar."
     },
     "totals": {
       "liquidity": "Liquidez",
@@ -557,6 +560,6 @@
     }
   },
   "navigation": {
-    "tabEntries": "Balance"
+    "tabEntries": "Cashflow"
   }
 }

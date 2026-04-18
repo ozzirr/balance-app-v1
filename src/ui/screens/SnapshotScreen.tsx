@@ -167,6 +167,7 @@ export default function SnapshotScreen(): JSX.Element {
   const [confirmSnapshotDeleteVisible, setConfirmSnapshotDeleteVisible] = useState(false);
   const [confirmSnapshotDeleteLoading, setConfirmSnapshotDeleteLoading] = useState(false);
   const [confirmSnapshotDeleteError, setConfirmSnapshotDeleteError] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState("");
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
   const monthsScrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
   const monthChipLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
@@ -174,14 +175,16 @@ export default function SnapshotScreen(): JSX.Element {
   const [monthsViewportWidth, setMonthsViewportWidth] = useState(0);
 
   const load = useCallback(async () => {
-    const [snap, walletList, onboardingDone] = await Promise.all([
+    const [snap, walletList, onboardingDone, profilePref] = await Promise.all([
       listSnapshots(),
       listWallets(true),
       getOnboardingCompleted(),
+      getPreference("profile_name"),
     ]);
     setSnapshots(snap);
     setWallets(walletList);
     setOnboardingCompleted(onboardingDone);
+    setProfileName(profilePref?.value?.trim() ?? "");
     const prefill = await getPreference("prefill_snapshot");
     setPrefillSnapshot(prefill ? prefill.value === "true" : true);
     if (snap.length > 0 && selectedSnapshotId === null) {
@@ -410,7 +413,15 @@ export default function SnapshotScreen(): JSX.Element {
       .filter((line) => Number.isFinite(line.amount));
 
     if (cleaned.length === 0) {
-      setError("Inserisci almeno una linea valida.");
+      setError(
+        wallets.length === 0
+          ? t("snapshot.form.noWalletsError", {
+              defaultValue: "Crea il tuo primo wallet in Wallet per continuare.",
+            })
+          : t("snapshot.form.emptyLinesError", {
+              defaultValue: "Inserisci almeno un saldo valido per continuare.",
+            })
+      );
       return;
     }
 
@@ -588,6 +599,14 @@ export default function SnapshotScreen(): JSX.Element {
   const shouldShowFirstSnapshotTip =
     onboardingCompleted && snapshots.length === 0 && wallets.length > 0 && !showForm;
   const shouldShowEmptySnapshotPreview = snapshots.length === 0 && wallets.length > 0 && !showForm;
+  const firstSnapshotGuideTitle = profileName
+    ? t("snapshot.guide.titleNamed", {
+        name: profileName,
+        defaultValue: `Ciao ${profileName}, aggiungi qui il tuo primo snapshot`,
+      })
+    : t("snapshot.guide.title", {
+        defaultValue: "Ciao, aggiungi qui il tuo primo snapshot",
+      });
 
   return (
     <View style={styles.screenRoot}>
@@ -714,10 +733,10 @@ export default function SnapshotScreen(): JSX.Element {
 
         {shouldShowFirstSnapshotTip && (
           <CoachTipCard
-            title={t("snapshot.guide.title", { defaultValue: "Aggiungi il tuo primo snapshot" })}
+            title={firstSnapshotGuideTitle}
             lines={[
               t("snapshot.guide.bodyLine1", {
-                defaultValue: "Uno snapshot è il saldo del wallet in una data.",
+                defaultValue: "Uno snapshot è il saldo di tutti i tuoi wallet in una data specifica.",
               }),
               t("snapshot.guide.bodyLine2", {
                 defaultValue: "Inizia inserendo il saldo di oggi.",

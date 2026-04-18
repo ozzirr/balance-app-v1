@@ -42,7 +42,7 @@ export default function OnboardingName({ onNext, onSkip }: Props): JSX.Element {
   };
 
   return (
-    <OnboardingScaffold>
+    <OnboardingScaffold step={2} totalSteps={3}>
       <GlassCardContainer contentStyle={{ minHeight: ONBOARDING_CARD_MIN_HEIGHT }}>
         <View style={styles.cardContent}>
           <View>

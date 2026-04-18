@@ -111,11 +111,13 @@ export function PrimaryPillButton({
   onPress,
   color,
   disabled = false,
+  disabledColor,
 }: {
   label: string;
   onPress: () => void;
   color: string;
   disabled?: boolean;
+  disabledColor?: string;
 }): JSX.Element {
   return (
     <Pressable
@@ -124,7 +126,7 @@ export function PrimaryPillButton({
       style={({ pressed }) => [
         styles.primaryPill,
         {
-          backgroundColor: color,
+          backgroundColor: disabled ? disabledColor ?? color : color,
           opacity: disabled ? 0.6 : pressed ? 0.92 : 1,
         },
       ]}

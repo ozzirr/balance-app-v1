@@ -30,7 +30,7 @@ export default function OnboardingWelcome({
   ];
 
   return (
-    <OnboardingScaffold>
+    <OnboardingScaffold step={1} totalSteps={3}>
       <GlassCardContainer contentStyle={{ minHeight: ONBOARDING_CARD_MIN_HEIGHT }}>
         <View style={styles.cardContent}>
           <View>
@@ -52,9 +52,19 @@ export default function OnboardingWelcome({
             {!isProVariant ? (
               <View style={styles.list}>
                 {bullets.map((item, idx) => (
-                  <Text key={idx} style={[styles.bullet, { color: tokens.colors.text }]}>
-                    • {item}
-                  </Text>
+                  <View
+                    key={idx}
+                    style={[
+                      styles.bulletRow,
+                      {
+                        borderColor: tokens.colors.glassBorder,
+                        backgroundColor: tokens.colors.glassBg,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.bulletDot, { backgroundColor: tokens.colors.accent }]} />
+                    <Text style={[styles.bullet, { color: tokens.colors.text }]}>{item}</Text>
+                  </View>
                 ))}
               </View>
             ) : null}
@@ -105,13 +115,28 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   list: {
-    marginTop: 12,
+    marginTop: 16,
     gap: 8,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  bulletDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
   },
   bullet: {
     fontSize: 15,
     fontWeight: "600",
     lineHeight: 22,
+    flex: 1,
   },
   actions: {
     marginTop: 18,

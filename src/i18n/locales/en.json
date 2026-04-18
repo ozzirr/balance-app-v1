@@ -544,13 +544,16 @@
       "firstHint": "After setting up wallets, add your first snapshot here."
     },
     "guide": {
-      "title": "Add your first snapshot",
-      "bodyLine1": "Here, a snapshot is the balance of all your wallets on a specific date.",
+      "title": "Hi, add your first snapshot here",
+      "titleNamed": "Hi {{name}}, add your first snapshot here",
+      "bodyLine1": "A snapshot is the balance of all your wallets on a specific date.",
       "bodyLine2": "Start by entering today's balance.",
       "cta": "Add snapshot"
     },
     "form": {
-      "dateLabel": "Date"
+      "dateLabel": "Date",
+      "emptyLinesError": "Enter at least one valid balance to continue.",
+      "noWalletsError": "Create your first wallet in Wallet to continue."
     },
     "totals": {
       "liquidity": "Liquidity",
@@ -559,6 +562,6 @@
     }
   },
   "navigation": {
-    "tabEntries": "Balance"
+    "tabEntries": "Cashflow"
   }
 }

@@ -41,7 +41,7 @@ export default function OnboardingNavigator({
           <OnboardingWelcome
             variant={isProVariant ? "pro" : "free"}
             onNext={() => navigation.navigate("OnboardingName")}
-            onSkip={onSkip}
+            onSkip={() => navigation.navigate("OnboardingName")}
             onImport={isProVariant ? () => navigation.navigate("OnboardingProImport") : undefined}
           />
         )}
@@ -60,7 +60,7 @@ export default function OnboardingNavigator({
         {({ navigation }) => (
           <OnboardingName
             onNext={() => navigation.navigate("OnboardingInvestments")}
-            onSkip={onSkip}
+            onSkip={() => navigation.navigate("OnboardingInvestments")}
           />
         )}
       </Stack.Screen>

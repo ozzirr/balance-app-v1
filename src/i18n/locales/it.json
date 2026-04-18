@@ -544,13 +544,16 @@
       "firstHint": "Dopo aver configurato i wallet, aggiungi qui il tuo primo snapshot."
     },
     "guide": {
-      "title": "Aggiungi il tuo primo snapshot",
+      "title": "Ciao, aggiungi qui il tuo primo snapshot",
+      "titleNamed": "Ciao {{name}}, aggiungi qui il tuo primo snapshot",
       "bodyLine1": "Uno snapshot è il saldo di tutti i tuoi wallet in una data specifica.",
       "bodyLine2": "Inizia inserendo il saldo di oggi.",
       "cta": "Aggiungi snapshot"
     },
     "form": {
-      "dateLabel": "Data"
+      "dateLabel": "Data",
+      "emptyLinesError": "Inserisci almeno un saldo valido per continuare.",
+      "noWalletsError": "Crea il tuo primo wallet in Wallet per continuare."
     },
     "totals": {
       "liquidity": "Liquidità",
@@ -559,6 +562,6 @@
     }
   },
   "navigation": {
-    "tabEntries": "Balance"
+    "tabEntries": "Cashflow"
   }
 }

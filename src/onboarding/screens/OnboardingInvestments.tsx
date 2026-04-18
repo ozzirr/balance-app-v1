@@ -71,7 +71,7 @@ export default function OnboardingInvestments({ onFinish, shouldSeedOnComplete =
   };
 
   return (
-    <OnboardingScaffold>
+    <OnboardingScaffold step={3} totalSteps={3}>
       <GlassCardContainer contentStyle={{ minHeight: ONBOARDING_CARD_MIN_HEIGHT }}>
         <View style={styles.cardContent}>
           <View>
@@ -102,7 +102,8 @@ export default function OnboardingInvestments({ onFinish, shouldSeedOnComplete =
                 label={t("onboardingV2.investments.cta")}
                 onPress={handleFinish}
                 color={tokens.colors.accent}
-                disabled={isSubmitting}
+                disabledColor={tokens.colors.surface2}
+                disabled={choice === null || isSubmitting}
               />
             </View>
           </View>
