@@ -1,7 +1,7 @@
 /// <reference types="react" />
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Alert, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Switch, Text, TextInput } from "react-native-paper";
+import { Snackbar, Switch, Text, TextInput } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import * as LegacyFileSystem from "expo-file-system/legacy";
@@ -45,7 +45,9 @@ import AppBackground from "@/ui/components/AppBackground";
 import { FrequencyPillGroup, GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
+import type { BalanceProPlanId } from "@/config/entitlements";
 import { FREE_WALLET_LIMIT } from "@/config/entitlements";
+import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
 import {
   cancelSnapshotReminderSchedule,
   requestSnapshotReminderPermissions,
@@ -58,6 +60,8 @@ import {
   DEFAULT_SNAPSHOT_REMINDER_FREQUENCY,
   type SnapshotReminderFrequency,
 } from "@/domain/snapshotReminder";
+import LimitReachedModal from "@/ui/components/LimitReachedModal";
+import ProWelcomeModal from "@/ui/components/ProWelcomeModal";
 
 type StorageAccessFrameworkLike = {
   requestDirectoryPermissionsAsync?: () => Promise<{ granted: boolean; directoryUri?: string }>;
@@ -90,6 +94,11 @@ export default function SettingsScreen(): JSX.Element {
   const [snapshotReminderFrequency, setSnapshotReminderFrequency] = useState<SnapshotReminderFrequency>(
     DEFAULT_SNAPSHOT_REMINDER_FREQUENCY
   );
+  const [settingsPaywallVisible, setSettingsPaywallVisible] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<BalanceProPlanId>("yearly");
+  const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
+  const [proWelcomeVisible, setProWelcomeVisible] = useState(false);
+  const [isDismissingProWelcome, setIsDismissingProWelcome] = useState(false);
   const [securityEnabled, setSecurityEnabledState] = useState(false);
   const [biometryEnabled, setBiometryEnabledState] = useState(false);
   const [pinHashExists, setPinHashExists] = useState(false);
@@ -104,7 +113,21 @@ export default function SettingsScreen(): JSX.Element {
   const { requestReplay } = useOnboardingFlow();
   const { t, i18n } = useTranslation();
   const { showInvestments, setShowInvestments, scrollBounceEnabled, setScrollBounceEnabled } = useSettings();
-  const { isPro, isReady } = useBalancePro();
+  const {
+    isPro,
+    isReady,
+    isStoreAvailable,
+    isStoreLoading,
+    storeErrorCode,
+    storeErrorMessage,
+    isPurchasePending,
+    isRestorePending,
+    availablePlans,
+    prepareStore,
+    purchase,
+    restore,
+    markProWelcomeSeen,
+  } = useBalancePro();
 
   const currentLanguage = resolveSupportedLanguage(i18n.resolvedLanguage ?? i18n.language ?? "en");
   const languageOptions = useMemo(
@@ -259,8 +282,127 @@ export default function SettingsScreen(): JSX.Element {
   );
 
   const handleOpenBalanceProPlans = useCallback(() => {
-    navigation.navigate("Wallet", { paywallSource: "settings-upsell" });
-  }, [navigation]);
+    setSettingsPaywallVisible(true);
+  }, []);
+
+  const selectedPlan = availablePlans.find((plan) => plan.planId === selectedPlanId) ?? null;
+  const canPurchaseSelectedPlan = Boolean(isStoreAvailable && selectedPlan?.product);
+
+  const handlePurchasePro = useCallback(async () => {
+    if (!canPurchaseSelectedPlan || isStoreLoading || !isReady) {
+      setPurchaseNotice(
+        t("wallets.actions.limitStatusPriceUnavailable", {
+          defaultValue: "I prezzi di Balance Pro non sono disponibili in questo momento. Riprova tra poco.",
+        })
+      );
+      return;
+    }
+
+    const result = await purchase(selectedPlanId);
+    switch (result.status) {
+      case "success":
+        setSettingsPaywallVisible(false);
+        if (result.showWelcome) {
+          setPurchaseNotice(null);
+          setProWelcomeVisible(true);
+          return;
+        }
+        setPurchaseNotice(t("wallets.actions.purchaseSuccess", { defaultValue: "Balance Pro attivato." }));
+        return;
+      case "cancelled":
+        setPurchaseNotice(t("wallets.actions.purchaseCancelled", { defaultValue: "Acquisto annullato." }));
+        return;
+      case "pending":
+        setPurchaseNotice(
+          t("wallets.actions.purchasePending", {
+            defaultValue: "L'abbonamento è in attesa di conferma. Ti avviseremo appena Balance Pro sarà disponibile.",
+          })
+        );
+        return;
+      case "product-unavailable":
+        setPurchaseNotice(
+          t("wallets.actions.productUnavailable", {
+            defaultValue: "Questo piano non è disponibile al momento. Riprova tra poco.",
+          })
+        );
+        return;
+      case "store-unavailable":
+        setPurchaseNotice(t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." }));
+        return;
+      default:
+        setPurchaseNotice(
+          t("wallets.actions.purchaseError", {
+            defaultValue: "Impossibile completare l'acquisto ora. Riprova tra poco.",
+          })
+        );
+    }
+  }, [canPurchaseSelectedPlan, isReady, isStoreLoading, purchase, selectedPlanId, t]);
+
+  const handleRestorePurchases = useCallback(async () => {
+    const result = await restore();
+    switch (result.status) {
+      case "restored":
+        setPurchaseNotice(t("wallets.actions.restoreSuccess", { defaultValue: "Abbonamento ripristinato." }));
+        setSettingsPaywallVisible(false);
+        return;
+      case "nothing-to-restore":
+        setPurchaseNotice(t("wallets.actions.restoreEmpty", { defaultValue: "Nessun acquisto da ripristinare." }));
+        return;
+      case "store-unavailable":
+        setPurchaseNotice(t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." }));
+        return;
+      default:
+        setPurchaseNotice(
+          t("wallets.actions.restoreError", {
+            defaultValue: "Impossibile ripristinare gli acquisti ora. Riprova più tardi.",
+          })
+        );
+      }
+  }, [restore, t]);
+
+  const handleRetryStore = useCallback(() => {
+    void prepareStore();
+  }, [prepareStore]);
+
+  const handleOpenExternalStoreLink = useCallback(
+    async (openLink: () => Promise<void>) => {
+      try {
+        await openLink();
+      } catch (error) {
+        console.warn("Failed to open Balance Pro legal link", error);
+        setPurchaseNotice(
+          t("wallets.actions.storeError", {
+            defaultValue: "Impossibile aprire il link.",
+          })
+        );
+      }
+    },
+    [t]
+  );
+
+  const handleOpenPrivacyPolicy = useCallback(() => {
+    void handleOpenExternalStoreLink(openPrivacyPolicyLink);
+  }, [handleOpenExternalStoreLink]);
+
+  const handleOpenTermsOfUse = useCallback(() => {
+    void handleOpenExternalStoreLink(openTermsOfUseLink);
+  }, [handleOpenExternalStoreLink]);
+
+  const handleDismissProWelcome = useCallback(() => {
+    if (isDismissingProWelcome) {
+      return;
+    }
+
+    setIsDismissingProWelcome(true);
+    void markProWelcomeSeen()
+      .catch((error) => {
+        console.warn("Failed to persist Balance Pro welcome state", error);
+      })
+      .finally(() => {
+        setIsDismissingProWelcome(false);
+        setProWelcomeVisible(false);
+      });
+  }, [isDismissingProWelcome, markProWelcomeSeen]);
 
   const confirmWipeAndReplace = async (titleKey: string, bodyKey: string): Promise<boolean> =>
     new Promise((resolve) => {
@@ -505,18 +647,58 @@ export default function SettingsScreen(): JSX.Element {
     textColor: tokens.colors.text,
     style: { backgroundColor: tokens.colors.glassBg },
   };
+  const balanceProBenefits = useMemo(
+    () => [
+      t("wallets.actions.limitBenefitUnlimited"),
+      t("wallets.actions.limitBenefitInsights"),
+      t("wallets.actions.limitBenefitControl"),
+    ],
+    [t]
+  );
+  const paywallLegalLinks = useMemo(
+    () => [
+      {
+        key: "privacy",
+        label: t("wallets.actions.privacyPolicy", { defaultValue: "Privacy Policy" }),
+        onPress: handleOpenPrivacyPolicy,
+      },
+      {
+        key: "terms",
+        label: t("wallets.actions.termsOfUse", { defaultValue: "Terms of Use" }),
+        onPress: handleOpenTermsOfUse,
+      },
+    ],
+    [handleOpenPrivacyPolicy, handleOpenTermsOfUse, t]
+  );
+  const shouldShowRetryStore = Boolean((storeErrorCode || storeErrorMessage || !isStoreAvailable) && isReady && !isStoreLoading);
+  const paywallStatusMessage = !isReady
+    ? t("wallets.actions.limitStatusSyncing", {
+        defaultValue: "Sto verificando il tuo stato Balance Pro...",
+      })
+    : isStoreLoading
+    ? t("wallets.actions.limitStatusSyncing", {
+        defaultValue: "Sto verificando il tuo stato Balance Pro...",
+      })
+    : storeErrorCode === "empty-products" || !canPurchaseSelectedPlan
+    ? t("wallets.actions.limitStatusPriceUnavailable", {
+        defaultValue: "I prezzi di Balance Pro non sono disponibili in questo momento. Riprova tra poco o ripristina gli acquisti.",
+      })
+    : storeErrorMessage
+    ? t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." })
+    : undefined;
   return (
     <AppBackground>
-      <ScrollView
-        bounces={scrollBounceEnabled}
-        alwaysBounceVertical={scrollBounceEnabled}
-        overScrollMode={scrollBounceEnabled ? "always" : "never"}
-        contentContainerStyle={[
-          styles.container,
-          { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
-        ]}
-      >
-        <GlassCardContainer contentStyle={styles.cardContent}>
+      <>
+        <ScrollView
+          bounces={scrollBounceEnabled}
+          alwaysBounceVertical={scrollBounceEnabled}
+          overScrollMode={scrollBounceEnabled ? "always" : "never"}
+          contentContainerStyle={[
+            styles.container,
+            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
+          ]}
+        >
+          <GlassCardContainer contentStyle={styles.cardContent}>
             <SectionHeader
               title={t("settings.balancePro.title", {
                 defaultValue: "Il tuo piano",
@@ -721,7 +903,43 @@ export default function SettingsScreen(): JSX.Element {
             <SmallOutlinePillButton label={t("settings.data.import")} onPress={importData} color={tokens.colors.text} fullWidth />
             <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
         </GlassCardContainer>
-      </ScrollView>
+        </ScrollView>
+        <LimitReachedModal
+          visible={settingsPaywallVisible}
+          onClose={() => setSettingsPaywallVisible(false)}
+          onUpgrade={handlePurchasePro}
+          plans={availablePlans}
+          selectedPlanId={selectedPlanId}
+          onSelectPlan={setSelectedPlanId}
+          title={t("wallets.actions.paywallHeadlineSettings", {
+            defaultValue: "Passa a Balance Pro",
+          })}
+          subtitle={t("wallets.actions.paywallSubtitleSettings", {
+            defaultValue: "Wallet illimitati, insight avanzati e controllo completo delle tue finanze.",
+          })}
+          primaryDisabled={!canPurchaseSelectedPlan || !isReady || isStoreLoading}
+          onSecondaryAction={handleRestorePurchases}
+          secondaryActionLabel={t("wallets.actions.restorePurchases")}
+          onTertiaryAction={shouldShowRetryStore ? handleRetryStore : undefined}
+          tertiaryActionLabel={shouldShowRetryStore ? t("wallets.actions.retryStoreLoad", { defaultValue: "Riprova" }) : undefined}
+          secondaryLabel={t("common.close", { defaultValue: "Chiudi" })}
+          benefits={balanceProBenefits}
+          primaryLoading={isPurchasePending}
+          secondaryActionLoading={isRestorePending}
+          tertiaryActionLoading={isStoreLoading}
+          statusMessage={paywallStatusMessage}
+          legalLinks={paywallLegalLinks}
+          isStoreLoading={!isReady || isStoreLoading}
+        />
+        <ProWelcomeModal
+          visible={proWelcomeVisible}
+          onContinue={handleDismissProWelcome}
+          loading={isDismissingProWelcome}
+        />
+        <Snackbar visible={purchaseNotice !== null} onDismiss={() => setPurchaseNotice(null)} duration={4000}>
+          {purchaseNotice}
+        </Snackbar>
+      </>
     </AppBackground>
   );
 }

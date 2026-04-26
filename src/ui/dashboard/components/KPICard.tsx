@@ -74,24 +74,18 @@ export default function KPICard({ item, emphasizeValue = false }: Props): JSX.El
         >
           {formatEUR(displayValue)}
         </Text>
-        <View style={styles.deltaRow}>
-          {hasDelta ? (
-            <>
-              <Text style={[styles.deltaValue, { color: deltaColor }]}>
-                {deltaIsPositive ? "+" : ""}
-                {formatEUR(item.deltaValue)}
-              </Text>
-              <Text style={[styles.deltaPct, { color: deltaColor }]}>
-                {deltaIsPositive ? "+" : ""}
-                {formatPct(item.deltaPct)}
-              </Text>
-            </>
-          ) : (
-            <Text style={[styles.deltaUnavailable, { color: tokens.colors.muted }]}>
-              Dati insufficienti
+        {hasDelta ? (
+          <View style={styles.deltaRow}>
+            <Text style={[styles.deltaValue, { color: deltaColor }]}>
+              {deltaIsPositive ? "+" : ""}
+              {formatEUR(item.deltaValue)}
             </Text>
-          )}
-        </View>
+            <Text style={[styles.deltaPct, { color: deltaColor }]}>
+              {deltaIsPositive ? "+" : ""}
+              {formatPct(item.deltaPct)}
+            </Text>
+          </View>
+        ) : null}
         {expanded && item.breakdown?.length ? (
           <View style={styles.breakdown}>
             {item.breakdown.slice(0, 4).map((row) => (
@@ -143,10 +137,6 @@ const styles = StyleSheet.create({
   },
   deltaPct: {
     fontSize: 13,
-  },
-  deltaUnavailable: {
-    fontSize: 12,
-    fontWeight: "500",
   },
   breakdown: {
     marginTop: 12,
