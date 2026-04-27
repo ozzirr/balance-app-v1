@@ -525,6 +525,7 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const entries = entryType === "income" ? incomeEntries : expenseEntries;
+  const shouldShowSearch = entries.length >= 10;
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
   const inputProps = createStandardTextInputProps(tokens);
@@ -630,6 +631,37 @@ export default function EntriesScreen(): JSX.Element {
 
   const datePickerIso = datePickerTarget === "start" ? form.startDate : form.endDate;
   const datePickerValue = datePickerIso && isIsoDate(datePickerIso) ? new Date(datePickerIso) : new Date();
+  const renderDatePicker = (target: "start" | "end") => {
+    if (!showDatePicker || datePickerTarget !== target) {
+      return null;
+    }
+
+    return (
+      <DateTimePicker
+        value={datePickerValue}
+        mode="date"
+        display={Platform.OS === "ios" ? "spinner" : "default"}
+        textColor={tokens.colors.text}
+        themeVariant="dark"
+        onChange={(_, selected) => {
+          if (selected) {
+            const isoDate = toIsoDate(selected);
+            setForm((prev) => {
+              if (datePickerTarget === "start") {
+                const nextEndDate =
+                  prev.recurring && compareIsoDates(prev.endDate, isoDate) < 0 ? isoDate : prev.endDate;
+                return { ...prev, startDate: isoDate, endDate: nextEndDate };
+              }
+              return { ...prev, endDate: isoDate };
+            });
+          }
+          if (Platform.OS !== "ios") {
+            setShowDatePicker(false);
+          }
+        }}
+      />
+    );
+  };
 
   const formatIsoToDMY = (iso: string) => {
     if (!isIsoDate(iso)) return iso;
@@ -804,6 +836,16 @@ export default function EntriesScreen(): JSX.Element {
     }
     return undefined;
   }, [showSearchInput]);
+
+  useEffect(() => {
+    if (shouldShowSearch) return;
+    if (showSearchInput) {
+      setShowSearchInput(false);
+    }
+    if (searchQuery) {
+      setSearchQuery("");
+    }
+  }, [searchQuery, shouldShowSearch, showSearchInput]);
 
   useEffect(() => {
     if (!showSearchInput) return;
@@ -989,7 +1031,7 @@ export default function EntriesScreen(): JSX.Element {
                   onChangeText={(text) => setForm((prev) => ({ ...prev, amount: sanitizeAmountInput(text) }))}
                 />
                 <TextInput
-                  label={t("entries.form.date")}
+                  label={t("entries.form.startDate", { defaultValue: "Data inizio" })}
                   value={formatIsoToDMY(form.startDate)}
                   editable={false}
                   mode="outlined"
@@ -1001,31 +1043,7 @@ export default function EntriesScreen(): JSX.Element {
                   onPressIn={() => openDatePicker("start")}
                 />
               </View>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={datePickerValue}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  textColor={tokens.colors.text}
-                  themeVariant="dark"
-                  onChange={(_, selected) => {
-                    if (selected) {
-                      const isoDate = toIsoDate(selected);
-                      setForm((prev) => {
-                        if (datePickerTarget === "start") {
-                          const nextEndDate =
-                            prev.recurring && compareIsoDates(prev.endDate, isoDate) < 0 ? isoDate : prev.endDate;
-                          return { ...prev, startDate: isoDate, endDate: nextEndDate };
-                        }
-                        return { ...prev, endDate: isoDate };
-                      });
-                    }
-                    if (Platform.OS !== "ios") {
-                      setShowDatePicker(false);
-                    }
-                  }}
-                />
-              )}
+              {renderDatePicker("start")}
 
               {entryType === "expense" && (
                 <View style={{ gap: 8 }}>
@@ -1115,6 +1133,7 @@ export default function EntriesScreen(): JSX.Element {
                     style={[styles.glassInput, { backgroundColor: tokens.colors.glassBg }]}
                     onPressIn={() => openDatePicker("end")}
                   />
+                  {renderDatePicker("end")}
                 </>
               )}
 
@@ -1204,7 +1223,7 @@ export default function EntriesScreen(): JSX.Element {
                     </Text>
                   </Pressable>
                 ) : null}
-                {!showSearchInput && !searchQuery ? (
+                {shouldShowSearch && !showSearchInput && !searchQuery ? (
                   <Pressable
                     onPress={() => setShowSearchInput(true)}
                     style={[
@@ -1215,7 +1234,7 @@ export default function EntriesScreen(): JSX.Element {
                     <MaterialCommunityIcons name="magnify" size={16} color={tokens.colors.muted} />
                   </Pressable>
                 ) : null}
-                {showSearchInput || searchQuery ? (
+                {shouldShowSearch && (showSearchInput || searchQuery) ? (
                 <TextInput
                   ref={searchInputRef}
                   placeholder={t("entries.list.searchPlaceholder", { defaultValue: "Cerca..." })}

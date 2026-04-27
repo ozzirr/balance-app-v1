@@ -165,7 +165,7 @@
       "title": "Your dashboard starts here",
       "bodyLine1": "1. Set up your wallets.",
       "bodyLine2": "2. Add your first snapshot.",
-      "bodyLine3": "3. Add incomes and expenses in Balance.",
+      "bodyLine3": "3. Add incomes and expenses in Cashflow.",
       "ctaSnapshot": "Add your first snapshots",
       "ctaWallet": "Set up your wallets",
       "ctaBalance": "Add incomes and expenses"
@@ -246,15 +246,15 @@
       }
     },
     "locked": {
-      "title": "How to unlock it",
-      "subtitle": "Tap to see how to unlock it.",
+      "title": "Some data is missing",
+      "subtitle": "Tap to see what to add.",
       "trend": "Add at least 2 snapshots on different dates to see the trend over time.",
       "distribution": "Add your first snapshot to see the portfolio distribution.",
       "cashflow": "Add recurring incomes and/or expenses to enable Cash Flow.",
       "categories": "Add at least one expense to see the category chart.",
       "recurrences": "Add recurring incomes or expenses to see upcoming movements.",
       "ctaSnapshot": "Add snapshot",
-      "ctaBalance": "Go to Balance"
+      "ctaBalance": "Go to Cashflow"
     },
     "reorder": {
       "edit": "Edit order",
@@ -435,6 +435,7 @@
       "name": "Name",
       "amount": "Amount",
       "date": "Date",
+      "startDate": "Start date",
       "endDate": "End date",
       "newEntryTitle": "New Entry",
       "newIncomeTitle": "New income entry",

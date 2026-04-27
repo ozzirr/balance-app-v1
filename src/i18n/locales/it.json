@@ -165,7 +165,7 @@
       "title": "La tua dashboard si costruisce da qui",
       "bodyLine1": "1. Configura i tuoi wallet.",
       "bodyLine2": "2. Aggiungi il primo snapshot.",
-      "bodyLine3": "3. Aggiungi entrate e uscite in Balance.",
+      "bodyLine3": "3. Aggiungi entrate e uscite in Cashflow.",
       "ctaSnapshot": "Aggiungi i tuoi primi snapshot",
       "ctaWallet": "Configura i tuoi wallet",
       "ctaBalance": "Aggiungi entrate e uscite"
@@ -246,15 +246,15 @@
       }
     },
     "locked": {
-      "title": "Come sbloccarla",
-      "subtitle": "Tocca per vedere come si attiva.",
+      "title": "Mancano alcuni dati",
+      "subtitle": "Tocca per capire cosa aggiungere.",
       "trend": "Aggiungi almeno 2 snapshot in date diverse per vedere l’andamento nel tempo.",
       "distribution": "Aggiungi il tuo primo snapshot per vedere la distribuzione del patrimonio.",
       "cashflow": "Inserisci entrate e/o uscite ricorrenti per attivare il Cash Flow.",
       "categories": "Aggiungi almeno una spesa per vedere il grafico per categoria.",
       "recurrences": "Aggiungi entrate o uscite ricorrenti per vedere i prossimi movimenti.",
       "ctaSnapshot": "Aggiungi snapshot",
-      "ctaBalance": "Vai a Balance"
+      "ctaBalance": "Vai a Cashflow"
     },
     "reorder": {
       "edit": "Modifica ordine",
@@ -435,6 +435,7 @@
       "name": "Nome",
       "amount": "Importo",
       "date": "Data",
+      "startDate": "Data inizio",
       "endDate": "Data fine",
       "newEntryTitle": "Nuova voce",
       "newIncomeTitle": "Nuova voce in entrata",

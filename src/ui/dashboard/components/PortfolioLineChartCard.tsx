@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Text } from "react-native-paper";
 import {
   VictoryArea,
@@ -12,11 +12,14 @@ import {
 } from "victory-native";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
-import { PillChip } from "@/ui/components/EntriesUI";
+import { PillChip, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { formatCompact, formatEUR, formatMonthLabel } from "@/ui/dashboard/formatters";
 import type { PortfolioPoint, WalletSeries } from "@/ui/dashboard/types";
 import { useTranslation } from "react-i18next";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GlassBlur from "@/ui/components/GlassBlur";
 
 type Mode = "total" | "liquidity" | "investments";
 
@@ -45,8 +48,9 @@ export default function PortfolioLineChartCard({
   noCard = false,
   modes,
 }: Props): JSX.Element {
-  const { tokens } = useDashboardTheme();
+  const { tokens, isDark } = useDashboardTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const availableModes = useMemo(
     () => (modes ?? ["total", "liquidity", "investments"]) as Mode[],
     [modes]
@@ -57,6 +61,8 @@ export default function PortfolioLineChartCard({
     liquidity: WALLET_FILTER_ALL,
     investments: WALLET_FILTER_ALL,
   });
+  const [walletPickerVisible, setWalletPickerVisible] = useState(false);
+  const walletPickerAnim = React.useRef(new Animated.Value(0)).current;
   const [hasLoadedPrefs, setHasLoadedPrefs] = useState(false);
   const { width } = useWindowDimensions();
 
@@ -152,6 +158,43 @@ export default function PortfolioLineChartCard({
   );
 
   const showWalletFilters = walletSeriesByMode.length > 0;
+  const selectedWalletLabel = useMemo(() => {
+    if (walletFilter === WALLET_FILTER_ALL || walletFilter === null) {
+      return t("common.all", { defaultValue: "Tutti" });
+    }
+    return walletSeriesByMode.find((wallet) => wallet.walletId === walletFilter)?.name ?? t("common.all", { defaultValue: "Tutti" });
+  }, [t, walletFilter, walletSeriesByMode]);
+
+  const openWalletPicker = () => {
+    setWalletPickerVisible(true);
+    requestAnimationFrame(() => {
+      Animated.timing(walletPickerAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const closeWalletPicker = () => {
+    Animated.timing(walletPickerAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setWalletPickerVisible(false);
+      }
+    });
+  };
+
+  const selectWalletFilter = (next: WalletFilter) => {
+    setWalletFilterByMode((prev) => ({
+      ...prev,
+      [mode]: next,
+    }));
+    closeWalletPicker();
+  };
 
   const toAlpha = (color: string, alpha: string) => {
     if (color.startsWith("#") && color.length === 7) {
@@ -231,63 +274,179 @@ export default function PortfolioLineChartCard({
     Math.max(pointCount - 1, 0) * pointSpacing + chartPaddingLeft + chartPaddingRight
   );
   const chartOffset = Math.max(chartWidth - visibleWidth, 0);
+  const walletSheetTranslateY = walletPickerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [64, 0],
+  });
+  const sheetBackground =
+    Platform.OS === "android"
+      ? tokens.colors.surface2
+      : isDark
+        ? "rgba(15, 18, 30, 0.78)"
+        : "rgba(169, 124, 255, 0.5)";
+  const sheetBorder =
+    Platform.OS === "android" ? tokens.colors.border : isDark ? tokens.colors.border : "rgba(169, 124, 255, 0.5)";
+  const overlayTint = isDark ? "rgba(0,0,0,0.92)" : "rgba(0,0,0,0.8)";
 
   const content = (
     <>
       {!hideHeader && <SectionHeader title={t("dashboard.portfolio.header")} />}
-      {availableModes.length > 1 && (
-        <View style={styles.toggleRow}>
-          {availableModes.map((item) => {
-            const label =
-              item === "total"
-                ? t("dashboard.portfolio.toggle.total")
-                : item === "liquidity"
-                  ? t("dashboard.portfolio.toggle.liquidity")
-                  : t("dashboard.portfolio.toggle.investments");
-            const active = item === mode;
-            return (
-              <PillChip
-                key={item}
-                label={label}
-                selected={active}
-                onPress={() => setMode(item)}
-              />
-            );
-          })}
-        </View>
-      )}
+      <View style={styles.filtersRow}>
+        {availableModes.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            overScrollMode="never"
+            contentContainerStyle={styles.modeScroll}
+            style={styles.modeScrollView}
+          >
+            {availableModes.map((item) => {
+              const label =
+                item === "total"
+                  ? t("dashboard.portfolio.toggle.total")
+                  : item === "liquidity"
+                    ? t("dashboard.portfolio.toggle.liquidity")
+                    : t("dashboard.portfolio.toggle.investments");
+              const active = item === mode;
+              return (
+                <PillChip
+                  key={item}
+                  label={label}
+                  selected={active}
+                  onPress={() => setMode(item)}
+                />
+              );
+            })}
+          </ScrollView>
+        )}
+        {showWalletFilters && (
+          <Pressable
+            onPress={openWalletPicker}
+            style={({ pressed }) => [
+              styles.walletPickerButton,
+              {
+                borderColor: tokens.colors.glassBorder,
+                backgroundColor: tokens.colors.glassBg,
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons name="filter-variant" size={16} color={tokens.colors.accent} />
+            <Text style={[styles.walletPickerLabel, { color: tokens.colors.text }]}>Wallet</Text>
+            {walletFilter !== WALLET_FILTER_ALL ? <View style={[styles.activeFilterDot, { backgroundColor: tokens.colors.accent }]} /> : null}
+            <MaterialCommunityIcons name="chevron-down" size={18} color={tokens.colors.muted} />
+          </Pressable>
+        )}
+      </View>
       {showWalletFilters && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          bounces={false}
-          overScrollMode="never"
-          contentContainerStyle={styles.walletScroll}
+        <Modal
+          visible={walletPickerVisible}
+          transparent
+          animationType="none"
+          presentationStyle="overFullScreen"
+          onRequestClose={closeWalletPicker}
         >
-          <PillChip
-            label={t("common.all", { defaultValue: "Tutti" })}
-            selected={walletFilter === WALLET_FILTER_ALL}
-            onPress={() =>
-              setWalletFilterByMode((prev) => ({
-                ...prev,
-                [mode]: WALLET_FILTER_ALL,
-              }))
-            }
-          />
-          {walletSeriesByMode.map((wallet) => (
-            <PillChip
-              key={wallet.walletId}
-              label={wallet.name}
-              selected={walletFilter === wallet.walletId}
-              onPress={() =>
-                setWalletFilterByMode((prev) => ({
-                  ...prev,
-                  [mode]: wallet.walletId,
-                }))
-              }
-            />
-          ))}
-        </ScrollView>
+          <View style={styles.sheetOverlay} pointerEvents="box-none">
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeWalletPicker}>
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.sheetOverlayDim, { backgroundColor: overlayTint, opacity: walletPickerAnim }]}
+              />
+            </Pressable>
+            <Animated.View
+              pointerEvents="auto"
+              style={[
+                styles.walletSheet,
+                {
+                  backgroundColor: sheetBackground,
+                  borderColor: sheetBorder,
+                  paddingBottom: insets.bottom + 12,
+                  transform: [{ translateY: walletSheetTranslateY }],
+                  opacity: walletPickerAnim,
+                },
+              ]}
+            >
+              <GlassBlur intensity={35} tint={isDark ? "dark" : "light"} fallbackColor="transparent" />
+              <View style={styles.walletSheetHeader}>
+                <Text style={[styles.walletSheetTitle, { color: tokens.colors.text }]}>
+                  {t("dashboard.portfolio.walletFilterTitle", { defaultValue: "Filtra per wallet" })}
+                </Text>
+                <SmallOutlinePillButton
+                  label={t("dashboard.reorder.done", { defaultValue: "Fatto" })}
+                  onPress={closeWalletPicker}
+                  color={tokens.colors.accent}
+                />
+              </View>
+              <Text style={[styles.walletSheetHint, { color: tokens.colors.muted }]}>
+                {t("dashboard.portfolio.walletFilterHint", {
+                  defaultValue: "Scegli quali valori mostrare nel grafico.",
+                })}
+              </Text>
+              <ScrollView
+                style={styles.walletSheetScroll}
+                contentContainerStyle={styles.walletSheetList}
+                showsVerticalScrollIndicator={false}
+              >
+                <Pressable
+                  onPress={() => selectWalletFilter(WALLET_FILTER_ALL)}
+                  style={({ pressed }) => [
+                    styles.walletOption,
+                    {
+                      borderColor: tokens.colors.glassBorder,
+                      backgroundColor: walletFilter === WALLET_FILTER_ALL ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+                      opacity: pressed ? 0.88 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.walletOptionContent}>
+                    <Text style={[styles.walletOptionLabel, { color: tokens.colors.text }]}>
+                      {t("common.all", { defaultValue: "Tutti" })}
+                    </Text>
+                    <Text style={[styles.walletOptionMeta, { color: tokens.colors.muted }]} numberOfLines={1}>
+                      {selectedWalletLabel === t("common.all", { defaultValue: "Tutti" })
+                        ? t("dashboard.portfolio.walletFilterAllMeta", { defaultValue: "Tutti i wallet disponibili" })
+                        : selectedWalletLabel}
+                    </Text>
+                  </View>
+                  {walletFilter === WALLET_FILTER_ALL ? (
+                    <MaterialCommunityIcons name="check" size={18} color={tokens.colors.accent} />
+                  ) : null}
+                </Pressable>
+                {walletSeriesByMode.map((wallet) => (
+                  <Pressable
+                    key={wallet.walletId}
+                    onPress={() => selectWalletFilter(wallet.walletId)}
+                    style={({ pressed }) => [
+                      styles.walletOption,
+                      {
+                        borderColor: tokens.colors.glassBorder,
+                        backgroundColor: walletFilter === wallet.walletId ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+                        opacity: pressed ? 0.88 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={styles.walletOptionContent}>
+                      <Text style={[styles.walletOptionLabel, { color: tokens.colors.text }]} numberOfLines={1}>
+                        {wallet.name}
+                      </Text>
+                      <Text style={[styles.walletOptionMeta, { color: tokens.colors.muted }]} numberOfLines={1}>
+                        {mode === "investments"
+                          ? t("dashboard.portfolio.toggle.investments")
+                          : mode === "liquidity"
+                            ? t("dashboard.portfolio.toggle.liquidity")
+                            : t("dashboard.portfolio.toggle.total")}
+                      </Text>
+                    </View>
+                    {walletFilter === wallet.walletId ? (
+                      <MaterialCommunityIcons name="check" size={18} color={tokens.colors.accent} />
+                    ) : null}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </Animated.View>
+          </View>
+        </Modal>
       )}
       {displaySeries.length === 0 || displaySeries[0].data.length === 0 ? (
         <Text style={[styles.empty, { color: tokens.colors.muted }]}>{t("dashboard.portfolio.empty")}</Text>
@@ -381,15 +540,100 @@ export default function PortfolioLineChartCard({
 }
 
 const styles = StyleSheet.create({
-  toggleRow: {
+  filtersRow: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     marginBottom: 8,
   },
-  walletScroll: {
+  modeScrollView: {
+    flex: 1,
+    minWidth: 0,
+  },
+  modeScroll: {
     gap: 8,
-    marginBottom: 8,
     paddingRight: 4,
+  },
+  walletPickerButton: {
+    minHeight: 34,
+    minWidth: 98,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingLeft: 12,
+    paddingRight: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  walletPickerLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  activeFilterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetOverlayDim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  walletSheet: {
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    elevation: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -6 },
+    gap: 12,
+  },
+  walletSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  walletSheetTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+  },
+  walletSheetHint: {
+    fontSize: 12,
+  },
+  walletSheetScroll: {
+    maxHeight: 420,
+  },
+  walletSheetList: {
+    paddingVertical: 4,
+    gap: 10,
+  },
+  walletOption: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  walletOptionContent: {
+    flex: 1,
+    flexDirection: "column",
+  },
+  walletOptionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  walletOptionMeta: {
+    fontSize: 12,
   },
   empty: {
     fontSize: 13,

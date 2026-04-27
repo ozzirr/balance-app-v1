@@ -4,6 +4,7 @@ import OnboardingWelcome from "./screens/OnboardingWelcome";
 import OnboardingProImport from "./screens/OnboardingProImport";
 import OnboardingName from "./screens/OnboardingName";
 import OnboardingInvestments from "./screens/OnboardingInvestments";
+import OnboardingSetup from "./screens/OnboardingSetup";
 import { IS_PRO_VARIANT } from "@/config/entitlements";
 
 export type OnboardingStackParamList = {
@@ -17,6 +18,7 @@ export type OnboardingStackParamList = {
   OnboardingExpensesQuickAdd: undefined;
   OnboardingDone: undefined;
   OnboardingInvestments: undefined;
+  OnboardingSetup: { hasInvestments: boolean };
 };
 
 type Props = {
@@ -65,9 +67,17 @@ export default function OnboardingNavigator({
         )}
       </Stack.Screen>
       <Stack.Screen name="OnboardingInvestments">
-        {() => (
+        {({ navigation }) => (
           <OnboardingInvestments
-            onFinish={onComplete}
+            onFinish={(hasInvestments) => navigation.replace("OnboardingSetup", { hasInvestments })}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="OnboardingSetup">
+        {({ route }) => (
+          <OnboardingSetup
+            hasInvestments={route.params.hasInvestments}
+            onComplete={onComplete}
             shouldSeedOnComplete={shouldSeedOnComplete}
           />
         )}

@@ -165,7 +165,7 @@
       "title": "A tua dashboard começa aqui",
       "bodyLine1": "1. Configura as tuas carteiras.",
       "bodyLine2": "2. Adiciona o teu primeiro snapshot.",
-      "bodyLine3": "3. Adiciona entradas e despesas no Balance.",
+      "bodyLine3": "3. Adiciona entradas e despesas no Cashflow.",
       "ctaSnapshot": "Adicionar os teus primeiros snapshots",
       "ctaWallet": "Configura as tuas carteiras",
       "ctaBalance": "Adicionar entradas e despesas"
@@ -246,15 +246,15 @@
       }
     },
     "locked": {
-      "title": "Como desbloquear",
-      "subtitle": "Toca para ver como se ativa.",
+      "title": "Faltam alguns dados",
+      "subtitle": "Toca para ver o que adicionar.",
       "trend": "Adiciona pelo menos 2 snapshots em datas diferentes para ver a evolução no tempo.",
       "distribution": "Adiciona o teu primeiro snapshot para ver a distribuição do património.",
       "cashflow": "Adiciona entradas e/ou despesas recorrentes para ativar o Cash Flow.",
       "categories": "Adiciona pelo menos uma despesa para ver o gráfico por categoria.",
       "recurrences": "Adiciona entradas ou despesas recorrentes para ver os próximos movimentos.",
       "ctaSnapshot": "Adicionar snapshot",
-      "ctaBalance": "Ir para Balance"
+      "ctaBalance": "Ir para Cashflow"
     },
     "reorder": {
       "edit": "Editar ordem",
@@ -433,6 +433,7 @@
       "name": "Nome",
       "amount": "Montante",
       "date": "Data",
+      "startDate": "Data de início",
       "endDate": "Data de fim",
       "newEntryTitle": "Nova entrada",
       "newIncomeTitle": "Nova entrada de receita",

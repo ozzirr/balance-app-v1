@@ -101,7 +101,7 @@ export default function App(): React.JSX.Element | null {
   const handleOnboardingComplete = useCallback(() => {
     setManualOnboarding(false);
     setSeedOnCompleteRequested(false);
-    setPostOnboardingInitialTab("Snapshot");
+    setPostOnboardingInitialTab("Dashboard");
     void setOnboardingCompleted(true);
     setOnboardingCompletedState(true);
   }, []);

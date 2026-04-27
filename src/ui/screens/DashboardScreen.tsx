@@ -389,8 +389,6 @@ export default function DashboardScreen(): JSX.Element {
     dashboardCounts.snapshots === 0 &&
     dashboardCounts.incomeEntries === 0 &&
     dashboardCounts.expenseEntries === 0;
-  const lockedSubtitle = t("dashboard.locked.subtitle", { defaultValue: "Tocca per vedere come si attiva" });
-
   useEffect(() => {
     if (loading || !dashboard) return;
     const baseOrder = normalizeSectionOrder(sectionOrder);
@@ -489,7 +487,7 @@ export default function DashboardScreen(): JSX.Element {
     }
     if (lockedModal.sectionId === "categories") {
       return {
-        label: t("dashboard.locked.ctaBalance", { defaultValue: "Vai a Balance" }),
+        label: t("dashboard.locked.ctaBalance", { defaultValue: "Vai a Cashflow" }),
         onPress: () => {
           closeLockedModal();
           navigation.navigate("Balance", { entryType: "expense" });
@@ -497,7 +495,7 @@ export default function DashboardScreen(): JSX.Element {
       };
     }
     return {
-      label: t("dashboard.locked.ctaBalance", { defaultValue: "Vai a Balance" }),
+      label: t("dashboard.locked.ctaBalance", { defaultValue: "Vai a Cashflow" }),
       onPress: () => {
         closeLockedModal();
         navigation.navigate("Balance");
@@ -640,7 +638,6 @@ export default function DashboardScreen(): JSX.Element {
                     open={sectionStates.andamento}
                     onToggle={() => handleToggleSection("andamento")}
                     locked={!isAvailable}
-                    lockedSubtitle={lockedSubtitle}
                     onLockedPress={() =>
                       handleLockedPress(
                         "andamento",
@@ -669,7 +666,6 @@ export default function DashboardScreen(): JSX.Element {
                     open={sectionStates.distribuzione}
                     onToggle={() => handleToggleSection("distribuzione")}
                     locked={!isAvailable}
-                    lockedSubtitle={lockedSubtitle}
                     onLockedPress={() =>
                       handleLockedPress(
                         "distribuzione",
@@ -692,7 +688,6 @@ export default function DashboardScreen(): JSX.Element {
                     open={sectionStates.cashflow}
                     onToggle={() => handleToggleSection("cashflow")}
                     locked={!isAvailable}
-                    lockedSubtitle={lockedSubtitle}
                     onLockedPress={() =>
                       handleLockedPress(
                         "cashflow",
@@ -715,7 +710,6 @@ export default function DashboardScreen(): JSX.Element {
                     open={sectionStates.categories}
                     onToggle={() => handleToggleSection("categories")}
                     locked={!isAvailable}
-                    lockedSubtitle={lockedSubtitle}
                     onLockedPress={() =>
                       handleLockedPress(
                         "categories",
@@ -737,7 +731,6 @@ export default function DashboardScreen(): JSX.Element {
                   open={sectionStates.prossimi}
                   onToggle={() => handleToggleSection("prossimi")}
                   locked={!isAvailable}
-                  lockedSubtitle={lockedSubtitle}
                   onLockedPress={() =>
                     handleLockedPress(
                       "prossimi",
@@ -856,7 +849,7 @@ export default function DashboardScreen(): JSX.Element {
           visible={lockedModal.visible}
           onClose={closeLockedModal}
           onUpgrade={lockedCta.onPress}
-          title={t("dashboard.locked.title", { defaultValue: "Come sbloccarla" })}
+          title={t("dashboard.locked.title", { defaultValue: "Mancano alcuni dati" })}
           subtitle={lockedModal.message}
           ctaLabel={lockedCta.label}
           secondaryLabel={t("common.close", { defaultValue: "Chiudi" })}
