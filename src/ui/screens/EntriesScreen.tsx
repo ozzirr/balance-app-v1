@@ -36,6 +36,7 @@ import { createStandardTextInputProps } from "@/ui/components/standardInputProps
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import CoachTipCard from "@/ui/components/CoachTipCard";
 import { useSettings } from "@/settings/useSettings";
+import BottomSheet from "@/ui/components/BottomSheet";
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -525,7 +526,7 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const entries = entryType === "income" ? incomeEntries : expenseEntries;
-  const shouldShowSearch = entries.length >= 10;
+  const shouldShowSearch = entries.length > 0;
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
   const inputProps = createStandardTextInputProps(tokens);
@@ -983,14 +984,6 @@ export default function EntriesScreen(): JSX.Element {
             ]}
           />
 
-          <PrimaryPillButton
-            label={showNewEntry ? t("common.cancel") : t("entries.actions.toggleForm")}
-            onPress={() => {
-              toggleNewEntryVisibility();
-              setTimeout(scrollToForm, 80);
-            }}
-            color={tokens.colors.purplePrimary}
-          />
         </GlassCardContainer>
 
         {shouldShowEmptyEntriesGuide ? (
@@ -1004,10 +997,17 @@ export default function EntriesScreen(): JSX.Element {
           />
         ) : null}
 
-        {showNewEntry && (
-          <GlassCardContainer style={{ borderColor: entryAccent }}>
-            <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{newEntryTitle}</Text>
-            <View style={{ gap: 12 }}>
+        <BottomSheet
+          visible={showNewEntry}
+          title={newEntryTitle}
+          subtitle={
+            entryType === "income"
+              ? t("entries.sheet.incomeSubtitle", { defaultValue: "Importo, data e ricorrenza dell'entrata." })
+              : t("entries.sheet.expenseSubtitle", { defaultValue: "Importo, categoria e ricorrenza dell'uscita." })
+          }
+          onClose={() => setShowNewEntry(false)}
+        >
+            <View style={[styles.sheetForm, { borderColor: entryAccent }]}>
               <TextInput
                 label={t("entries.form.name")}
                 value={form.name}
@@ -1160,8 +1160,7 @@ export default function EntriesScreen(): JSX.Element {
                 )}
               </View>
             </View>
-          </GlassCardContainer>
-        )}
+        </BottomSheet>
 
         {shouldShowEntriesCard ? (
           <GlassCardContainer contentStyle={styles.entriesTableCard}>
@@ -1441,50 +1440,63 @@ export default function EntriesScreen(): JSX.Element {
                   );
                 })}
               </View>
-              {showAddCategory && (
-                <View style={{ gap: 10 }}>
-                  <View style={[styles.colorLine, { paddingVertical: 2 }]}>
-                    <TextInput
-                      label={t("wallets.list.newCategoryLabel")}
-                      value={newCategory}
-                      {...inputProps}
-                      style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
-                      onChangeText={setNewCategory}
-                    />
-                    <PressScale
-                      onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
-                      style={[
-                        styles.colorSwatch,
-                        { backgroundColor: newCategoryColor, borderColor: tokens.colors.glassBorder },
-                      ]}
-                    />
+              {showAddCategory ? (
+                <>
+                  <View style={{ gap: 10 }}>
+                    <View style={[styles.colorLine, { paddingVertical: 2 }]}>
+                      <TextInput
+                        label={t("wallets.list.newCategoryLabel")}
+                        value={newCategory}
+                        {...inputProps}
+                        style={[styles.categoryNameInput, { backgroundColor: tokens.colors.glassBg }]}
+                        onChangeText={setNewCategory}
+                      />
+                      <PressScale
+                        onPress={() => setNewCategoryColor((prev) => nextPresetColor(prev))}
+                        style={[
+                          styles.colorSwatch,
+                          { backgroundColor: newCategoryColor, borderColor: tokens.colors.glassBorder },
+                        ]}
+                      />
+                    </View>
                   </View>
-                </View>
+                  <View style={styles.actionsRow}>
+                    <View style={styles.flex}>
+                      <PrimaryPillButton
+                        label={t("wallets.list.addCategory", { defaultValue: t("common.add") })}
+                        onPress={() => {
+                          void addCategory();
+                        }}
+                        color={tokens.colors.accent}
+                        disabled={!canSubmitNewCategory}
+                        disabledColor={tokens.colors.glassBorder}
+                      />
+                    </View>
+                    <View style={styles.flex}>
+                      <SmallOutlinePillButton
+                        label={t("common.cancel")}
+                        onPress={() => {
+                          setShowAddCategory(false);
+                          setNewCategory("");
+                          setNewCategoryColor(presetColors[0]);
+                        }}
+                        color={tokens.colors.text}
+                        fullWidth
+                        size="large"
+                      />
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <PrimaryPillButton
+                  label={t("wallets.list.addCategory", { defaultValue: t("common.add") })}
+                  onPress={() => {
+                    setExpandedCategoryId(null);
+                    setShowAddCategory(true);
+                  }}
+                  color={tokens.colors.accent}
+                />
               )}
-              <PrimaryPillButton
-                label={
-                  showAddCategory
-                    ? canSubmitNewCategory
-                      ? t("common.add")
-                      : t("common.cancel")
-                    : t("wallets.list.addCategory", { defaultValue: t("common.add") })
-                }
-                onPress={() => {
-                  if (showAddCategory) {
-                    if (canSubmitNewCategory) {
-                      void addCategory();
-                      return;
-                    }
-                    setShowAddCategory(false);
-                    setNewCategory("");
-                    setNewCategoryColor(presetColors[0]);
-                    return;
-                  }
-                  setExpandedCategoryId(null);
-                  setShowAddCategory(true);
-                }}
-                color={tokens.colors.accent}
-              />
             </GlassCardContainer>
           </View>
         ) : null}
@@ -1504,6 +1516,18 @@ export default function EntriesScreen(): JSX.Element {
           confirmColor={tokens.colors.expense}
         />
         </ScrollView>
+        {!showNewEntry ? (
+          <View style={[styles.fixedActionBar, { bottom: insets.bottom + 84 }]}>
+            <PrimaryPillButton
+              label={t("entries.actions.toggleForm")}
+              onPress={() => {
+                toggleNewEntryVisibility();
+                setTimeout(scrollToForm, 80);
+              }}
+              color={tokens.colors.purplePrimary}
+            />
+          </View>
+        ) : null}
       </AppBackground>
     </View>
   );
@@ -1515,6 +1539,13 @@ const styles = StyleSheet.create({
   },
   screenRoot: {
     flex: 1,
+  },
+  fixedActionBar: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    elevation: 20,
   },
   container: {
     paddingHorizontal: 16,
@@ -1539,6 +1570,11 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     gap: 12,
+  },
+  sheetForm: {
+    borderLeftWidth: 3,
+    gap: 12,
+    paddingLeft: 12,
   },
   flex: {
     flex: 1,

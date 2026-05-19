@@ -37,6 +37,7 @@ import CoachTipCard from "@/ui/components/CoachTipCard";
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { syncSnapshotReminderSchedule } from "@/notifications/snapshotReminder";
+import BottomSheet from "@/ui/components/BottomSheet";
 
 type DraftLine = {
   walletId: number;
@@ -723,11 +724,6 @@ export default function SnapshotScreen(): JSX.Element {
               </ScrollView>
             ) : null}
 
-            <PrimaryPillButton
-              label={heroCtaLabel}
-              onPress={handleHeroCta}
-              color={tokens.colors.accent}
-            />
           </GlassCardContainer>
         )}
 
@@ -750,11 +746,17 @@ export default function SnapshotScreen(): JSX.Element {
           />
         )}
 
-        {showForm && (
-          <GlassCardContainer>
-            <SectionHeader
-              title={editingSnapshotId ? t("snapshot.actions.edit") : t("snapshot.actions.new")}
-            />
+        <BottomSheet
+          visible={showForm}
+          title={editingSnapshotId ? t("snapshot.actions.edit") : t("snapshot.actions.new")}
+          subtitle={t("snapshot.sheet.subtitle", {
+            defaultValue: "Aggiorna i saldi dei wallet per il mese selezionato.",
+          })}
+          onClose={() => {
+            setShowForm(false);
+            setEditingSnapshotId(null);
+          }}
+        >
             <View style={styles.form}>
               <TextInput
                 label={t("snapshot.form.dateLabel")}
@@ -841,8 +843,7 @@ export default function SnapshotScreen(): JSX.Element {
                 )}
               </View>
             </View>
-          </GlassCardContainer>
-        )}
+        </BottomSheet>
 
         {lines.length > 0 && (
           <GlassCardContainer contentStyle={{ gap: 10 }}>
@@ -994,6 +995,15 @@ export default function SnapshotScreen(): JSX.Element {
         )}
 
         </ScrollView>
+        {activeMonth && !showForm ? (
+          <View style={[styles.fixedActionBar, { bottom: insets.bottom + 84 }]}>
+            <PrimaryPillButton
+              label={heroCtaLabel}
+              onPress={handleHeroCta}
+              color={tokens.colors.accent}
+            />
+          </View>
+        ) : null}
         <ConfirmDialog
           visible={confirmSnapshotDeleteVisible}
           title={t("snapshot.delete.title", { defaultValue: "Eliminare snapshot?" })}
@@ -1014,6 +1024,13 @@ export default function SnapshotScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
+  },
+  fixedActionBar: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    elevation: 20,
   },
   form: {
     gap: 12,

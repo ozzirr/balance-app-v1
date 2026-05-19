@@ -31,6 +31,7 @@ import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import type { BalanceProPlanId } from "@/config/entitlements";
 import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
 import CoachTipCard from "@/ui/components/CoachTipCard";
+import BottomSheet from "@/ui/components/BottomSheet";
 
 type BalanceProPaywallSource = "wallet-limit" | "settings-upsell";
 
@@ -976,18 +977,14 @@ export default function WalletScreen(): React.ReactElement {
                     </AccordionItem>
                   );
                 })}
-                {!showAddWallet.LIQUIDITY && (
-                  <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
-                    <PrimaryPillButton
-                      label={t("wallets.list.addWallet")}
-                      onPress={() => handleRequestAddWallet("LIQUIDITY")}
-                      color={tokens.colors.accent}
-                    />
-                  </Animated.View>
-                )}
-                {showAddWallet.LIQUIDITY && (
-                  <GlassCardContainer>
-                    <SectionHeader title={t("wallets.list.newLiquidityTitle")} />
+                <BottomSheet
+                  visible={showAddWallet.LIQUIDITY}
+                  title={t("wallets.list.newLiquidityTitle")}
+                  subtitle={t("wallets.sheet.liquiditySubtitle", {
+                    defaultValue: "Nome, valuta e colore del wallet.",
+                  })}
+                  onClose={() => setShowAddWallet((prev) => ({ ...prev, LIQUIDITY: false }))}
+                >
                     <View style={styles.sectionContent}>
                       <View style={[styles.colorLine]}>
                         <TextInput
@@ -1038,8 +1035,7 @@ export default function WalletScreen(): React.ReactElement {
                         color={tokens.colors.accent}
                       />
                     </View>
-                  </GlassCardContainer>
-                )}
+                </BottomSheet>
               </>
             )}
 
@@ -1125,16 +1121,14 @@ export default function WalletScreen(): React.ReactElement {
                     </AccordionItem>
                   );
                 })}
-                {!showAddWallet.INVEST && (
-                  <PrimaryPillButton
-                    label={t("wallets.list.addWallet")}
-                    onPress={() => handleRequestAddWallet("INVEST")}
-                    color={tokens.colors.accent}
-                  />
-                )}
-                {showAddWallet.INVEST && (
-                  <GlassCardContainer>
-                    <SectionHeader title={t("wallets.list.newInvestTitle")} />
+                <BottomSheet
+                  visible={showAddWallet.INVEST}
+                  title={t("wallets.list.newInvestTitle")}
+                  subtitle={t("wallets.sheet.investSubtitle", {
+                    defaultValue: "Broker, tipologia, valuta e colore.",
+                  })}
+                  onClose={() => setShowAddWallet((prev) => ({ ...prev, INVEST: false }))}
+                >
                     <View style={styles.sectionContent}>
                       <View style={[styles.colorLine]}>
                         <TextInput
@@ -1191,8 +1185,7 @@ export default function WalletScreen(): React.ReactElement {
                         color={tokens.colors.accent}
                       />
                     </View>
-                  </GlassCardContainer>
-                )}
+                </BottomSheet>
               </>
             )}
           </View>
@@ -1249,6 +1242,17 @@ export default function WalletScreen(): React.ReactElement {
           {purchaseNotice}
         </Snackbar>
       </ScrollView>
+      {!showAddWallet[tab] ? (
+        <View style={[styles.fixedActionBar, { bottom: insets.bottom + 84 }]}>
+          <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
+            <PrimaryPillButton
+              label={t("wallets.list.addWallet")}
+              onPress={() => handleRequestAddWallet(tab)}
+              color={tokens.colors.accent}
+            />
+          </Animated.View>
+        </View>
+      ) : null}
       <Modal
         visible={reorderVisible && canReorder}
         transparent
@@ -1322,6 +1326,13 @@ export default function WalletScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
+  },
+  fixedActionBar: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    elevation: 20,
   },
   sectionContent: {
     gap: 12,
