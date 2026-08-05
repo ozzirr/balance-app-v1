@@ -21,14 +21,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import GlassBlur from "@/ui/components/GlassBlur";
 
-type Mode = "total" | "liquidity" | "investments";
+type Mode = "total" | "liquidity" | "investments" | "pension";
 
 type Props = {
   data: PortfolioPoint[];
   walletSeries?: WalletSeries[];
   hideHeader?: boolean;
   noCard?: boolean;
-  modes?: ("total" | "liquidity" | "investments")[];
+  modes?: Mode[];
 };
 
 const WALLET_FILTER_ALL = "all" as const;
@@ -37,6 +37,7 @@ type WalletFilterState = {
   total: WalletFilter;
   liquidity: WalletFilter;
   investments: WalletFilter;
+  pension: WalletFilter;
 };
 
 const STORAGE_KEY = "dashboard_portfolio_filters_v1";
@@ -60,6 +61,7 @@ export default function PortfolioLineChartCard({
     total: WALLET_FILTER_ALL,
     liquidity: WALLET_FILTER_ALL,
     investments: WALLET_FILTER_ALL,
+    pension: WALLET_FILTER_ALL,
   });
   const [walletPickerVisible, setWalletPickerVisible] = useState(false);
   const walletPickerAnim = React.useRef(new Animated.Value(0)).current;
@@ -70,7 +72,8 @@ export default function PortfolioLineChartCard({
     if (!walletSeries) return [];
     if (mode === "total") return walletSeries;
     if (mode === "liquidity") return walletSeries.filter((item) => item.type === "LIQUIDITY");
-    if (mode === "investments") return walletSeries.filter((item) => item.type === "INVEST");
+    if (mode === "investments") return walletSeries.filter((item) => item.type === "INVEST" && item.investmentKind !== "PENSION");
+    if (mode === "pension") return walletSeries.filter((item) => item.investmentKind === "PENSION");
     return [];
   }, [mode, walletSeries]);
 
@@ -81,7 +84,7 @@ export default function PortfolioLineChartCard({
       ? walletFilterByMode.liquidity
       : mode === "investments"
         ? walletFilterByMode.investments
-        : null;
+        : mode === "pension" ? walletFilterByMode.pension : null;
 
   // Ensure mode is always one of the available options
   useEffect(() => {
@@ -108,6 +111,7 @@ export default function PortfolioLineChartCard({
               total: parsed.walletFilterByMode?.total ?? prev.total,
               liquidity: parsed.walletFilterByMode?.liquidity ?? prev.liquidity,
               investments: parsed.walletFilterByMode?.investments ?? prev.investments,
+              pension: parsed.walletFilterByMode?.pension ?? prev.pension,
             }));
           }
         }
@@ -152,7 +156,9 @@ export default function PortfolioLineChartCard({
     () =>
       data.map((point) => ({
         x: point.date,
-        y: mode === "total" ? point.total : mode === "liquidity" ? point.liquidity : point.investments,
+        y: mode === "total"
+          ? point.total
+          : mode === "liquidity" ? point.liquidity : mode === "pension" ? point.pension ?? 0 : point.investments,
       })),
     [data, mode]
   );
@@ -307,7 +313,9 @@ export default function PortfolioLineChartCard({
                   ? t("dashboard.portfolio.toggle.total")
                   : item === "liquidity"
                     ? t("dashboard.portfolio.toggle.liquidity")
-                    : t("dashboard.portfolio.toggle.investments");
+                    : item === "pension"
+                      ? t("dashboard.portfolio.toggle.pension")
+                      : t("dashboard.portfolio.toggle.investments");
               const active = item === mode;
               return (
                 <PillChip
@@ -431,7 +439,9 @@ export default function PortfolioLineChartCard({
                         {wallet.name}
                       </Text>
                       <Text style={[styles.walletOptionMeta, { color: tokens.colors.muted }]} numberOfLines={1}>
-                        {mode === "investments"
+                        {mode === "pension"
+                          ? t("dashboard.portfolio.toggle.pension")
+                          : mode === "investments"
                           ? t("dashboard.portfolio.toggle.investments")
                           : mode === "liquidity"
                             ? t("dashboard.portfolio.toggle.liquidity")

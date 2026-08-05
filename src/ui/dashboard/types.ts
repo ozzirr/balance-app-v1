@@ -28,6 +28,7 @@ export type PortfolioPoint = {
   total: number;
   liquidity: number;
   investments: number;
+  pension?: number;
 };
 
 export type WalletSeriesPoint = {
@@ -39,6 +40,7 @@ export type WalletSeries = {
   walletId: number;
   name: string;
   type: WalletType;
+  investmentKind: "STANDARD" | "PENSION";
   color: string;
   points: WalletSeriesPoint[];
 };
@@ -86,6 +88,24 @@ export type RecurrenceRow = {
 
 export type DashboardData = {
   kpis: KPIItem[];
+  availability: {
+    immediate: number;
+    liquid: number;
+    restricted: number;
+    available: number;
+    total: number;
+    availablePct: number;
+    restrictedPct: number;
+    products: Array<{
+      id: number;
+      name: string;
+      value: number;
+      availability: "immediate" | "liquid" | "restricted";
+      availabilityDate: string | null;
+      restrictionNote: string | null;
+      investmentKind: "STANDARD" | "PENSION";
+    }>;
+  };
   portfolioSeries: PortfolioPoint[];
   walletSeries: WalletSeries[];
   distributions: DistributionItem[];

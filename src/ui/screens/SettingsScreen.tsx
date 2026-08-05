@@ -112,7 +112,16 @@ export default function SettingsScreen(): JSX.Element {
   const { mode, setMode } = useContext(ThemeContext);
   const { requestReplay } = useOnboardingFlow();
   const { t, i18n } = useTranslation();
-  const { showInvestments, setShowInvestments, scrollBounceEnabled, setScrollBounceEnabled } = useSettings();
+  const {
+    showInvestments,
+    setShowInvestments,
+    showInvestmentAvailability,
+    setShowInvestmentAvailability,
+    trackPension,
+    setTrackPension,
+    scrollBounceEnabled,
+    setScrollBounceEnabled,
+  } = useSettings();
   const {
     isPro,
     isReady,
@@ -846,6 +855,44 @@ export default function SettingsScreen(): JSX.Element {
                 color={tokens.colors.accent}
               />
             </View>
+            {showInvestments ? (
+              <View style={styles.row}>
+                <View style={styles.preferenceTextBlock}>
+                  <Text style={[styles.label, { color: tokens.colors.text }]}>
+                    {t("settings.preferences.showInvestmentAvailability")}
+                  </Text>
+                  <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
+                    {t("settings.preferences.showInvestmentAvailabilityHint")}
+                  </Text>
+                </View>
+                <Switch
+                  value={showInvestmentAvailability}
+                  onValueChange={(value) => {
+                    void setShowInvestmentAvailability(value);
+                  }}
+                  color={tokens.colors.accent}
+                />
+              </View>
+            ) : null}
+            {showInvestments ? (
+              <View style={styles.row}>
+                <View style={styles.preferenceTextBlock}>
+                  <Text style={[styles.label, { color: tokens.colors.text }]}>
+                    {t("settings.preferences.trackPension")}
+                  </Text>
+                  <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
+                    {t("settings.preferences.trackPensionHint")}
+                  </Text>
+                </View>
+                <Switch
+                  value={trackPension}
+                  onValueChange={(value) => {
+                    void setTrackPension(value);
+                  }}
+                  color={tokens.colors.accent}
+                />
+              </View>
+            ) : null}
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.scrollBounce")}</Text>
               <Switch

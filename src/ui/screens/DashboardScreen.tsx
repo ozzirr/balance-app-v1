@@ -5,6 +5,7 @@ import {
   LayoutAnimation,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -27,6 +28,7 @@ import { todayIso } from "@/utils/dates";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import type { DashboardData, KpiDeltaRange } from "@/ui/dashboard/types";
 import { buildDashboardData, buildKpiDeltaForRange, createMockDashboardData } from "@/ui/dashboard/adapter";
+import PortfolioSummaryCard from "@/ui/dashboard/components/PortfolioSummaryCard";
 import KPIStrip from "@/ui/dashboard/components/KPIStrip";
 import RangeSelector from "@/ui/dashboard/components/RangeSelector";
 import PortfolioLineChartCard from "@/ui/dashboard/components/PortfolioLineChartCard";
@@ -75,6 +77,7 @@ const SECTION_ORDER: SectionId[] = [
   "categories",
   "prossimi",
 ];
+const REORDER_ROW_HEIGHT = 62;
 
 type SectionAccordionProps = {
   title: string;
@@ -146,7 +149,10 @@ export default function DashboardScreen(): JSX.Element {
   const [sectionOrder, setSectionOrder] = useState<SectionId[]>(SECTION_ORDER);
   const [orderLoaded, setOrderLoaded] = useState(false);
   const [reorderVisible, setReorderVisible] = useState(false);
+  const [draggingSectionId, setDraggingSectionId] = useState<SectionId | null>(null);
   const reorderAnim = useRef(new Animated.Value(0)).current;
+  const reorderDropY = useRef(new Animated.Value(0)).current;
+  const reorderDropOpacity = useRef(new Animated.Value(0)).current;
   const [showPrivacyCard, setShowPrivacyCard] = useState(false);
   const [kpiDeltaRange, setKpiDeltaRange] = useState<KpiDeltaRange>("28D");
   const [availableRanges, setAvailableRanges] = useState<KpiDeltaRange[]>([]);
@@ -169,7 +175,7 @@ export default function DashboardScreen(): JSX.Element {
     message: string;
   }>({ visible: false, sectionId: null, message: "" });
   const { t } = useTranslation();
-  const { showInvestments, scrollBounceEnabled } = useSettings();
+  const { showInvestments, trackPension, scrollBounceEnabled } = useSettings();
   const kpiRangeOptions = useMemo(() => {
     const labels: Record<KpiDeltaRange, string> = {
       "7D": t("dashboard.range.options.last7Days"),
@@ -195,7 +201,13 @@ export default function DashboardScreen(): JSX.Element {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const wallets = await listWallets(true);
+      const allWallets = await listWallets(true);
+      const wallets = allWallets.filter((wallet) => {
+        if (!showInvestments && wallet.type === "INVEST") return false;
+        if (!trackPension && wallet.investmentKind === "PENSION") return false;
+        return true;
+      });
+      const visibleWalletIds = new Set(wallets.map((wallet) => wallet.id));
       setWalletsCount(wallets.length);
 
       const [snapshots, incomeEntries, expenseEntries, expenseCategories, pref, profile, privacyPref] = await Promise.all([
@@ -211,13 +223,15 @@ export default function DashboardScreen(): JSX.Element {
       const latestSnapshot = await getLatestSnapshot();
       let latestLines: SnapshotLineDetail[] = [];
       if (latestSnapshot) {
-        latestLines = await listSnapshotLines(latestSnapshot.id);
+        latestLines = (await listSnapshotLines(latestSnapshot.id))
+          .filter((line) => visibleWalletIds.has(line.wallet_id));
       }
 
       const snapshotLines: Record<number, SnapshotLineDetail[]> = {};
       await Promise.all(
         snapshots.map(async (snapshot) => {
-          snapshotLines[snapshot.id] = await listSnapshotLines(snapshot.id);
+          snapshotLines[snapshot.id] = (await listSnapshotLines(snapshot.id))
+            .filter((line) => visibleWalletIds.has(line.wallet_id));
         })
       );
 
@@ -280,7 +294,7 @@ export default function DashboardScreen(): JSX.Element {
       setDashboard(createMockDashboardData(showInvestments));
       setAvailableRanges([]);
     }
-  }, [kpiDeltaRange, navigation, prompted, showInvestments]);
+  }, [kpiDeltaRange, navigation, prompted, showInvestments, trackPension]);
 
   useEffect(() => {
     let canceled = false;
@@ -425,14 +439,17 @@ export default function DashboardScreen(): JSX.Element {
     outputRange: [64, 0],
   });
 
-  const bringSectionToTop = useCallback(
-    (sectionId: SectionId) => {
+  const moveSection = useCallback(
+    (fromIndex: number, toIndex: number) => {
       setSectionOrder((prev) => {
         const next = normalizeSectionOrder(prev);
-        const index = next.indexOf(sectionId);
-        if (index <= 0) return next;
-        const item = next[index];
-        return [item, ...next.slice(0, index), ...next.slice(index + 1)];
+        if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= next.length) {
+          return next;
+        }
+        const [item] = next.splice(fromIndex, 1);
+        if (!item) return next;
+        next.splice(toIndex, 0, item);
+        return next;
       });
     },
     [normalizeSectionOrder]
@@ -460,6 +477,98 @@ export default function DashboardScreen(): JSX.Element {
     Platform.OS === "android" ? tokens.colors.border : isDark ? tokens.colors.border : "rgba(169, 124, 255, 0.5)";
   const reorderBlurIntensity = 35;
   const reorderOverlayTint = isDark ? "rgba(0,0,0,0.92)" : "rgba(0,0,0,0.8)";
+
+  const ReorderableSectionRow = ({ sectionId, index }: { sectionId: SectionId; index: number }) => {
+    const translateY = useRef(new Animated.Value(0)).current;
+    const startIndexRef = useRef(index);
+    const sectionList = normalizeSectionOrder(sectionOrder);
+    const listLength = sectionList.length;
+    const isDragging = draggingSectionId === sectionId;
+    const panResponder = useMemo(
+      () =>
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => true,
+          onStartShouldSetPanResponderCapture: () => true,
+          onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 2,
+          onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dy) > 2,
+          onPanResponderGrant: () => {
+            startIndexRef.current = index;
+            setDraggingSectionId(sectionId);
+            reorderDropOpacity.setValue(0);
+            translateY.setOffset(0);
+            translateY.setValue(0);
+          },
+          onPanResponderMove: (_, gesture) => {
+            const minY = -startIndexRef.current * REORDER_ROW_HEIGHT;
+            const maxY = (listLength - startIndexRef.current - 1) * REORDER_ROW_HEIGHT;
+            const clampedY = Math.max(minY, Math.min(maxY, gesture.dy));
+            const nextIndex = Math.max(
+              0,
+              Math.min(listLength - 1, startIndexRef.current + Math.round(clampedY / REORDER_ROW_HEIGHT))
+            );
+            translateY.setValue(clampedY);
+            const dropSlot = nextIndex > startIndexRef.current ? nextIndex + 1 : nextIndex;
+            reorderDropY.setValue(dropSlot * REORDER_ROW_HEIGHT);
+            reorderDropOpacity.setValue(nextIndex === startIndexRef.current ? 0 : 1);
+          },
+          onPanResponderRelease: (_, gesture) => {
+            const nextIndex = Math.max(
+              0,
+              Math.min(listLength - 1, startIndexRef.current + Math.round(gesture.dy / REORDER_ROW_HEIGHT))
+            );
+            Animated.spring(translateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              speed: 24,
+              bounciness: 4,
+            }).start();
+            setDraggingSectionId(null);
+            reorderDropOpacity.setValue(0);
+            moveSection(startIndexRef.current, nextIndex);
+          },
+          onPanResponderTerminate: () => {
+            Animated.spring(translateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              speed: 24,
+              bounciness: 4,
+            }).start();
+            setDraggingSectionId(null);
+            reorderDropOpacity.setValue(0);
+          },
+        }),
+      [index, listLength, moveSection, reorderDropOpacity, reorderDropY, sectionId, translateY]
+    );
+
+    return (
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.reorderRow,
+          isDragging ? styles.reorderRowActive : undefined,
+          {
+            borderColor: isDragging ? tokens.colors.accent : tokens.colors.glassBorder,
+            backgroundColor: tokens.colors.glassBg,
+            transform: [{ translateY }],
+          },
+        ]}
+      >
+        <View style={styles.reorderRowContent}>
+          <Text style={[styles.reorderRowLabel, { color: tokens.colors.text }]} numberOfLines={1}>
+            {sectionLabels[sectionId]}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.reorderAction,
+            { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+          ]}
+        >
+          <MaterialCommunityIcons name="drag-horizontal-variant" size={22} color={tokens.colors.accent} />
+        </View>
+      </Animated.View>
+    );
+  };
 
   const handleLockedPress = useCallback((sectionId: SectionId, message: string) => {
     setLockedModal({ visible: true, sectionId, message });
@@ -598,8 +707,12 @@ export default function DashboardScreen(): JSX.Element {
                   ) : null}
                 </View>
                 {!isFirstRunDashboard ? (
-                  <View style={styles.kpiBlock}>
-                    <KPIStrip items={dashboard.kpis} />
+                  <View style={styles.summaryBlock}>
+                    <KPIStrip items={dashboard.kpis.filter((item) => item.id !== "netWorth")} />
+                    <PortfolioSummaryCard
+                      items={dashboard.kpis}
+                      availability={dashboard.availability}
+                    />
                   </View>
                 ) : null}
               </View>
@@ -653,7 +766,11 @@ export default function DashboardScreen(): JSX.Element {
                       walletSeries={dashboard.walletSeries}
                       hideHeader
                       noCard
-                      modes={showInvestments ? undefined : ["total"]}
+                      modes={showInvestments
+                        ? trackPension && dashboard.kpis.some((item) => item.id === "pension")
+                          ? ["total", "liquidity", "investments", "pension"]
+                          : undefined
+                        : ["total"]}
                     />
                   </SectionAccordion>
                 );
@@ -807,39 +924,31 @@ export default function DashboardScreen(): JSX.Element {
                 />
               </View>
               <Text style={[styles.orderHint, { color: tokens.colors.muted }]}>
-                {t("dashboard.reorder.hint", { defaultValue: "Tocca la freccia per portare in alto." })}
+                {t("dashboard.reorder.hint", { defaultValue: "Trascina la maniglia per cambiare liberamente l'ordine." })}
               </Text>
               <ScrollView
                 style={styles.reorderScroll}
                 contentContainerStyle={styles.reorderList}
                 showsVerticalScrollIndicator={false}
+                scrollEnabled={draggingSectionId === null}
               >
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.reorderDropIndicator,
+                    {
+                      backgroundColor: tokens.colors.accent,
+                      opacity: reorderDropOpacity,
+                      transform: [{ translateY: reorderDropY }],
+                    },
+                  ]}
+                />
                 {normalizeSectionOrder(sectionOrder).map((sectionId, index) => (
-                  <View
+                  <ReorderableSectionRow
                     key={sectionId}
-                    style={[
-                      styles.reorderRow,
-                      {
-                        borderColor: tokens.colors.glassBorder,
-                        backgroundColor: tokens.colors.glassBg,
-                      },
-                    ]}
-                  >
-                    <View style={styles.reorderRowContent}>
-                      <Text style={[styles.reorderRowLabel, { color: tokens.colors.text }]} numberOfLines={1}>
-                        {sectionLabels[sectionId]}
-                      </Text>
-                    </View>
-                    <PressScale
-                      onPress={() => {
-                        if (index > 0) bringSectionToTop(sectionId);
-                      }}
-                      style={[styles.reorderAction, { opacity: index === 0 ? 0.4 : 1 }]}
-                      disabled={index === 0}
-                    >
-                      <MaterialCommunityIcons name="arrow-up" size={18} color={tokens.colors.accent} />
-                    </PressScale>
-                  </View>
+                    sectionId={sectionId}
+                    index={index}
+                  />
                 ))}
               </ScrollView>
             </Animated.View>
@@ -876,8 +985,8 @@ const styles = StyleSheet.create({
   greetingBlock: {
     gap: 10,
   },
-  kpiBlock: {
-    gap: 0,
+  summaryBlock: {
+    gap: 10,
   },
   greetingRow: {
     flexDirection: "row",
@@ -1011,6 +1120,16 @@ const styles = StyleSheet.create({
   reorderList: {
     paddingVertical: 4,
     gap: 10,
+    position: "relative",
+  },
+  reorderDropIndicator: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    top: 0,
+    height: 4,
+    borderRadius: 999,
+    zIndex: 10,
   },
   reorderRow: {
     borderRadius: 12,
@@ -1020,6 +1139,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     borderWidth: 1,
+    minHeight: 56,
+  },
+  reorderRowActive: {
+    opacity: 0.92,
+    zIndex: 5,
   },
   reorderRowContent: {
     flex: 1,
@@ -1030,8 +1154,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   reorderAction: {
-    padding: 6,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   errorBody: {
     marginTop: 6,

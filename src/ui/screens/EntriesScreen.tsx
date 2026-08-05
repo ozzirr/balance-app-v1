@@ -974,18 +974,6 @@ export default function EntriesScreen(): JSX.Element {
             { gap: tokens.spacing.lg, paddingBottom: 140 + insets.bottom, paddingTop: headerHeight + 12 },
           ]}
         >
-        <GlassCardContainer contentStyle={{ gap: tokens.spacing.md }}>
-          <SegmentedControlPill
-            value={entryType}
-            onChange={(next) => setEntryType(next as EntryType)}
-            options={[
-              { value: "expense", label: t("entries.list.tabExpense"), tint: `${tokens.colors.expense}33` },
-              { value: "income", label: t("entries.list.tabIncome"), tint: `${tokens.colors.income}44` },
-            ]}
-          />
-
-        </GlassCardContainer>
-
         {shouldShowEmptyEntriesGuide ? (
           <CoachTipCard
             title={emptyEntriesGuideTitle}
@@ -1162,8 +1150,17 @@ export default function EntriesScreen(): JSX.Element {
             </View>
         </BottomSheet>
 
-        {shouldShowEntriesCard ? (
-          <GlassCardContainer contentStyle={styles.entriesTableCard}>
+        <GlassCardContainer contentStyle={styles.entriesTableCard}>
+          <SegmentedControlPill
+            value={entryType}
+            onChange={(next) => setEntryType(next as EntryType)}
+            options={[
+              { value: "expense", label: t("entries.list.tabExpense"), tint: `${tokens.colors.expense}33` },
+              { value: "income", label: t("entries.list.tabIncome"), tint: `${tokens.colors.income}44` },
+            ]}
+          />
+          {shouldShowEntriesCard ? (
+            <>
             <ScrollView
               ref={filtersRowRef}
               horizontal
@@ -1371,8 +1368,19 @@ export default function EntriesScreen(): JSX.Element {
                 </PressScale>
               </View>
             ) : null}
-          </GlassCardContainer>
-        ) : null}
+            </>
+          ) : null}
+          {!showNewEntry ? (
+            <PrimaryPillButton
+              label={t("entries.actions.toggleForm")}
+              onPress={() => {
+                toggleNewEntryVisibility();
+                setTimeout(scrollToForm, 80);
+              }}
+              color={tokens.colors.purplePrimary}
+            />
+          ) : null}
+        </GlassCardContainer>
         {entryType === "expense" ? (
           <View
             onLayout={(event) => {
@@ -1516,18 +1524,6 @@ export default function EntriesScreen(): JSX.Element {
           confirmColor={tokens.colors.expense}
         />
         </ScrollView>
-        {!showNewEntry ? (
-          <View style={[styles.fixedActionBar, { bottom: insets.bottom + 84 }]}>
-            <PrimaryPillButton
-              label={t("entries.actions.toggleForm")}
-              onPress={() => {
-                toggleNewEntryVisibility();
-                setTimeout(scrollToForm, 80);
-              }}
-              color={tokens.colors.purplePrimary}
-            />
-          </View>
-        ) : null}
       </AppBackground>
     </View>
   );
@@ -1539,13 +1535,6 @@ const styles = StyleSheet.create({
   },
   screenRoot: {
     flex: 1,
-  },
-  fixedActionBar: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    zIndex: 20,
-    elevation: 20,
   },
   container: {
     paddingHorizontal: 16,

@@ -1,8 +1,7 @@
-import { breakdownByWallet, totalsByWalletType } from "@/domain/calculations";
+import { breakdownByWallet, totalsByAvailability, totalsByWalletType } from "@/domain/calculations";
 import { averageMonthlyTotals, totalsForMonth } from "@/domain/finance";
 import { listOccurrencesInRange, upcomingOccurrences } from "@/domain/recurrence";
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, Snapshot, SnapshotLineDetail, Wallet } from "@/repositories/types";
-import { DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 import { orderWalletsForUI } from "@/domain/walletOrdering";
 import { addDays, addMonthsClamped, getFrequencyKey } from "@/utils/recurrence";
 import i18n from "i18next";
@@ -83,6 +82,7 @@ function buildPortfolioSeries(
         total: totals.netWorth,
         liquidity: totals.liquidity,
         investments: totals.investments,
+        pension: totals.pension,
       });
     });
   return points;
@@ -131,7 +131,8 @@ function buildWalletSeries(
     walletId: wallet.id,
     name: wallet.name,
     type: wallet.type,
-    color: wallet.color ?? DEFAULT_WALLET_COLOR,
+    investmentKind: wallet.investmentKind,
+    color: wallet.color ?? palette[0],
     points: portfolio.map((point) => {
       const monthKey = point.date.slice(0, 7);
       const lines = getLinesForMonth(monthKey);
@@ -154,13 +155,15 @@ function buildKpis(
   const deltaTotal = deltaResult.deltas.total.deltaAbs;
   const deltaLiquidity = deltaResult.deltas.liquidity.deltaAbs;
   const deltaInvest = deltaResult.deltas.investments.deltaAbs;
+  const deltaPension = deltaResult.deltas.pension.deltaAbs;
   const toBreakdown = (lines: SnapshotLineDetail[]) =>
     breakdownByWallet(lines)
       .filter((item) => item.label)
       .sort((a, b) => b.value - a.value)
       .map((item) => ({ label: item.label, value: item.value }));
   const liquidityBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_type !== "INVEST"));
-  const investBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_type === "INVEST"));
+  const investBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_type === "INVEST" && line.wallet_investment_kind !== "PENSION"));
+  const pensionBreakdown = toBreakdown(latestLines.filter((line) => line.wallet_investment_kind === "PENSION"));
   const netWorthBreakdown = toBreakdown(latestLines);
 
   const liquidityItem: KPIItem = {
@@ -183,6 +186,16 @@ function buildKpis(
     accent: palette[1],
     breakdown: investBreakdown,
   };
+  const pensionItem: KPIItem = {
+    id: "pension",
+    label: i18n.t("dashboard.kpi.pension"),
+    value: totals.pension,
+    deltaValue: deltaPension,
+    deltaPct: deltaResult.deltas.pension.deltaPct,
+    deltaStatus: deltaResult.status,
+    accent: palette[2],
+    breakdown: pensionBreakdown,
+  };
   const netWorthItem: KPIItem = {
     id: "netWorth",
     label: i18n.t("dashboard.kpi.netWorth"),
@@ -196,7 +209,10 @@ function buildKpis(
 
   const items: KPIItem[] = [];
   if (showInvestments) {
-    items.push(liquidityItem, investItem, netWorthItem);
+    items.push(liquidityItem);
+    if (totals.investments !== 0 || investBreakdown.length > 0) items.push(investItem);
+    if (totals.pension !== 0 || pensionBreakdown.length > 0) items.push(pensionItem);
+    items.push(netWorthItem);
   } else {
     items.push(liquidityItem);
   }
@@ -210,6 +226,7 @@ type KpiDeltaResult = {
   deltas: {
     liquidity: DeltaPair;
     investments: DeltaPair;
+    pension: DeltaPair;
     total: DeltaPair;
   };
   meta?: { startDate: string; endDate: string };
@@ -245,6 +262,7 @@ function totalsFromSnapshotLines(lines: SnapshotLineDetail[] | undefined | null)
   return {
     liquidity: totals.liquidity,
     investments: totals.investments,
+    pension: totals.pension,
     total: totals.netWorth,
   };
 }
@@ -253,7 +271,7 @@ function deltaFromTotals(endTotals: ReturnType<typeof totalsFromSnapshotLines>, 
   if (!endTotals || !startTotals) {
     return {
       status: "NO_DATA",
-      deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, total: EMPTY_DELTA },
+      deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA },
     };
   }
   const calc = (end: number, start: number): DeltaPair => ({
@@ -265,6 +283,7 @@ function deltaFromTotals(endTotals: ReturnType<typeof totalsFromSnapshotLines>, 
     deltas: {
       liquidity: calc(endTotals.liquidity, startTotals.liquidity),
       investments: calc(endTotals.investments, startTotals.investments),
+      pension: calc(endTotals.pension, startTotals.pension),
       total: calc(endTotals.total, startTotals.total),
     },
   };
@@ -273,21 +292,33 @@ function deltaFromTotals(endTotals: ReturnType<typeof totalsFromSnapshotLines>, 
 // Selezione delta: 1D = ultimo snapshot vs precedente; 7D/28D = ultimo snapshot vs snapshot <= end-7/28g;
 // 3M/6M/12M = ultimo punto mensile vs punto mensile <= target month.
 export function buildKpiDeltaForRange(
-  range: KpiDeltaRange,
+  range: KpiDeltaRange | "1D",
   snapshots: Snapshot[],
   portfolioSeries: PortfolioPoint[],
   snapshotLinesById: Record<number, SnapshotLineDetail[]>
 ): KpiDeltaResult {
+  if (range === "1D") {
+    const endSnapshot = snapshots[0];
+    const startSnapshot = endSnapshot ? findSnapshotBefore(snapshots, endSnapshot.date) : null;
+    if (!endSnapshot || !startSnapshot) {
+      return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
+    }
+    const result = deltaFromTotals(
+      totalsFromSnapshotLines(snapshotLinesById[endSnapshot.id]),
+      totalsFromSnapshotLines(snapshotLinesById[startSnapshot.id])
+    );
+    return { ...result, meta: { startDate: startSnapshot.date, endDate: endSnapshot.date } };
+  }
   if (range === "7D" || range === "28D") {
     const endSnapshot = snapshots[0];
     if (!endSnapshot) {
-      return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, total: EMPTY_DELTA } };
+      return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
     }
     const endTotals = totalsFromSnapshotLines(snapshotLinesById[endSnapshot.id]);
     const startSnapshot =
       findSnapshotOnOrBefore(snapshots, addDays(endSnapshot.date, range === "7D" ? -7 : -28));
     if (!startSnapshot) {
-      return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, total: EMPTY_DELTA } };
+      return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
     }
     const startTotals = totalsFromSnapshotLines(snapshotLinesById[startSnapshot.id]);
     const result = deltaFromTotals(endTotals, startTotals);
@@ -298,7 +329,7 @@ export function buildKpiDeltaForRange(
   }
 
   if (portfolioSeries.length < 2) {
-    return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, total: EMPTY_DELTA } };
+    return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
   }
   const endPoint = portfolioSeries[portfolioSeries.length - 1];
   const endKey = monthKeyFromIso(endPoint.date);
@@ -306,7 +337,7 @@ export function buildKpiDeltaForRange(
   const targetMonth = shiftMonthKey(endKey, monthsBack);
   const startPoint = [...portfolioSeries].reverse().find((point) => monthKeyFromIso(point.date) <= targetMonth);
   if (!startPoint) {
-    return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, total: EMPTY_DELTA } };
+    return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
   }
   const calc = (end: number, start: number): DeltaPair => ({
     deltaAbs: end - start,
@@ -317,6 +348,7 @@ export function buildKpiDeltaForRange(
     deltas: {
       liquidity: calc(endPoint.liquidity, startPoint.liquidity),
       investments: calc(endPoint.investments, startPoint.investments),
+      pension: calc(endPoint.pension ?? 0, startPoint.pension ?? 0),
       total: calc(endPoint.total, startPoint.total),
     },
     meta: { startDate: startPoint.date, endDate: endPoint.date },
@@ -470,6 +502,20 @@ export function buildDashboardData(
     input.snapshotLines
   );
   const distributions = buildDistribution(input.latestLines, input.wallets);
+  const availabilityTotals = totalsByAvailability(input.latestLines);
+  const availabilityProducts = input.latestLines.map((line) => ({
+    id: line.wallet_id,
+    name: line.wallet_name ?? i18n.t("wallets.snapshot.unknown"),
+    value: line.amount,
+    availability: line.wallet_type === "LIQUIDITY"
+      ? "immediate" as const
+      : line.wallet_investment_kind === "PENSION" || line.wallet_availability === "restricted"
+        ? "restricted" as const
+        : "liquid" as const,
+    availabilityDate: line.wallet_availability_date ?? null,
+    restrictionNote: line.wallet_restriction_note ?? null,
+    investmentKind: line.wallet_investment_kind === "PENSION" ? "PENSION" as const : "STANDARD" as const,
+  }));
   const cashflowMonths = buildCashflow(input.incomeEntries, input.expenseEntries, input.chartPoints);
   const averages = averageMonthlyTotals(
     input.incomeEntries,
@@ -480,6 +526,7 @@ export function buildDashboardData(
   );
   return {
     kpis,
+    availability: { ...availabilityTotals, products: availabilityProducts },
     portfolioSeries: portfolio,
     walletSeries,
     distributions,
@@ -514,6 +561,7 @@ export function createMockDashboardData(showInvestments = true): DashboardData {
       walletId: 1,
       name: "Liquidità",
       type: "LIQUIDITY",
+      investmentKind: "STANDARD",
       color: palette[0],
       points: portfolioSeries.map((point) => ({ date: point.date, value: point.liquidity })),
     },
@@ -521,6 +569,7 @@ export function createMockDashboardData(showInvestments = true): DashboardData {
       walletId: 2,
       name: "Investimenti",
       type: "INVEST",
+      investmentKind: "STANDARD",
       color: palette[1],
       points: portfolioSeries.map((point) => ({ date: point.date, value: point.investments })),
     },
@@ -580,6 +629,16 @@ export function createMockDashboardData(showInvestments = true): DashboardData {
   ];
   return {
     kpis,
+    availability: {
+      immediate: 16450,
+      liquid: 21800,
+      restricted: 11000,
+      available: 38250,
+      total: 49250,
+      availablePct: 38250 / 49250,
+      restrictedPct: 11000 / 49250,
+      products: [],
+    },
     portfolioSeries,
     walletSeries,
     distributions,

@@ -66,6 +66,23 @@ describe("buildKpiDeltaForRange", () => {
     expect(result.status).toBe("NO_DATA");
   });
 
+  test("1D: keeps retirement savings separate from ordinary investments", () => {
+    const snapshots: Snapshot[] = [
+      { id: 2, date: "2026-01-29" },
+      { id: 1, date: "2026-01-28" },
+    ];
+    const pensionStart = { ...makeLine(1, "INVEST", 100), wallet_id: 3, wallet_investment_kind: "PENSION" as const };
+    const pensionEnd = { ...makeLine(2, "INVEST", 125), wallet_id: 3, wallet_investment_kind: "PENSION" as const };
+    const result = buildKpiDeltaForRange("1D", snapshots, [], {
+      1: [makeLine(1, "INVEST", 50), pensionStart],
+      2: [makeLine(2, "INVEST", 60), pensionEnd],
+    });
+
+    expect(result.deltas.investments.deltaAbs).toBe(10);
+    expect(result.deltas.pension.deltaAbs).toBe(25);
+    expect(result.deltas.total.deltaAbs).toBe(35);
+  });
+
   test("3M: uses monthly portfolio series with missing months", () => {
     const portfolioSeries: PortfolioPoint[] = [
       { date: "2025-10-01", total: 100, liquidity: 60, investments: 40 },

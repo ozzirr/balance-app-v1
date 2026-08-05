@@ -1,6 +1,12 @@
 import { executeSql, runSqlBatch } from "@/db/db";
 import { fetchAll, fetchOne } from "./helpers";
-import type { Currency, Wallet, WalletType } from "./types";
+import type { AssetAvailability, Currency, InvestmentKind, Wallet, WalletType } from "./types";
+import {
+  inferAssetAvailability,
+  inferInvestmentKind,
+  normalizeAssetAvailability,
+  normalizeInvestmentKind,
+} from "@/domain/assetAvailability";
 
 export const DEFAULT_WALLET_COLOR = "#9B7BFF";
 
@@ -15,7 +21,11 @@ export async function listWallets(activeOnly = false): Promise<Wallet[]> {
        tag,
        active,
        sort_order AS sortOrder,
-       color
+       color,
+       availability,
+       availability_date AS availabilityDate,
+       restriction_note AS restrictionNote,
+       investment_kind AS investmentKind
      FROM wallets ${where}
      ORDER BY
        CASE LOWER(type) WHEN 'liquidity' THEN 0 ELSE 1 END,
@@ -25,7 +35,15 @@ export async function listWallets(activeOnly = false): Promise<Wallet[]> {
 }
 
 export async function getWallet(id: number): Promise<Wallet | null> {
-  return fetchOne<Wallet>("SELECT * FROM wallets WHERE id = ?", [id]);
+  return fetchOne<Wallet>(
+    `SELECT id, name, type, currency, tag, active, color,
+      sort_order AS sortOrder, availability,
+      availability_date AS availabilityDate,
+      restriction_note AS restrictionNote,
+      investment_kind AS investmentKind
+     FROM wallets WHERE id = ?`,
+    [id]
+  );
 }
 
 async function getNextSortOrder(type: WalletType): Promise<number> {
@@ -40,12 +58,22 @@ export async function createWallet(
   currency: Currency,
   tag: string | null,
   active = 1,
-  color = DEFAULT_WALLET_COLOR
+  color = DEFAULT_WALLET_COLOR,
+  availability: AssetAvailability = inferAssetAvailability(type, name, tag),
+  availabilityDate: string | null = null,
+  restrictionNote: string | null = null,
+  investmentKind: InvestmentKind = inferInvestmentKind(type, name, tag)
 ): Promise<number> {
   const nextOrder = (await getNextSortOrder(type)) + 1;
+  const normalizedInvestmentKind = normalizeInvestmentKind(type, investmentKind);
+  const normalizedAvailability = normalizeAssetAvailability(type, availability, normalizedInvestmentKind);
+  const normalizedDate = normalizedAvailability === "restricted" ? availabilityDate : null;
+  const normalizedNote = normalizedAvailability === "restricted" ? restrictionNote : null;
   const result = await executeSql(
-    "INSERT INTO wallets (name, type, currency, tag, active, sort_order, color) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [name, type, currency, tag, active, nextOrder, color]
+    `INSERT INTO wallets
+      (name, type, currency, tag, active, sort_order, color, availability, availability_date, restriction_note, investment_kind)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, type, currency, tag, active, nextOrder, color, normalizedAvailability, normalizedDate, normalizedNote, normalizedInvestmentKind]
   );
   return result.insertId ?? 0;
 }
@@ -57,11 +85,20 @@ export async function updateWallet(
   currency: Currency,
   tag: string | null,
   active: number,
-  color = DEFAULT_WALLET_COLOR
+  color = DEFAULT_WALLET_COLOR,
+  availability: AssetAvailability = inferAssetAvailability(type, name, tag),
+  availabilityDate: string | null = null,
+  restrictionNote: string | null = null,
+  investmentKind: InvestmentKind = inferInvestmentKind(type, name, tag)
 ): Promise<void> {
+  const normalizedInvestmentKind = normalizeInvestmentKind(type, investmentKind);
+  const normalizedAvailability = normalizeAssetAvailability(type, availability, normalizedInvestmentKind);
+  const normalizedDate = normalizedAvailability === "restricted" ? availabilityDate : null;
+  const normalizedNote = normalizedAvailability === "restricted" ? restrictionNote : null;
   await executeSql(
-    "UPDATE wallets SET name = ?, type = ?, currency = ?, tag = ?, active = ?, color = ? WHERE id = ?",
-    [name, type, currency, tag, active, color, id]
+    `UPDATE wallets SET name = ?, type = ?, currency = ?, tag = ?, active = ?, color = ?,
+      availability = ?, availability_date = ?, restriction_note = ?, investment_kind = ? WHERE id = ?`,
+    [name, type, currency, tag, active, color, normalizedAvailability, normalizedDate, normalizedNote, normalizedInvestmentKind, id]
   );
 }
 

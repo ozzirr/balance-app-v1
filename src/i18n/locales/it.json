@@ -124,6 +124,10 @@
         }
       },
       "showInvestments": "Mostra investimenti",
+      "showInvestmentAvailability": "Distingui investimenti liquidabili e vincolati",
+      "showInvestmentAvailabilityHint": "Mostra classificazione, filtri e composizione del patrimonio.",
+      "trackPension": "Monitora previdenza complementare",
+      "trackPensionHint": "Aggiunge la sezione Previdenza e include i fondi pensione nel patrimonio.",
       "scrollBounce": "Rimbalzo scroll",
       "monthsInChart": "Mesi nel grafico",
       "languageLabel": "Lingua",
@@ -182,7 +186,8 @@
       "toggle": {
         "total": "Totale",
         "liquidity": "Liquidità",
-        "investments": "Investimenti"
+        "investments": "Investimenti",
+        "pension": "Previdenza"
       },
       "empty": "Nessun dato disponibile."
     },
@@ -230,8 +235,15 @@
     "kpi": {
       "liquidity": "Liquidità",
       "investments": "Investimenti",
+      "pension": "Previdenza",
       "netWorth": "Patrimonio",
       "awaitingComparison": "In attesa di confronto"
+    },
+    "availability": {
+      "title": "Composizione patrimonio", "available": "Disponibile", "restrictedShort": "Vincolato",
+      "immediate": "Liquidità immediata", "liquid": "Investimenti liquidabili", "restricted": "Investimenti vincolati", "pension": "Previdenza",
+      "availableFrom": "Disponibile da: {{date}}",
+      "ratioA11y": "Patrimonio disponibile {{available}}, patrimonio vincolato {{restricted}}"
     },
     "range": {
       "label": "Periodo",
@@ -260,7 +272,7 @@
       "edit": "Modifica ordine",
       "title": "Modifica ordine",
       "done": "Fatto",
-      "hint": "Tocca la freccia per portare in alto."
+      "hint": "Trascina la maniglia per cambiare liberamente l'ordine."
     },
     "mock": {
       "kpi": {
@@ -305,13 +317,15 @@
     "list": {
       "tabLiquidity": "Liquidità",
       "tabInvest": "Investimenti",
+      "tabPension": "Previdenza",
       "reorderTitle": "Ordina wallet",
-      "reorderHint": "Tocca la freccia per portare un wallet in cima",
+      "reorderHint": "Trascina la maniglia per cambiare liberamente l'ordine",
       "editOrder": "Modifica ordine",
       "doneOrder": "Fine ordine",
       "addWallet": "Aggiungi wallet",
       "newLiquidityTitle": "Aggiungi un nuovo wallet",
       "newInvestTitle": "Aggiungi un nuovo wallet",
+      "newPensionTitle": "Aggiungi un fondo pensione",
       "categoriesTitle": "Categorie di spesa",
       "newCategoryLabel": "Nome categoria",
       "addCategory": "Aggiungi categoria",
@@ -325,7 +339,22 @@
       "name": "Nome",
       "brokerLabel": "Broker",
       "investmentTypeLabel": "Tipo investimento",
+      "pensionProviderLabel": "Fondo o gestore",
+      "pensionTypeLabel": "Tipologia previdenziale",
       "colorLabel": "Colore"
+    },
+    "sheet": {
+      "pensionSubtitle": "Nome del fondo, tipologia, valuta e colore. La previdenza è considerata patrimonio vincolato."
+    },
+    "availability": {
+      "title": "Disponibilità del patrimonio",
+      "immediate": { "label": "Disponibilità immediata", "description": "Denaro utilizzabile subito." },
+      "liquid": { "label": "Investimento liquidabile", "description": "Investimento vendibile normalmente in pochi giorni." },
+      "restricted": { "label": "Investimento vincolato", "description": "Valore non disponibile prima della scadenza o di specifiche condizioni." },
+      "date": "Data di disponibilità (opzionale)", "datePlaceholder": "AAAA-MM-GG",
+      "clearDate": "Rimuovi data di disponibilità",
+      "note": "Descrizione del vincolo (opzionale)",
+      "filter": { "all": "Tutti", "immediate": "Immediata", "liquid": "Liquidabili", "restricted": "Vincolati" }
     },
     "guide": {
       "title": "Qui sotto hai il tuo primo wallet per partire subito",
@@ -559,6 +588,7 @@
     "totals": {
       "liquidity": "Liquidità",
       "investments": "Investimenti",
+      "pension": "Previdenza",
       "netWorth": "Patrimonio"
     }
   },

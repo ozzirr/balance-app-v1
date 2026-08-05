@@ -1,8 +1,51 @@
-import type { Snapshot, SnapshotLineDetail, WalletType } from "@/repositories/types";
+import type { AssetAvailability, Snapshot, SnapshotLineDetail, WalletType } from "@/repositories/types";
 
 export type BreakdownItem = { label: string; value: number };
 export type SnapshotPoint = { date: string; total: number };
-export type SnapshotTotals = { liquidity: number; investments: number; netWorth: number };
+export type SnapshotTotals = { liquidity: number; investments: number; pension: number; netWorth: number };
+export type AvailabilityTotals = {
+  immediate: number;
+  liquid: number;
+  restricted: number;
+  available: number;
+  total: number;
+  availablePct: number;
+  restrictedPct: number;
+};
+
+function availabilityForLine(line: SnapshotLineDetail): AssetAvailability {
+  if (line.wallet_type === "LIQUIDITY") return "immediate";
+  if (line.wallet_investment_kind === "PENSION") return "restricted";
+  return line.wallet_availability === "restricted" ? "restricted" : "liquid";
+}
+
+export function totalsByAvailability(lines: SnapshotLineDetail[]): AvailabilityTotals {
+  const parts = lines.reduce(
+    (totals, line) => {
+      totals[availabilityForLine(line)] += line.amount;
+      return totals;
+    },
+    { immediate: 0, liquid: 0, restricted: 0 }
+  );
+  const available = parts.immediate + parts.liquid;
+  const total = available + parts.restricted;
+  return {
+    ...parts,
+    available,
+    total,
+    availablePct: total === 0 ? 0 : available / total,
+    restrictedPct: total === 0 ? 0 : parts.restricted / total,
+  };
+}
+
+export function breakdownByAvailability(lines: SnapshotLineDetail[]) {
+  const grouped = new Map<AssetAvailability, SnapshotLineDetail[]>();
+  lines.forEach((line) => {
+    const availability = availabilityForLine(line);
+    grouped.set(availability, [...(grouped.get(availability) ?? []), line]);
+  });
+  return grouped;
+}
 
 export function totalFromSnapshot(lines: SnapshotLineDetail[]): number {
   return lines.reduce((sum, line) => sum + line.amount, 0);
@@ -12,15 +55,19 @@ export function totalsByWalletType(lines: SnapshotLineDetail[]): SnapshotTotals 
   const totals = lines.reduce(
     (acc, line) => {
       if (line.wallet_type === "INVEST") {
-        acc.investments += line.amount;
+        if (line.wallet_investment_kind === "PENSION") {
+          acc.pension += line.amount;
+        } else {
+          acc.investments += line.amount;
+        }
       } else {
         acc.liquidity += line.amount;
       }
       return acc;
     },
-    { liquidity: 0, investments: 0 }
+    { liquidity: 0, investments: 0, pension: 0 }
   );
-  return { ...totals, netWorth: totals.liquidity + totals.investments };
+  return { ...totals, netWorth: totals.liquidity + totals.investments + totals.pension };
 }
 
 export function breakdownByWallet(lines: SnapshotLineDetail[]): BreakdownItem[] {

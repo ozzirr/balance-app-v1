@@ -22,11 +22,22 @@ describe("totals", () => {
         wallet_type: "INVEST",
         wallet_tag: "Crypto",
       },
+      {
+        id: 3,
+        snapshot_id: 1,
+        wallet_id: 3,
+        amount: 200,
+        wallet_name: "Fondo pensione",
+        wallet_type: "INVEST",
+        wallet_tag: "PIP",
+        wallet_investment_kind: "PENSION",
+      },
     ];
 
     const totals = totalsByWalletType(lines);
     expect(totals.liquidity).toBe(100);
     expect(totals.investments).toBe(300);
-    expect(totals.netWorth).toBe(400);
+    expect(totals.pension).toBe(200);
+    expect(totals.netWorth).toBe(600);
   });
 });

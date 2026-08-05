@@ -98,6 +98,37 @@ async function ensureCriticalSchema(): Promise<void> {
   }
   await executeSql("CREATE INDEX IF NOT EXISTS idx_income_end_date ON income_entries(end_date)");
   await executeSql("CREATE INDEX IF NOT EXISTS idx_expense_end_date ON expense_entries(end_date)");
+  if (!(await hasColumn("wallets", "availability"))) {
+    await executeSql("ALTER TABLE wallets ADD COLUMN availability TEXT");
+  }
+  if (!(await hasColumn("wallets", "availability_date"))) {
+    await executeSql("ALTER TABLE wallets ADD COLUMN availability_date TEXT");
+  }
+  if (!(await hasColumn("wallets", "restriction_note"))) {
+    await executeSql("ALTER TABLE wallets ADD COLUMN restriction_note TEXT");
+  }
+  if (!(await hasColumn("wallets", "investment_kind"))) {
+    await executeSql("ALTER TABLE wallets ADD COLUMN investment_kind TEXT NOT NULL DEFAULT 'STANDARD'");
+  }
+  await executeSql(`UPDATE wallets SET availability = CASE
+    WHEN UPPER(type) = 'LIQUIDITY' THEN 'immediate'
+    WHEN LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%previdenz%'
+      OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pension%'
+      OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%lecoip%'
+      OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pip%'
+      OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%vincol%'
+    THEN 'restricted' ELSE 'liquid' END
+    WHERE availability IS NULL OR availability NOT IN ('immediate', 'liquid', 'restricted')`);
+  await executeSql("CREATE INDEX IF NOT EXISTS idx_wallets_availability ON wallets(availability)");
+  await executeSql(`UPDATE wallets SET investment_kind = CASE
+    WHEN UPPER(type) = 'INVEST' AND (
+      LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%previdenz%'
+      OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pension%'
+      OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pip%'
+    ) THEN 'PENSION' ELSE 'STANDARD' END
+    WHERE investment_kind IS NULL OR investment_kind NOT IN ('STANDARD', 'PENSION')`);
+  await executeSql("UPDATE wallets SET availability = 'restricted' WHERE investment_kind = 'PENSION'");
+  await executeSql("CREATE INDEX IF NOT EXISTS idx_wallets_investment_kind ON wallets(investment_kind)");
 }
 
 export async function runMigrations(): Promise<void> {

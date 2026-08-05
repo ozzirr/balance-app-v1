@@ -6,7 +6,7 @@ describe("calculations helpers with sample data", () => {
     const snapshotLines = sampleSnapshotLinesBySnapshot[3];
     const totals = totalsByWalletType(snapshotLines);
 
-    expect(totals).toEqual({ liquidity: 3000, investments: 1600, netWorth: 4600 });
+    expect(totals).toEqual({ liquidity: 3000, investments: 1600, pension: 0, netWorth: 4600 });
   });
 
   test("snapshotSeries builds a timeline of totals", () => {

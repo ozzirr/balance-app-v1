@@ -30,7 +30,11 @@ export async function deleteSnapshot(id: number): Promise<void> {
 
 export async function listSnapshotLines(snapshotId: number): Promise<SnapshotLineDetail[]> {
   return fetchAll<SnapshotLineDetail>(
-    `SELECT sl.*, w.name AS wallet_name, w.type AS wallet_type, w.tag AS wallet_tag
+    `SELECT sl.*, w.name AS wallet_name, w.type AS wallet_type, w.tag AS wallet_tag,
+       w.availability AS wallet_availability,
+       w.availability_date AS wallet_availability_date,
+       w.restriction_note AS wallet_restriction_note,
+       w.investment_kind AS wallet_investment_kind
      FROM snapshot_lines sl
      LEFT JOIN wallets w ON w.id = sl.wallet_id
      WHERE sl.snapshot_id = ?

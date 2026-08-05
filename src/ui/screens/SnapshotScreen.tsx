@@ -46,6 +46,7 @@ type DraftLine = {
 
 type SnapshotRouteParams = {
   openNew?: boolean;
+  walletId?: number;
 };
 
 const MONTH_LABELS = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
@@ -146,7 +147,7 @@ export default function SnapshotScreen(): JSX.Element {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const { showInvestments, scrollBounceEnabled } = useSettings();
+  const { showInvestments, trackPension, scrollBounceEnabled } = useSettings();
   const { t } = useTranslation();
   const route = useRoute();
   const routeParams = route.params as SnapshotRouteParams | undefined;
@@ -164,6 +165,7 @@ export default function SnapshotScreen(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null);
   const [focusedLineId, setFocusedLineId] = useState<number | null>(null);
+  const [walletAction, setWalletAction] = useState<SnapshotLineDetail | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [confirmSnapshotDeleteVisible, setConfirmSnapshotDeleteVisible] = useState(false);
   const [confirmSnapshotDeleteLoading, setConfirmSnapshotDeleteLoading] = useState(false);
@@ -173,6 +175,7 @@ export default function SnapshotScreen(): JSX.Element {
   const monthsScrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
   const monthChipLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
   const inputRefs = useRef<Record<number, React.ComponentRef<typeof TextInput> | null>>({});
+  const pendingFocusWalletIdRef = useRef<number | null>(null);
   const [monthsViewportWidth, setMonthsViewportWidth] = useState(0);
 
   const load = useCallback(async () => {
@@ -253,6 +256,16 @@ export default function SnapshotScreen(): JSX.Element {
   }, [navigation, openNew, refreshAll]);
 
   useEffect(() => {
+    const routeWalletId = routeParams?.walletId;
+    if (!routeWalletId) return;
+    void (async () => {
+      await refreshAll();
+      await openBalanceEditorForWallet(routeWalletId);
+      navigation.setParams({ walletId: undefined });
+    })();
+  }, [navigation, refreshAll, routeParams?.walletId]);
+
+  useEffect(() => {
     if (!showForm || editingSnapshotId !== null) return;
     const currentKey = monthKeyFromDate(todayIso());
     const targetKey = activeMonthKey ?? currentKey;
@@ -264,7 +277,26 @@ export default function SnapshotScreen(): JSX.Element {
     }
   }, [activeMonthKey, editingSnapshotId, showForm]);
 
-  const openNewSnapshot = async (forceOpen = false) => {
+  const focusAmountInput = (walletId: number) => {
+    pendingFocusWalletIdRef.current = walletId;
+    setFocusedLineId(walletId);
+    setTimeout(() => {
+      inputRefs.current[walletId]?.focus();
+    }, 520);
+  };
+
+  useEffect(() => {
+    if (!showForm) return;
+    const walletId = pendingFocusWalletIdRef.current;
+    if (!walletId) return;
+    const timer = setTimeout(() => {
+      inputRefs.current[walletId]?.focus();
+      pendingFocusWalletIdRef.current = null;
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [draftLines, showForm]);
+
+  const openNewSnapshot = async (forceOpen = false, focusWalletId?: number) => {
     if (showForm) {
       if (!forceOpen) {
         setShowForm(false);
@@ -312,12 +344,15 @@ export default function SnapshotScreen(): JSX.Element {
         setSnapshotDate(todayIso());
       }
       setShowForm(true);
+      if (focusWalletId) {
+        focusAmountInput(focusWalletId);
+      }
     } finally {
       setDraftLoading(false);
     }
   };
 
-  const openEditSnapshot = async (snapshotId: number) => {
+  const openEditSnapshot = async (snapshotId: number, focusWalletId?: number) => {
     setDraftLoading(true);
     setError(null);
     const snapshot = snapshots.find((item) => item.id === snapshotId);
@@ -344,7 +379,19 @@ export default function SnapshotScreen(): JSX.Element {
     setSnapshotDate(targetDate);
     setEditingSnapshotId(snapshotId);
     setShowForm(true);
+    if (focusWalletId) {
+      focusAmountInput(focusWalletId);
+    }
     setDraftLoading(false);
+  };
+
+  const openBalanceEditorForWallet = async (walletId: number) => {
+    const targetId = activeMonth?.snapshots[0]?.id ?? selectedSnapshotId;
+    if (targetId) {
+      await openEditSnapshot(targetId, walletId);
+      return;
+    }
+    await openNewSnapshot(true, walletId);
   };
 
   const updateDraftLine = (index: number, patch: Partial<DraftLine>) => {
@@ -406,7 +453,7 @@ export default function SnapshotScreen(): JSX.Element {
       setError("Data non valida (YYYY-MM-DD).");
       return;
     }
-    const cleaned = draftLines
+    let cleaned = draftLines
       .map((line) => ({
         wallet_id: line.walletId,
         amount: Number(normalizeInputAmount(line.amount)),
@@ -427,6 +474,15 @@ export default function SnapshotScreen(): JSX.Element {
     }
 
     const existing = await getSnapshotByDate(snapshotDate);
+    const preservedSnapshotId = editingSnapshotId ?? existing?.id ?? null;
+    if (!trackPension && preservedSnapshotId) {
+      const existingLines = await listSnapshotLines(preservedSnapshotId);
+      const hiddenPensionLines = existingLines
+        .filter((line) => line.wallet_investment_kind === "PENSION")
+        .map((line) => ({ wallet_id: line.wallet_id, amount: line.amount }));
+      const visibleIds = new Set(cleaned.map((line) => line.wallet_id));
+      cleaned = [...cleaned, ...hiddenPensionLines.filter((line) => !visibleIds.has(line.wallet_id))];
+    }
     if (existing && existing.id !== editingSnapshotId) {
       const ok = await confirmOverwrite();
       if (!ok) {
@@ -455,9 +511,16 @@ export default function SnapshotScreen(): JSX.Element {
     () => snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? null,
     [snapshots, selectedSnapshotId]
   );
-  const totals = useMemo(() => totalsByWalletType(lines), [lines]);
-  const sortedLines = useMemo(() => [...lines].sort((a, b) => b.amount - a.amount), [lines]);
-  const orderedWallets = useMemo(() => orderWalletsForUI(wallets), [wallets]);
+  const visibleLines = useMemo(
+    () => trackPension ? lines : lines.filter((line) => line.wallet_investment_kind !== "PENSION"),
+    [lines, trackPension]
+  );
+  const totals = useMemo(() => totalsByWalletType(visibleLines), [visibleLines]);
+  const sortedLines = useMemo(() => [...visibleLines].sort((a, b) => b.amount - a.amount), [visibleLines]);
+  const orderedWallets = useMemo(
+    () => orderWalletsForUI(wallets).filter((wallet) => trackPension || wallet.investmentKind !== "PENSION"),
+    [trackPension, wallets]
+  );
   const walletById = useMemo(() => {
     const map = new Map<number, Wallet>();
     wallets.forEach((wallet) => map.set(wallet.id, wallet));
@@ -746,6 +809,14 @@ export default function SnapshotScreen(): JSX.Element {
           />
         )}
 
+        {activeMonth && !showForm ? (
+          <PrimaryPillButton
+            label={heroCtaLabel}
+            onPress={handleHeroCta}
+            color={tokens.colors.accent}
+          />
+        ) : null}
+
         <BottomSheet
           visible={showForm}
           title={editingSnapshotId ? t("snapshot.actions.edit") : t("snapshot.actions.new")}
@@ -845,7 +916,7 @@ export default function SnapshotScreen(): JSX.Element {
             </View>
         </BottomSheet>
 
-        {lines.length > 0 && (
+        {visibleLines.length > 0 && (
           <GlassCardContainer contentStyle={{ gap: 10 }}>
             <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.summary.title")}</Text>
             <View style={styles.kpiRow}>
@@ -859,6 +930,12 @@ export default function SnapshotScreen(): JSX.Element {
                   <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.investments)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
                 </View>
               )}
+              {showInvestments && trackPension && totals.pension !== 0 ? (
+                <View style={[styles.kpiChip, { borderColor: `${tokens.colors.yellow}66`, backgroundColor: `${tokens.colors.yellow}22` }]}>
+                  <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.pension")}</Text>
+                  <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatAmount(totals.pension)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
+                </View>
+              ) : null}
               <View style={[styles.kpiChip, { borderColor: `${tokens.colors.green}66`, backgroundColor: `${tokens.colors.green}22` }]}>
                 <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("snapshot.totals.netWorth")}</Text>
                 <Text style={[styles.kpiValue, { color: tokens.colors.green }]}>{formatAmount(totals.netWorth)}{totalsCurrencySymbol ? ` ${totalsCurrencySymbol}` : ""}</Text>
@@ -867,7 +944,7 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        {shouldShowEmptySnapshotPreview && lines.length === 0 && (
+        {shouldShowEmptySnapshotPreview && visibleLines.length === 0 && (
           <GlassCardContainer contentStyle={{ gap: 10 }}>
             <Text style={[styles.sectionTitle, { color: tokens.colors.text }]}>{t("snapshot.summary.title")}</Text>
             <View style={styles.kpiRow}>
@@ -928,7 +1005,7 @@ export default function SnapshotScreen(): JSX.Element {
               }
             />
             <View style={{ gap: 8 }}>
-              {lines.length === 0 && (
+              {visibleLines.length === 0 && (
                 <View style={styles.detailSkeletonList}>
                   {[0, 1, 2].map((index) => (
                     <View key={`snapshot-skeleton-${index}`} style={styles.accountRow}>
@@ -955,10 +1032,13 @@ export default function SnapshotScreen(): JSX.Element {
                     : line.wallet_name ?? t("wallets.snapshot.unknown");
                 const wallet = walletById.get(line.wallet_id);
                 const currencySuffix = wallet ? currencySymbol(wallet.currency) : "";
-                const walletIcon = wallet?.type === "INVEST" ? "chart-line" : "wallet-outline";
+                const walletIcon = wallet?.investmentKind === "PENSION"
+                  ? "shield-account-outline"
+                  : wallet?.type === "INVEST" ? "chart-line" : "wallet-outline";
                 return (
-                  <View
+                  <Pressable
                     key={line.id}
+                    onPress={() => setWalletAction(line)}
                     style={styles.accountRow}
                   >
                     <View
@@ -978,16 +1058,10 @@ export default function SnapshotScreen(): JSX.Element {
                       {formatAmount(line.amount)}
                       {currencySuffix ? ` ${currencySuffix}` : ""}
                     </Text>
-                    <Pressable
-                      hitSlop={10}
-                      onPress={() => {
-                        navigation.navigate("Wallet", { walletId: line.wallet_id });
-                      }}
-                      style={styles.accountChevron}
-                    >
-                      <MaterialCommunityIcons name="chevron-right" size={20} color={tokens.colors.muted} />
-                    </Pressable>
-                  </View>
+                    <View style={styles.accountChevron}>
+                      <MaterialCommunityIcons name="dots-horizontal" size={20} color={tokens.colors.muted} />
+                    </View>
+                  </Pressable>
                 );
               })}
             </View>
@@ -995,15 +1069,59 @@ export default function SnapshotScreen(): JSX.Element {
         )}
 
         </ScrollView>
-        {activeMonth && !showForm ? (
-          <View style={[styles.fixedActionBar, { bottom: insets.bottom + 84 }]}>
-            <PrimaryPillButton
-              label={heroCtaLabel}
-              onPress={handleHeroCta}
-              color={tokens.colors.accent}
-            />
+        <BottomSheet
+          visible={walletAction !== null}
+          title={walletAction?.wallet_name ?? t("wallets.snapshot.unknown")}
+          subtitle={t("snapshot.walletActions.subtitle", {
+            defaultValue: "Scegli cosa modificare per questo wallet.",
+          })}
+          onClose={() => setWalletAction(null)}
+        >
+          <View style={styles.walletActionList}>
+            <Pressable
+              onPress={() => {
+                const walletId = walletAction?.wallet_id;
+                setWalletAction(null);
+                if (walletId) {
+                  navigation.navigate("Wallet", { walletId });
+                }
+              }}
+              style={[styles.walletActionRow, { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg }]}
+            >
+              <MaterialCommunityIcons name="palette-outline" size={20} color={tokens.colors.accent} />
+              <View style={styles.walletActionText}>
+                <Text style={[styles.walletActionTitle, { color: tokens.colors.text }]}>
+                  {t("snapshot.walletActions.editWallet", { defaultValue: "Modifica wallet" })}
+                </Text>
+                <Text style={[styles.walletActionSubtitle, { color: tokens.colors.muted }]}>
+                  {t("snapshot.walletActions.editWalletHint", { defaultValue: "Nome, valuta e colore." })}
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                const walletId = walletAction?.wallet_id;
+                if (walletId) {
+                  setWalletAction(null);
+                  setTimeout(() => {
+                    void openBalanceEditorForWallet(walletId);
+                  }, 240);
+                }
+              }}
+              style={[styles.walletActionRow, { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg }]}
+            >
+              <MaterialCommunityIcons name="cash-sync" size={20} color={tokens.colors.accent} />
+              <View style={styles.walletActionText}>
+                <Text style={[styles.walletActionTitle, { color: tokens.colors.text }]}>
+                  {t("snapshot.walletActions.updateBalance", { defaultValue: "Aggiorna saldo" })}
+                </Text>
+                <Text style={[styles.walletActionSubtitle, { color: tokens.colors.muted }]}>
+                  {t("snapshot.walletActions.updateBalanceHint", { defaultValue: "Vai al campo saldo di questo wallet." })}
+                </Text>
+              </View>
+            </Pressable>
           </View>
-        ) : null}
+        </BottomSheet>
         <ConfirmDialog
           visible={confirmSnapshotDeleteVisible}
           title={t("snapshot.delete.title", { defaultValue: "Eliminare snapshot?" })}
@@ -1024,13 +1142,6 @@ export default function SnapshotScreen(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-  },
-  fixedActionBar: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    zIndex: 20,
-    elevation: 20,
   },
   form: {
     gap: 12,
@@ -1155,6 +1266,30 @@ const styles = StyleSheet.create({
   },
   accountChevron: {
     padding: 4,
+  },
+  walletActionList: {
+    gap: 10,
+  },
+  walletActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+  },
+  walletActionText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  walletActionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  walletActionSubtitle: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   kpiRow: {
     flexDirection: "row",

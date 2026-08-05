@@ -5,6 +5,13 @@ import { compareIsoDates, isIsoDate } from "@/utils/dates";
 import { addYearsClamped } from "@/utils/recurrence";
 import type { SnapshotLine } from "@/repositories/types";
 import { DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
+import {
+  inferAssetAvailability,
+  inferInvestmentKind,
+  isAssetAvailability,
+  isInvestmentKind,
+  normalizeAssetAvailability,
+} from "@/domain/assetAvailability";
 
 const REQUIRED_KEYS_V1: (keyof ExportPayload)[] = [
   "version",
@@ -45,6 +52,28 @@ function normalizeRecurringEndDate<T extends RecurringImportEntry>(entry: T): T 
 function normalizeImportPayload(payload: ExportPayload): ExportPayload {
   return {
     ...payload,
+    wallets: (payload.wallets ?? []).map((wallet) => {
+      const raw = wallet as typeof wallet & {
+        availability_date?: string | null;
+        restriction_note?: string | null;
+        investment_kind?: string | null;
+      };
+      const investmentKind = isInvestmentKind(raw.investmentKind)
+        ? raw.investmentKind
+        : isInvestmentKind(raw.investment_kind)
+          ? raw.investment_kind
+          : inferInvestmentKind(raw.type, raw.name, raw.tag);
+      const availability = isAssetAvailability(raw.availability)
+        ? raw.availability
+        : inferAssetAvailability(raw.type, raw.name, raw.tag);
+      return {
+        ...wallet,
+        availability: normalizeAssetAvailability(raw.type, availability, investmentKind),
+        availabilityDate: raw.availabilityDate ?? raw.availability_date ?? null,
+        restrictionNote: raw.restrictionNote ?? raw.restriction_note ?? null,
+        investmentKind,
+      };
+    }),
     income_entries: (payload.income_entries ?? []).map((entry) => normalizeRecurringEndDate(entry)),
     expense_entries: (payload.expense_entries ?? []).map((entry) => normalizeRecurringEndDate(entry)),
   };
@@ -114,6 +143,21 @@ export function validateExportPayload(payload: ExportPayload): string[] {
     });
   }
 
+  (payload.wallets ?? []).forEach((wallet, index) => {
+    const raw = wallet as typeof wallet & { availability_date?: string | null; investment_kind?: string | null };
+    if (raw.availability !== undefined && !isAssetAvailability(raw.availability)) {
+      errors.push(`Disponibilità non valida in wallets[${index}]: ${String(raw.availability)}`);
+    }
+    const availabilityDate = raw.availabilityDate ?? raw.availability_date;
+    if (availabilityDate && !isIsoDate(availabilityDate)) {
+      errors.push(`Data disponibilità non valida in wallets[${index}]: ${availabilityDate}`);
+    }
+    const investmentKind = raw.investmentKind ?? raw.investment_kind;
+    if (investmentKind !== undefined && investmentKind !== null && !isInvestmentKind(investmentKind)) {
+      errors.push(`Categoria investimento non valida in wallets[${index}]: ${String(investmentKind)}`);
+    }
+  });
+
   const recurringGroups: {
     list: Array<{ start_date: string; end_date?: string | null; recurrence_frequency?: string | null; one_shot?: number }>;
     label: string;
@@ -149,7 +193,7 @@ export async function exportToJson(): Promise<ExportPayload> {
     "preferences",
   ] as const;
 
-  const payload: Partial<ExportPayload> = { version: 3 };
+  const payload: Partial<ExportPayload> = { version: 5 };
 
   const isSensitivePreference = (key: string) => {
     const lowered = key.toLowerCase();
@@ -228,7 +272,9 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
         (row as unknown as { sortOrder?: number }).sortOrder;
       const sortOrder = sortOrderFromPayload ?? walletOrderMap.get(row.id) ?? 0;
       await db.runAsync(
-        "INSERT INTO wallets (id, name, type, currency, tag, active, color, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        `INSERT INTO wallets
+          (id, name, type, currency, tag, active, color, sort_order, availability, availability_date, restriction_note, investment_kind)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           row.id,
           row.name,
@@ -238,6 +284,10 @@ export async function importFromJson(payload: ExportPayload): Promise<void> {
           row.active,
           row.color ?? DEFAULT_WALLET_COLOR,
           sortOrder,
+          row.availability,
+          row.availabilityDate ?? null,
+          row.restrictionNote ?? null,
+          row.investmentKind,
         ]
       );
     }

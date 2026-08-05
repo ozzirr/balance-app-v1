@@ -11,9 +11,10 @@ import type { KPIItem } from "@/ui/dashboard/types";
 type Props = {
   item: KPIItem;
   emphasizeValue?: boolean;
+  compact?: boolean;
 };
 
-export default function KPICard({ item, emphasizeValue = false }: Props): JSX.Element {
+export default function KPICard({ item, emphasizeValue = false, compact = false }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   const [expanded, setExpanded] = useState(false);
   const [displayValue, setDisplayValue] = useState(item.value);
@@ -21,6 +22,7 @@ export default function KPICard({ item, emphasizeValue = false }: Props): JSX.El
   const icon = useMemo(() => {
     if (item.id === "liquidity") return "cash";
     if (item.id === "investments") return "trending-up";
+    if (item.id === "pension") return "shield-account-outline";
     return "shield-star";
   }, [item.id]);
   const hasDelta = item.deltaStatus !== "NO_DATA";
@@ -59,33 +61,62 @@ export default function KPICard({ item, emphasizeValue = false }: Props): JSX.El
   }, [item.value]);
 
   return (
-    <PressScale onPress={onToggle} style={styles.pressable}>
-      <GlassCardContainer style={styles.card}>
-        <View style={styles.headerRow}>
-          <Text style={[styles.label, { color: tokens.colors.muted }]}>{item.label}</Text>
-          <MaterialCommunityIcons name={icon} size={16} color={item.accent ?? tokens.colors.accent} />
-        </View>
-        <Text
-          style={[
-            styles.value,
-            { color: tokens.colors.text },
-            emphasizeValue ? styles.valueEmphasis : null,
-          ]}
-        >
-          {formatEUR(displayValue)}
-        </Text>
-        {hasDelta ? (
-          <View style={styles.deltaRow}>
-            <Text style={[styles.deltaValue, { color: deltaColor }]}>
-              {deltaIsPositive ? "+" : ""}
-              {formatEUR(item.deltaValue)}
+    <PressScale onPress={onToggle} style={[styles.pressable, compact ? styles.pressableCompact : null]}>
+      <GlassCardContainer style={styles.card} contentStyle={compact ? styles.compactContent : undefined}>
+        {compact ? (
+          <View style={styles.compactMain}>
+            <View style={styles.compactHeaderRow}>
+              <Text style={[styles.label, styles.compactLabel, { color: tokens.colors.muted }]}>{item.label}</Text>
+              <MaterialCommunityIcons name={icon} size={18} color={item.accent ?? tokens.colors.accent} />
+            </View>
+            <Text
+              style={[styles.value, styles.valueEmphasis, styles.valueCompact, { color: tokens.colors.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}
+            >
+              {formatEUR(displayValue)}
             </Text>
-            <Text style={[styles.deltaPct, { color: deltaColor }]}>
-              {deltaIsPositive ? "+" : ""}
-              {formatPct(item.deltaPct)}
-            </Text>
+            {hasDelta ? (
+              <View style={styles.compactDeltaRow}>
+                <Text style={[styles.compactDeltaValue, { color: deltaColor }]}>
+                  {deltaIsPositive ? "+" : ""}{formatEUR(item.deltaValue)}
+                </Text>
+                <Text style={[styles.compactDeltaPct, { color: deltaColor }]}>
+                  {deltaIsPositive ? "+" : ""}{formatPct(item.deltaPct)}
+                </Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.standardMain}>
+            <View style={styles.headerRow}>
+              <Text style={[styles.label, { color: tokens.colors.muted }]}>{item.label}</Text>
+              <MaterialCommunityIcons name={icon} size={16} color={item.accent ?? tokens.colors.accent} />
+            </View>
+            <Text
+              style={[
+                styles.value,
+                { color: tokens.colors.text },
+                emphasizeValue ? styles.valueEmphasis : null,
+              ]}
+            >
+              {formatEUR(displayValue)}
+            </Text>
+            {hasDelta ? (
+              <View style={styles.deltaRow}>
+                <Text style={[styles.deltaValue, { color: deltaColor }]}>
+                  {deltaIsPositive ? "+" : ""}
+                  {formatEUR(item.deltaValue)}
+                </Text>
+                <Text style={[styles.deltaPct, { color: deltaColor }]}>
+                  {deltaIsPositive ? "+" : ""}
+                  {formatPct(item.deltaPct)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
         {expanded && item.breakdown?.length ? (
           <View style={styles.breakdown}>
             {item.breakdown.slice(0, 4).map((row) => (
@@ -106,8 +137,41 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: "48%",
   },
+  pressableCompact: {
+    flexBasis: "100%",
+    width: "100%",
+  },
   card: {
     gap: 6,
+  },
+  standardMain: {
+    gap: 6,
+  },
+  compactMain: {
+    gap: 6,
+  },
+  compactContent: {
+    paddingVertical: 14,
+  },
+  compactHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  compactLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  compactDeltaRow: {
+    flexDirection: "row",
+    gap: 7,
+  },
+  compactDeltaValue: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  compactDeltaPct: {
+    fontSize: 12,
   },
   headerRow: {
     flexDirection: "row",
@@ -120,12 +184,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   value: {
-    fontSize: 24,
+    fontSize: 27,
     fontWeight: "700",
+    letterSpacing: -0.3,
   },
   valueEmphasis: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
+  },
+  valueCompact: {
+    flexShrink: 1,
   },
   deltaRow: {
     flexDirection: "row",

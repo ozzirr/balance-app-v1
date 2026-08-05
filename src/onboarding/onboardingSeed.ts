@@ -77,8 +77,10 @@ export async function seedOnboardingData(draft: OnboardingDraft): Promise<void> 
     const createWalletRecord = async (name: string, type: "LIQUIDITY" | "INVEST") => {
       const cleaned = name.trim() || (type === "LIQUIDITY" ? "Conto principale" : "Investimento");
       const result = await db.runAsync(
-        "INSERT INTO wallets (name, type, currency, tag, active, color) VALUES (?, ?, 'EUR', NULL, 1, ?)",
-        [cleaned, type, DEFAULT_WALLET_COLOR]
+        `INSERT INTO wallets
+          (name, type, currency, tag, active, color, availability, investment_kind)
+         VALUES (?, ?, 'EUR', NULL, 1, ?, ?, 'STANDARD')`,
+        [cleaned, type, DEFAULT_WALLET_COLOR, type === "LIQUIDITY" ? "immediate" : "liquid"]
       );
       walletIds[cleaned] = result.lastInsertRowId ?? 0;
       return cleaned;

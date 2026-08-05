@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Modal, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Animated, Modal, PanResponder, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Snackbar, Text, TextInput } from "react-native-paper";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
@@ -7,7 +7,7 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { createWallet, deleteWallet, listWallets, updateWallet, updateWalletSortOrders, DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
-import type { Wallet, Currency, WalletType } from "@/repositories/types";
+import type { AssetAvailability, Wallet, Currency, WalletType } from "@/repositories/types";
 import { DarkTheme, useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
@@ -26,14 +26,18 @@ import {
   SegmentedControlPill,
 } from "@/ui/components/EntriesUI";
 import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
-import { orderWalletsForUI, type WalletGroupOrder } from "@/domain/walletOrdering";
+import { orderWalletsForUI } from "@/domain/walletOrdering";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import type { BalanceProPlanId } from "@/config/entitlements";
 import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
 import CoachTipCard from "@/ui/components/CoachTipCard";
 import BottomSheet from "@/ui/components/BottomSheet";
+import { inferAssetAvailability } from "@/domain/assetAvailability";
+import { isIsoDate } from "@/utils/dates";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 type BalanceProPaywallSource = "wallet-limit" | "settings-upsell";
+type WalletTab = "LIQUIDITY" | "INVEST" | "PENSION";
 
 type WalletRouteParams = {
   walletId?: number;
@@ -53,6 +57,132 @@ const presetColors = [
   "#F97316",
   "#22D3EE",
 ];
+const REORDER_ROW_HEIGHT = 66;
+
+type WalletDraft = {
+  name: string;
+  tag: string;
+  currency: Currency;
+  color: string;
+  availability: AssetAvailability;
+  availabilityDate: string;
+  restrictionNote: string;
+};
+
+function AvailabilityEditor({
+  value,
+  availabilityDate,
+  restrictionNote,
+  onChange,
+}: {
+  value: AssetAvailability;
+  availabilityDate: string;
+  restrictionNote: string;
+  onChange: (updates: Partial<Pick<WalletDraft, "availability" | "availabilityDate" | "restrictionNote">>) => void;
+}): JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { tokens, isDark } = useDashboardTheme();
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const options: AssetAvailability[] = ["liquid", "restricted"];
+  const inputProps = createStandardTextInputProps(tokens);
+  const pickerDate = availabilityDate && isIsoDate(availabilityDate)
+    ? new Date(`${availabilityDate}T12:00:00`)
+    : new Date();
+  const displayDate = availabilityDate && isIsoDate(availabilityDate)
+    ? pickerDate.toLocaleDateString(i18n.language)
+    : "";
+
+  useEffect(() => {
+    if (value !== "restricted") {
+      setShowDatePicker(false);
+    }
+  }, [value]);
+
+  const toIsoDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  return (
+    <View style={styles.availabilitySection}>
+      <Text style={[styles.availabilityTitle, { color: tokens.colors.text }]}>{t("wallets.availability.title")}</Text>
+      {options.map((option) => (
+        <Pressable
+          key={option}
+          onPress={() => onChange({ availability: option })}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: value === option }}
+          style={[
+            styles.availabilityOption,
+            {
+              borderColor: value === option ? tokens.colors.accent : tokens.colors.glassBorder,
+              backgroundColor: value === option ? `${tokens.colors.accent}22` : tokens.colors.glassBg,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={value === option ? "radiobox-marked" : "radiobox-blank"}
+            size={20}
+            color={value === option ? tokens.colors.accent : tokens.colors.muted}
+          />
+          <View style={styles.availabilityCopy}>
+            <Text style={[styles.availabilityLabel, { color: tokens.colors.text }]}>{t(`wallets.availability.${option}.label`)}</Text>
+            <Text style={[styles.availabilityDescription, { color: tokens.colors.muted }]}>{t(`wallets.availability.${option}.description`)}</Text>
+          </View>
+        </Pressable>
+      ))}
+      {value === "restricted" ? (
+        <View style={styles.restrictionFields}>
+          <TextInput
+            label={t("wallets.availability.date")}
+            placeholder={t("wallets.availability.datePlaceholder")}
+            value={displayDate}
+            editable={false}
+            {...inputProps}
+            right={<TextInput.Icon icon="calendar" />}
+            onPressIn={() => setShowDatePicker((visible) => !visible)}
+          />
+          {showDatePicker ? (
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              textColor={tokens.colors.text}
+              themeVariant={isDark ? "dark" : "light"}
+              onChange={(_, selectedDate) => {
+                if (selectedDate) {
+                  onChange({ availabilityDate: toIsoDate(selectedDate) });
+                }
+                if (Platform.OS !== "ios") {
+                  setShowDatePicker(false);
+                }
+              }}
+            />
+          ) : null}
+          {availabilityDate ? (
+            <SmallOutlinePillButton
+              label={t("wallets.availability.clearDate")}
+              onPress={() => {
+                setShowDatePicker(false);
+                onChange({ availabilityDate: "" });
+              }}
+              color={tokens.colors.muted}
+              fullWidth
+            />
+          ) : null}
+          <TextInput
+            label={t("wallets.availability.note")}
+            value={restrictionNote}
+            multiline
+            {...inputProps}
+            onChangeText={(text) => onChange({ restrictionNote: text })}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 function nextPresetColor(current: string): string {
   const index = presetColors.indexOf(current);
@@ -188,31 +318,33 @@ export default function WalletScreen(): React.ReactElement {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const { t } = useTranslation();
   const [reorderMode, setReorderMode] = useState(false);
-  const [reorderLists, setReorderLists] = useState<WalletGroupOrder>({
+  const [reorderLists, setReorderLists] = useState<Record<WalletTab, Wallet[]>>({
     LIQUIDITY: [],
     INVEST: [],
+    PENSION: [],
   });
   const [reorderVisible, setReorderVisible] = useState(false);
+  const [draggingWalletId, setDraggingWalletId] = useState<number | null>(null);
   const reorderAnim = useRef(new Animated.Value(0)).current;
-  const { showInvestments, scrollBounceEnabled } = useSettings();
-  const [walletEdits, setWalletEdits] = useState<
-    Record<number, { name: string; tag: string; currency: Currency; color: string }>
-  >({});
-  const [tab, setTab] = useState<"LIQUIDITY" | "INVEST">("LIQUIDITY");
-  const [newWalletDraft, setNewWalletDraft] = useState<{
-    name: string;
-    tag: string;
-    currency: Currency;
-    color: string;
-  }>({
+  const reorderDropY = useRef(new Animated.Value(0)).current;
+  const reorderDropOpacity = useRef(new Animated.Value(0)).current;
+  const { showInvestments, showInvestmentAvailability, trackPension, scrollBounceEnabled } = useSettings();
+  const [walletEdits, setWalletEdits] = useState<Record<number, WalletDraft>>({});
+  const [availabilityFilter, setAvailabilityFilter] = useState<AssetAvailability | "all">("all");
+  const [tab, setTab] = useState<WalletTab>("LIQUIDITY");
+  const [newWalletDraft, setNewWalletDraft] = useState<WalletDraft>({
     name: "",
     tag: "",
     currency: "EUR",
     color: DEFAULT_WALLET_COLOR,
+    availability: "liquid",
+    availabilityDate: "",
+    restrictionNote: "",
   });
-  const [showAddWallet, setShowAddWallet] = useState<{ LIQUIDITY: boolean; INVEST: boolean }>({
+  const [showAddWallet, setShowAddWallet] = useState<Record<WalletTab, boolean>>({
     LIQUIDITY: false,
     INVEST: false,
+    PENSION: false,
   });
   const [expandedWalletId, setExpandedWalletId] = useState<number | null>(null);
   const [limitModalVisible, setLimitModalVisible] = useState(false);
@@ -221,7 +353,7 @@ export default function WalletScreen(): React.ReactElement {
   const [confirmWalletError, setConfirmWalletError] = useState<string | null>(null);
   const addWalletPulse = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef<ScrollView | null>(null);
-  const [pendingWalletType, setPendingWalletType] = useState<"LIQUIDITY" | "INVEST" | null>(null);
+  const [pendingWalletType, setPendingWalletType] = useState<WalletTab | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
   const [proWelcomeVisible, setProWelcomeVisible] = useState(false);
   const [isDismissingProWelcome, setIsDismissingProWelcome] = useState(false);
@@ -247,18 +379,31 @@ export default function WalletScreen(): React.ReactElement {
   useEffect(() => {
     if (!showInvestments) {
       setTab("LIQUIDITY");
-      setShowAddWallet((prev) => ({ ...prev, INVEST: false }));
+      setShowAddWallet((prev) => ({ ...prev, INVEST: false, PENSION: false }));
     }
   }, [showInvestments]);
+
+  useEffect(() => {
+    if (!trackPension && tab === "PENSION") {
+      setTab(showInvestments ? "INVEST" : "LIQUIDITY");
+      setShowAddWallet((prev) => ({ ...prev, PENSION: false }));
+    }
+  }, [showInvestments, tab, trackPension]);
+
+  useEffect(() => {
+    if (!showInvestmentAvailability) {
+      setAvailabilityFilter("all");
+    }
+  }, [showInvestmentAvailability]);
 
   useEffect(() => {
     if (!targetWalletId) return;
     const target = wallets.find((wallet) => wallet.id === targetWalletId);
     if (!target) return;
-    setTab(target.type);
+    setTab(target.investmentKind === "PENSION" && trackPension ? "PENSION" : target.type);
     setExpandedWalletId(target.id);
     navigation.setParams({ walletId: undefined });
-  }, [navigation, targetWalletId, wallets]);
+  }, [navigation, targetWalletId, trackPension, wallets]);
 
   useEffect(() => {
     if (!startSetup) return;
@@ -282,13 +427,16 @@ export default function WalletScreen(): React.ReactElement {
   const load = useCallback(async () => {
     const walletList = await listWallets();
     setWallets(walletList);
-    const edits: Record<number, { name: string; tag: string; currency: Currency; color: string }> = {};
+    const edits: Record<number, WalletDraft> = {};
     walletList.forEach((wallet) => {
       edits[wallet.id] = {
         name: wallet.name,
         tag: normalizeInvestmentTag(wallet, wallet.tag),
         currency: wallet.currency,
         color: wallet.color ?? DEFAULT_WALLET_COLOR,
+        availability: wallet.availability,
+        availabilityDate: wallet.availabilityDate ?? "",
+        restrictionNote: wallet.restrictionNote ?? "",
       };
     });
     setWalletEdits(edits);
@@ -324,7 +472,7 @@ export default function WalletScreen(): React.ReactElement {
   );
 
   const persistWalletEdit = useCallback(
-    async (walletId: number, updates: Partial<{ name: string; tag: string; currency: Currency; color: string }>) => {
+    async (walletId: number, updates: Partial<WalletDraft>) => {
       const wallet = wallets.find((w) => w.id === walletId);
       if (!wallet) return;
       const current = walletEdits[walletId] ?? {
@@ -332,11 +480,15 @@ export default function WalletScreen(): React.ReactElement {
         tag: normalizeInvestmentTag(wallet, wallet.tag),
         currency: wallet.currency,
         color: wallet.color ?? DEFAULT_WALLET_COLOR,
+        availability: wallet.availability,
+        availabilityDate: wallet.availabilityDate ?? "",
+        restrictionNote: wallet.restrictionNote ?? "",
       };
       const merged = { ...current, ...updates };
       setWalletEdits((prev) => ({ ...prev, [walletId]: merged }));
       const trimmedName = merged.name.trim();
       if (!trimmedName) return;
+      if (merged.availability === "restricted" && merged.availabilityDate && !isIsoDate(merged.availabilityDate)) return;
       const trimmedTag = merged.tag?.trim() || null;
       const color = merged.color ?? DEFAULT_WALLET_COLOR;
       setWallets((prev) =>
@@ -348,12 +500,21 @@ export default function WalletScreen(): React.ReactElement {
                 tag: trimmedTag,
                 currency: merged.currency,
                 color,
+                availability: merged.availability,
+                availabilityDate: merged.availability === "restricted" ? merged.availabilityDate || null : null,
+                restrictionNote: merged.availability === "restricted" ? merged.restrictionNote || null : null,
               }
             : item
         )
       );
       try {
-        await updateWallet(walletId, trimmedName, wallet.type, merged.currency, trimmedTag, wallet.active, color);
+        await updateWallet(
+          walletId, trimmedName, wallet.type, merged.currency, trimmedTag, wallet.active, color,
+          merged.availability,
+          merged.availability === "restricted" ? merged.availabilityDate || null : null,
+          merged.availability === "restricted" ? merged.restrictionNote.trim() || null : null,
+          wallet.investmentKind
+        );
       } catch (error) {
         console.warn("Failed to auto-save wallet", error);
       }
@@ -397,14 +558,27 @@ export default function WalletScreen(): React.ReactElement {
     () => orderedWallets.filter((wallet) => wallet.type === "LIQUIDITY"),
     [orderedWallets]
   );
+  const allInvestmentWallets = useMemo(
+    () => orderedWallets.filter((wallet) => wallet.type === "INVEST" && wallet.investmentKind !== "PENSION"),
+    [orderedWallets]
+  );
+  const showAvailabilityFilters = showInvestmentAvailability && allInvestmentWallets.length > 5;
   const investmentWallets = useMemo(
-    () => orderedWallets.filter((wallet) => wallet.type === "INVEST"),
+    () => allInvestmentWallets.filter((wallet) => (
+      !showAvailabilityFilters || availabilityFilter === "all" || wallet.availability === availabilityFilter
+    )),
+    [allInvestmentWallets, availabilityFilter, showAvailabilityFilters]
+  );
+  const pensionWallets = useMemo(
+    () => orderedWallets.filter((wallet) => wallet.type === "INVEST" && wallet.investmentKind === "PENSION"),
     [orderedWallets]
   );
   const noWallets = wallets.length === 0;
   const shouldPulseAdd = noWallets && !showAddWallet.LIQUIDITY && tab === "LIQUIDITY";
   const getWalletDisplayColor = (wallet: Wallet) => walletEdits[wallet.id]?.color ?? wallet.color ?? DEFAULT_WALLET_COLOR;
-  const activeWallets = tab === "LIQUIDITY" ? liquidityWallets : investmentWallets;
+  const activeWallets = tab === "LIQUIDITY"
+    ? liquidityWallets
+    : tab === "PENSION" ? pensionWallets : investmentWallets;
   const guideWallet = activeWallets.length === 1 && isSeededDefaultWallet(activeWallets[0]) ? activeWallets[0] : null;
   const shouldShowWalletGuide = Boolean(guideWallet);
 
@@ -437,7 +611,13 @@ export default function WalletScreen(): React.ReactElement {
 
   const walletCount = wallets.length;
   const canCreateAnotherWallet = canCreateWallet(walletCount);
-  const canReorder = (tab === "LIQUIDITY" ? liquidityWallets.length : investmentWallets.length) > 1;
+  const canReorder = (tab !== "INVEST" || !showAvailabilityFilters || availabilityFilter === "all") && activeWallets.length > 1;
+
+  useEffect(() => {
+    if (!showAvailabilityFilters && availabilityFilter !== "all") {
+      setAvailabilityFilter("all");
+    }
+  }, [availabilityFilter, showAvailabilityFilters]);
 
   useEffect(() => {
     if (activePlan) {
@@ -488,16 +668,23 @@ export default function WalletScreen(): React.ReactElement {
     setReorderLists({
       LIQUIDITY: [...liquidityWallets],
       INVEST: [...investmentWallets],
+      PENSION: [...pensionWallets],
     });
-  }, [reorderMode, liquidityWallets, investmentWallets]);
+  }, [reorderMode, liquidityWallets, investmentWallets, pensionWallets]);
 
-  const handleReorderEnd = useCallback(
-    async (type: "LIQUIDITY" | "INVEST", data: Wallet[]) => {
-      setReorderLists((prev) => ({ ...prev, [type]: data }));
+  const persistWalletOrder = useCallback(
+    async (group: WalletTab, data: Wallet[]) => {
+      setReorderLists((prev) => ({ ...prev, [group]: data }));
       const updates = data.map((wallet, index) => ({
         id: wallet.id,
         sortOrder: index,
       }));
+      setWallets((prev) =>
+        prev.map((wallet) => {
+          const update = updates.find((item) => item.id === wallet.id);
+          return update ? { ...wallet, sortOrder: update.sortOrder } : wallet;
+        })
+      );
       try {
         await updateWalletSortOrders(updates);
         await load();
@@ -508,72 +695,133 @@ export default function WalletScreen(): React.ReactElement {
     [load]
   );
 
-  const bringToTop = useCallback(
-    async (type: WalletType, walletId: number) => {
-      const list = reorderLists[type];
-      const index = list.findIndex((wallet) => wallet.id === walletId);
-      if (index <= 0) return;
-      const item = list[index];
-      const newList = [item, ...list.slice(0, index), ...list.slice(index + 1)];
-      const orderUpdates = newList.map((wallet, idx) => ({ id: wallet.id, sortOrder: idx }));
-      setWallets((prev) =>
-        prev.map((wallet) => {
-          const update = orderUpdates.find((update) => update.id === wallet.id);
-          return update ? { ...wallet, sortOrder: update.sortOrder } : wallet;
-        })
-      );
-      setReorderLists((prev) => ({ ...prev, [type]: newList }));
-      await handleReorderEnd(type, newList);
+  const moveWalletInReorderList = useCallback(
+    async (group: WalletTab, fromIndex: number, toIndex: number) => {
+      const list = reorderLists[group];
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= list.length) return;
+      const next = [...list];
+      const [item] = next.splice(fromIndex, 1);
+      if (!item) return;
+      next.splice(toIndex, 0, item);
+      await persistWalletOrder(group, next);
     },
-    [handleReorderEnd, reorderLists]
+    [persistWalletOrder, reorderLists]
   );
 
-  const ReorderableRow = ({ wallet, type, atTop }: { wallet: Wallet; type: WalletType; atTop: boolean }) => (
-    <View
-      style={[
-        styles.reorderRow,
-        {
-          borderColor: tokens.colors.glassBorder,
-          backgroundColor: tokens.colors.glassBg,
-        },
-      ]}
-    >
-      <View style={styles.reorderRowContent}>
-        <View style={styles.reorderRowLabelRow}>
-          <View
-            style={[
-              styles.walletColorDot,
-              { backgroundColor: wallet.color ?? DEFAULT_WALLET_COLOR },
-            ]}
-          />
-          <Text style={[styles.reorderRowLabel, { color: tokens.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
-            {wallet.name}
-          </Text>
-        </View>
-        <Text style={[styles.reorderRowMeta, { color: tokens.colors.muted }]}>{wallet.currency}</Text>
-      </View>
-      <Pressable
-        onPress={() => {
-          if (!atTop) {
-            void bringToTop(type, wallet.id);
-          }
-        }}
-        disabled={atTop}
-        style={({ pressed }) => [
-          styles.reorderAction,
-          { opacity: atTop ? 0.4 : pressed ? 0.7 : 1 },
+  const ReorderableRow = ({ wallet, group, index }: { wallet: Wallet; group: WalletTab; index: number }) => {
+    const translateY = useRef(new Animated.Value(0)).current;
+    const startIndexRef = useRef(index);
+    const listLength = reorderLists[group].length;
+    const isDragging = draggingWalletId === wallet.id;
+    const panResponder = useMemo(
+      () =>
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => true,
+          onStartShouldSetPanResponderCapture: () => true,
+          onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 2,
+          onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dy) > 2,
+          onPanResponderGrant: () => {
+            startIndexRef.current = index;
+            setDraggingWalletId(wallet.id);
+            reorderDropOpacity.setValue(0);
+            translateY.setOffset(0);
+            translateY.setValue(0);
+          },
+          onPanResponderMove: (_, gesture) => {
+            const minY = -startIndexRef.current * REORDER_ROW_HEIGHT;
+            const maxY = (listLength - startIndexRef.current - 1) * REORDER_ROW_HEIGHT;
+            const clampedY = Math.max(minY, Math.min(maxY, gesture.dy));
+            const nextIndex = Math.max(
+              0,
+              Math.min(listLength - 1, startIndexRef.current + Math.round(clampedY / REORDER_ROW_HEIGHT))
+            );
+            translateY.setValue(clampedY);
+            const dropSlot = nextIndex > startIndexRef.current ? nextIndex + 1 : nextIndex;
+            reorderDropY.setValue(dropSlot * REORDER_ROW_HEIGHT);
+            reorderDropOpacity.setValue(nextIndex === startIndexRef.current ? 0 : 1);
+          },
+          onPanResponderRelease: (_, gesture) => {
+            const minIndex = 0;
+            const maxIndex = listLength - 1;
+            const nextIndex = Math.max(
+              minIndex,
+              Math.min(maxIndex, startIndexRef.current + Math.round(gesture.dy / REORDER_ROW_HEIGHT))
+            );
+            Animated.spring(translateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              speed: 24,
+              bounciness: 4,
+            }).start();
+            setDraggingWalletId(null);
+            reorderDropOpacity.setValue(0);
+            void moveWalletInReorderList(group, startIndexRef.current, nextIndex);
+          },
+          onPanResponderTerminate: () => {
+            Animated.spring(translateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              speed: 24,
+              bounciness: 4,
+            }).start();
+            setDraggingWalletId(null);
+            reorderDropOpacity.setValue(0);
+          },
+        }),
+      [group, index, listLength, moveWalletInReorderList, reorderDropOpacity, reorderDropY, translateY, wallet.id]
+    );
+
+    return (
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.reorderRow,
+          isDragging ? styles.reorderRowActive : undefined,
+          {
+            borderColor: isDragging ? tokens.colors.accent : tokens.colors.glassBorder,
+            backgroundColor: tokens.colors.glassBg,
+            transform: [{ translateY }],
+          },
         ]}
       >
-        <MaterialCommunityIcons name="arrow-up" size={18} color={tokens.colors.accent} />
-      </Pressable>
-    </View>
-  );
+        <View style={styles.reorderRowContent}>
+          <View style={styles.reorderRowLabelRow}>
+            <View
+              style={[
+                styles.walletColorDot,
+                { backgroundColor: wallet.color ?? DEFAULT_WALLET_COLOR },
+              ]}
+            />
+            <Text style={[styles.reorderRowLabel, { color: tokens.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
+              {wallet.name}
+            </Text>
+          </View>
+          <Text style={[styles.reorderRowMeta, { color: tokens.colors.muted }]}>{wallet.currency}</Text>
+        </View>
+        <View
+          style={[
+            styles.reorderAction,
+            { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+          ]}
+        >
+          <MaterialCommunityIcons name="drag-horizontal-variant" size={22} color={tokens.colors.accent} />
+        </View>
+      </Animated.View>
+    );
+  };
 
-  const addWallet = async (type: "LIQUIDITY" | "INVEST") => {
+  const addWallet = async (walletTab: WalletTab) => {
     if (!newWalletDraft.name.trim()) return;
+    const type: WalletType = walletTab === "LIQUIDITY" ? "LIQUIDITY" : "INVEST";
+    const availability = walletTab === "PENSION"
+      ? "restricted"
+      : type === "LIQUIDITY" || !showInvestmentAvailability
+      ? type === "LIQUIDITY" ? "immediate" : "liquid"
+      : newWalletDraft.availability;
+    if (availability === "restricted" && newWalletDraft.availabilityDate && !isIsoDate(newWalletDraft.availabilityDate)) return;
     if (!canCreateAnotherWallet) {
       setPaywallSource("wallet-limit");
-      setPendingWalletType(type);
+      setPendingWalletType(walletTab);
       setLimitModalVisible(true);
       return;
     }
@@ -584,10 +832,14 @@ export default function WalletScreen(): React.ReactElement {
       newWalletDraft.currency,
       type === "INVEST" ? newWalletDraft.tag.trim() || null : null,
       1,
-      newWalletDraft.color
+      newWalletDraft.color,
+      availability,
+      availability === "restricted" ? newWalletDraft.availabilityDate || null : null,
+      availability === "restricted" ? newWalletDraft.restrictionNote.trim() || null : null,
+      walletTab === "PENSION" ? "PENSION" : "STANDARD"
     );
-    setNewWalletDraft({ name: "", tag: "", currency: "EUR", color: DEFAULT_WALLET_COLOR });
-    setShowAddWallet((prev) => ({ ...prev, [type]: false }));
+    setNewWalletDraft({ name: "", tag: "", currency: "EUR", color: DEFAULT_WALLET_COLOR, availability: "liquid", availabilityDate: "", restrictionNote: "" });
+    setShowAddWallet((prev) => ({ ...prev, [walletTab]: false }));
     await load();
     emitDataChanged();
     if (startSetup && wasEmpty && type === "LIQUIDITY") {
@@ -596,15 +848,20 @@ export default function WalletScreen(): React.ReactElement {
     }
   };
 
-  const handleRequestAddWallet = (type: "LIQUIDITY" | "INVEST") => {
+  const handleRequestAddWallet = (walletTab: WalletTab) => {
     if (!canCreateAnotherWallet) {
       setPaywallSource("wallet-limit");
-      setPendingWalletType(type);
+      setPendingWalletType(walletTab);
       setLimitModalVisible(true);
       return;
     }
 
-    setShowAddWallet((prev) => ({ ...prev, [type]: true }));
+    const type: WalletType = walletTab === "LIQUIDITY" ? "LIQUIDITY" : "INVEST";
+    setNewWalletDraft((prev) => ({
+      ...prev,
+      availability: walletTab === "PENSION" ? "restricted" : inferAssetAvailability(type, prev.name, prev.tag),
+    }));
+    setShowAddWallet((prev) => ({ ...prev, [walletTab]: true }));
   };
 
   const selectedPlan = availablePlans.find((plan) => plan.planId === selectedPlanId) ?? null;
@@ -876,13 +1133,24 @@ export default function WalletScreen(): React.ReactElement {
             {showInvestments && (
               <SegmentedControlPill
                 value={tab}
-                onChange={(value) => setTab(value as "LIQUIDITY" | "INVEST")}
+                onChange={(value) => setTab(value as WalletTab)}
                 options={[
                   { value: "LIQUIDITY", label: t("wallets.list.tabLiquidity"), tint: `${tokens.colors.income}33` },
                   { value: "INVEST", label: t("wallets.list.tabInvest"), tint: `${tokens.colors.accent}33` },
+                  ...(trackPension ? [{ value: "PENSION", label: t("wallets.list.tabPension"), tint: `${tokens.colors.yellow}33` }] : []),
                 ]}
               />
             )}
+            {tab === "INVEST" && showAvailabilityFilters ? <View style={styles.filterRow}>
+              {(["all", "liquid", "restricted"] as const).map((filter) => (
+                <PillChip
+                  key={filter}
+                  label={t(`wallets.availability.filter.${filter}`)}
+                  selected={availabilityFilter === filter}
+                  onPress={() => setAvailabilityFilter(filter)}
+                />
+              ))}
+            </View> : null}
 
             {shouldShowWalletGuide ? (
               <CoachTipCard
@@ -1039,9 +1307,9 @@ export default function WalletScreen(): React.ReactElement {
               </>
             )}
 
-            {showInvestments && tab === "INVEST" && (
+            {showInvestments && (tab === "INVEST" || tab === "PENSION") && (
               <>
-                {investmentWallets.map((wallet) => {
+                {(tab === "PENSION" ? pensionWallets : investmentWallets).map((wallet) => {
                   const investmentTag = normalizeInvestmentTag(wallet, walletEdits[wallet.id]?.tag ?? wallet.tag);
                   const subtitle = `${walletEdits[wallet.id]?.currency ?? wallet.currency}${
                     investmentTag ? ` · ${investmentTag}` : ""
@@ -1070,7 +1338,7 @@ export default function WalletScreen(): React.ReactElement {
                       <View style={[styles.sectionContent, styles.accordionInner]}>
                       <View style={styles.colorLine}>
                         <TextInput
-                          label={t("wallets.form.brokerLabel")}
+                          label={tab === "PENSION" ? t("wallets.form.pensionProviderLabel") : t("wallets.form.brokerLabel")}
                           value={walletEdits[wallet.id]?.name ?? wallet.name}
                           {...inputProps}
                           style={[
@@ -1099,7 +1367,7 @@ export default function WalletScreen(): React.ReactElement {
                         </PressScale>
                       </View>
                       <TextInput
-                        label={t("wallets.form.investmentTypeLabel")}
+                        label={tab === "PENSION" ? t("wallets.form.pensionTypeLabel") : t("wallets.form.investmentTypeLabel")}
                         value={investmentTag}
                         {...inputProps}
                         onChangeText={(value) =>
@@ -1117,22 +1385,28 @@ export default function WalletScreen(): React.ReactElement {
                           { value: "GBP", label: "GBP" },
                         ]}
                       />
+                      {tab === "INVEST" && showInvestmentAvailability ? <AvailabilityEditor
+                        value={walletEdits[wallet.id]?.availability ?? wallet.availability}
+                        availabilityDate={walletEdits[wallet.id]?.availabilityDate ?? wallet.availabilityDate ?? ""}
+                        restrictionNote={walletEdits[wallet.id]?.restrictionNote ?? wallet.restrictionNote ?? ""}
+                        onChange={(updates) => void persistWalletEdit(wallet.id, updates)}
+                      /> : null}
                       </View>
                     </AccordionItem>
                   );
                 })}
                 <BottomSheet
-                  visible={showAddWallet.INVEST}
-                  title={t("wallets.list.newInvestTitle")}
-                  subtitle={t("wallets.sheet.investSubtitle", {
-                    defaultValue: "Broker, tipologia, valuta e colore.",
-                  })}
-                  onClose={() => setShowAddWallet((prev) => ({ ...prev, INVEST: false }))}
+                  visible={showAddWallet[tab]}
+                  title={tab === "PENSION" ? t("wallets.list.newPensionTitle") : t("wallets.list.newInvestTitle")}
+                  subtitle={tab === "PENSION"
+                    ? t("wallets.sheet.pensionSubtitle")
+                    : t("wallets.sheet.investSubtitle", { defaultValue: "Broker, tipologia, valuta e colore." })}
+                  onClose={() => setShowAddWallet((prev) => ({ ...prev, [tab]: false }))}
                 >
                     <View style={styles.sectionContent}>
                       <View style={[styles.colorLine]}>
                         <TextInput
-                          label={t("wallets.form.brokerLabel")}
+                          label={tab === "PENSION" ? t("wallets.form.pensionProviderLabel") : t("wallets.form.brokerLabel")}
                           value={newWalletDraft.name}
                           {...inputProps}
                           style={[
@@ -1157,10 +1431,16 @@ export default function WalletScreen(): React.ReactElement {
                         </PressScale>
                       </View>
                       <TextInput
-                        label={t("wallets.form.investmentTypeLabel")}
+                        label={tab === "PENSION" ? t("wallets.form.pensionTypeLabel") : t("wallets.form.investmentTypeLabel")}
                         value={newWalletDraft.tag}
                         {...inputProps}
-                        onChangeText={(value) => setNewWalletDraft((prev) => ({ ...prev, tag: value }))}
+                        onChangeText={(value) => setNewWalletDraft((prev) => ({
+                          ...prev,
+                          tag: value,
+                          availability: tab === "PENSION" ? "restricted" : prev.availability === "liquid"
+                            ? inferAssetAvailability("INVEST", prev.name, value)
+                            : prev.availability,
+                        }))}
                       />
                       <SegmentedControlPill
                         value={newWalletDraft.currency}
@@ -1171,16 +1451,22 @@ export default function WalletScreen(): React.ReactElement {
                           { value: "GBP", label: "GBP" },
                         ]}
                       />
+                      {tab === "INVEST" && showInvestmentAvailability ? <AvailabilityEditor
+                        value={newWalletDraft.availability}
+                        availabilityDate={newWalletDraft.availabilityDate}
+                        restrictionNote={newWalletDraft.restrictionNote}
+                        onChange={(updates) => setNewWalletDraft((prev) => ({ ...prev, ...updates }))}
+                      /> : null}
                     </View>
                     <View style={styles.addWalletAction}>
                       <PrimaryPillButton
                         label={newWalletDraft.name.trim() ? t("common.add") : t("common.cancel")}
                         onPress={() => {
                           if (newWalletDraft.name.trim()) {
-                            void addWallet("INVEST");
+                            void addWallet(tab);
                             return;
                           }
-                          setShowAddWallet((prev) => ({ ...prev, INVEST: false }));
+                          setShowAddWallet((prev) => ({ ...prev, [tab]: false }));
                         }}
                         color={tokens.colors.accent}
                       />
@@ -1188,6 +1474,15 @@ export default function WalletScreen(): React.ReactElement {
                 </BottomSheet>
               </>
             )}
+            {!showAddWallet[tab] ? (
+              <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
+                <PrimaryPillButton
+                  label={t("wallets.list.addWallet")}
+                  onPress={() => handleRequestAddWallet(tab)}
+                  color={tokens.colors.accent}
+                />
+              </Animated.View>
+            ) : null}
           </View>
         </GlassCardContainer>
         {orderToggle}
@@ -1242,17 +1537,6 @@ export default function WalletScreen(): React.ReactElement {
           {purchaseNotice}
         </Snackbar>
       </ScrollView>
-      {!showAddWallet[tab] ? (
-        <View style={[styles.fixedActionBar, { bottom: insets.bottom + 84 }]}>
-          <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
-            <PrimaryPillButton
-              label={t("wallets.list.addWallet")}
-              onPress={() => handleRequestAddWallet(tab)}
-              color={tokens.colors.accent}
-            />
-          </Animated.View>
-        </View>
-      ) : null}
       <Modal
         visible={reorderVisible && canReorder}
         transparent
@@ -1300,17 +1584,29 @@ export default function WalletScreen(): React.ReactElement {
               style={styles.reorderScroll}
               contentContainerStyle={styles.reorderGroups}
               showsVerticalScrollIndicator={false}
+              scrollEnabled={draggingWalletId === null}
               bounces={scrollBounceEnabled}
               alwaysBounceVertical={scrollBounceEnabled}
               overScrollMode={scrollBounceEnabled ? "always" : "never"}
             >
               <View style={styles.reorderList}>
-                {(tab === "INVEST" ? reorderLists.INVEST : reorderLists.LIQUIDITY).map((wallet, index) => (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.reorderDropIndicator,
+                    {
+                      backgroundColor: tokens.colors.accent,
+                      opacity: reorderDropOpacity,
+                      transform: [{ translateY: reorderDropY }],
+                    },
+                  ]}
+                />
+                {reorderLists[tab].map((wallet, index) => (
                   <ReorderableRow
                     key={wallet.id}
                     wallet={wallet}
-                    type={tab === "INVEST" ? "INVEST" : "LIQUIDITY"}
-                    atTop={index === 0}
+                    group={tab}
+                    index={index}
                   />
                 ))}
               </View>
@@ -1326,13 +1622,6 @@ export default function WalletScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-  },
-  fixedActionBar: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    zIndex: 20,
-    elevation: 20,
   },
   sectionContent: {
     gap: 12,
@@ -1478,6 +1767,16 @@ const styles = StyleSheet.create({
   reorderList: {
     paddingVertical: 4,
     gap: 10,
+    position: "relative",
+  },
+  reorderDropIndicator: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    top: 0,
+    height: 4,
+    borderRadius: 999,
+    zIndex: 10,
   },
   reorderRow: {
     flexDirection: "row",
@@ -1487,9 +1786,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
+    minHeight: 56,
   },
   reorderRowActive: {
-    opacity: 0.85,
+    opacity: 0.92,
+    zIndex: 5,
   },
   reorderRowContent: {
     flex: 1,
@@ -1513,10 +1814,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   reorderAction: {
-    padding: 6,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   screenRoot: {
     flex: 1,
+  },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  availabilitySection: {
+    gap: 8,
+    marginTop: 4,
+  },
+  availabilityTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  availabilityOption: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 13,
+    padding: 11,
+  },
+  availabilityCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  availabilityLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  availabilityDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  restrictionFields: {
+    gap: 10,
+    marginTop: 4,
   },
 });

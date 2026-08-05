@@ -246,4 +246,47 @@ export const migrations: Migration[] = [
       { sql: "CREATE INDEX IF NOT EXISTS idx_expense_end_date ON expense_entries(end_date)" },
     ],
   },
+  {
+    version: 10,
+    statements: [
+      { sql: "ALTER TABLE wallets ADD COLUMN availability TEXT" },
+      { sql: "ALTER TABLE wallets ADD COLUMN availability_date TEXT" },
+      { sql: "ALTER TABLE wallets ADD COLUMN restriction_note TEXT" },
+      {
+        sql: `UPDATE wallets
+          SET availability = CASE
+            WHEN UPPER(type) = 'LIQUIDITY' THEN 'immediate'
+            WHEN LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%previdenz%'
+              OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pension%'
+              OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%lecoip%'
+              OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pip%'
+              OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%vincol%'
+              OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%lock-up%'
+            THEN 'restricted'
+            ELSE 'liquid'
+          END
+          WHERE availability IS NULL OR availability = ''`,
+      },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_wallets_availability ON wallets(availability)" },
+    ],
+  },
+  {
+    version: 11,
+    statements: [
+      { sql: "ALTER TABLE wallets ADD COLUMN investment_kind TEXT NOT NULL DEFAULT 'STANDARD'" },
+      {
+        sql: `UPDATE wallets
+          SET investment_kind = CASE
+            WHEN UPPER(type) = 'INVEST' AND (
+              LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%previdenz%'
+              OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pension%'
+              OR LOWER(COALESCE(name, '') || ' ' || COALESCE(tag, '')) LIKE '%pip%'
+            ) THEN 'PENSION'
+            ELSE 'STANDARD'
+          END`,
+      },
+      { sql: "UPDATE wallets SET availability = 'restricted' WHERE investment_kind = 'PENSION'" },
+      { sql: "CREATE INDEX IF NOT EXISTS idx_wallets_investment_kind ON wallets(investment_kind)" },
+    ],
+  },
 ];

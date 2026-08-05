@@ -124,6 +124,10 @@
         }
       },
       "showInvestments": "Mostrar investimentos",
+      "showInvestmentAvailability": "Distinguir investimentos líquidos e restritos",
+      "showInvestmentAvailabilityHint": "Mostra classificação, filtros e composição do património.",
+      "trackPension": "Monitorizar previdência complementar",
+      "trackPensionHint": "Adiciona a secção Previdência e inclui fundos de pensão no património.",
       "scrollBounce": "Ressalto do scroll",
       "monthsInChart": "Meses no gráfico",
       "languageLabel": "Idioma",
@@ -182,7 +186,8 @@
       "toggle": {
         "total": "Total",
         "liquidity": "Liquidez",
-        "investments": "Investimentos"
+        "investments": "Investimentos",
+        "pension": "Previdência"
       },
       "empty": "Sem dados disponíveis."
     },
@@ -230,8 +235,15 @@
     "kpi": {
       "liquidity": "Liquidez",
       "investments": "Investimentos",
+      "pension": "Previdência",
       "netWorth": "Património líquido",
       "awaitingComparison": "A aguardar comparação"
+    },
+    "availability": {
+      "title": "Composição do património", "available": "Disponível", "restrictedShort": "Restrito",
+      "immediate": "Liquidez imediata", "liquid": "Investimentos liquidáveis", "restricted": "Investimentos restritos", "pension": "Previdência",
+      "availableFrom": "Disponível a partir de: {{date}}",
+      "ratioA11y": "Património disponível {{available}}, património restrito {{restricted}}"
     },
     "range": {
       "label": "Período",
@@ -260,7 +272,7 @@
       "edit": "Editar ordem",
       "title": "Editar ordem",
       "done": "Concluído",
-      "hint": "Toca na seta para colocar no topo."
+      "hint": "Arrasta a pega para alterar livremente a ordem."
     },
     "mock": {
       "kpi": {
@@ -305,13 +317,15 @@
     "list": {
       "tabLiquidity": "Liquidez",
       "tabInvest": "Investimentos",
+      "tabPension": "Previdência",
       "reorderTitle": "Ordenar carteiras",
-      "reorderHint": "Toca na seta para colocar uma carteira no topo",
+      "reorderHint": "Arrasta a pega para alterar livremente a ordem",
       "editOrder": "Editar ordem",
       "doneOrder": "Concluído",
       "addWallet": "Adicionar carteira",
       "newLiquidityTitle": "Nova carteira de liquidez",
       "newInvestTitle": "Nova carteira de investimentos",
+      "newPensionTitle": "Adicionar fundo de pensão",
       "categoriesTitle": "Categorias de despesa",
       "newCategoryLabel": "Nome da categoria",
       "addCategory": "Adicionar categoria",
@@ -325,7 +339,22 @@
       "name": "Nome",
       "brokerLabel": "Broker",
       "investmentTypeLabel": "Tipo de investimento",
+      "pensionProviderLabel": "Fundo ou entidade",
+      "pensionTypeLabel": "Tipo de produto previdenciário",
       "colorLabel": "Cor"
+    },
+    "sheet": {
+      "pensionSubtitle": "Nome do fundo, tipo, moeda e cor. A previdência é tratada como património restrito."
+    },
+    "availability": {
+      "title": "Disponibilidade do património",
+      "immediate": { "label": "Disponibilidade imediata", "description": "Dinheiro que pode ser usado imediatamente." },
+      "liquid": { "label": "Investimento liquidável", "description": "Investimento normalmente vendável em poucos dias." },
+      "restricted": { "label": "Investimento restrito", "description": "Valor indisponível antes do vencimento ou de condições específicas." },
+      "date": "Data de disponibilidade (opcional)", "datePlaceholder": "AAAA-MM-DD",
+      "clearDate": "Remover data de disponibilidade",
+      "note": "Descrição da restrição (opcional)",
+      "filter": { "all": "Todos", "immediate": "Imediata", "liquid": "Liquidáveis", "restricted": "Restritos" }
     },
     "guide": {
       "title": "Aqui em baixo ja tens a tua primeira carteira para começar",
@@ -557,6 +586,7 @@
     "totals": {
       "liquidity": "Liquidez",
       "investments": "Investimentos",
+      "pension": "Previdência",
       "netWorth": "Património líquido"
     }
   },

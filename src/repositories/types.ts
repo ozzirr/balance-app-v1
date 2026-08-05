@@ -1,4 +1,6 @@
 export type WalletType = "LIQUIDITY" | "INVEST";
+export type InvestmentKind = "STANDARD" | "PENSION";
+export type AssetAvailability = "immediate" | "liquid" | "restricted";
 export type Currency = "EUR" | "USD" | "GBP";
 export type RecurrenceFrequency = "WEEKLY" | "MONTHLY" | "YEARLY";
 
@@ -11,6 +13,10 @@ export type Wallet = {
   active: number;
   color: string;
   sortOrder: number;
+  availability: AssetAvailability;
+  availabilityDate: string | null;
+  restrictionNote: string | null;
+  investmentKind: InvestmentKind;
 };
 
 export type ExpenseCategory = {
@@ -65,6 +71,10 @@ export type SnapshotLineDetail = SnapshotLine & {
   wallet_name: string | null;
   wallet_type: WalletType | null;
   wallet_tag: string | null;
+  wallet_availability?: AssetAvailability | null;
+  wallet_availability_date?: string | null;
+  wallet_restriction_note?: string | null;
+  wallet_investment_kind?: InvestmentKind | null;
 };
 
 export type Preference = {

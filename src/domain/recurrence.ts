@@ -1,7 +1,7 @@
 import { compareIsoDates, isIsoDate, todayIso } from "@/utils/dates";
 import type { ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
 import type { RecurrenceRule } from "@/utils/recurrence";
-import { addDays, addMonthsClamped, addYearsClamped, nextOccurrence } from "@/utils/recurrence";
+import { addDays, nextOccurrence } from "@/utils/recurrence";
 
 export type Occurrence = {
   date: string;
@@ -22,12 +22,6 @@ function toRule(
     frequency,
     interval: interval && interval > 0 ? interval : 1,
   };
-}
-
-function advance(date: string, rule: RecurrenceRule): string {
-  if (rule.frequency === "WEEKLY") return addDays(date, 7 * rule.interval);
-  if (rule.frequency === "MONTHLY") return addMonthsClamped(date, rule.interval);
-  return addYearsClamped(date, rule.interval);
 }
 
 function isActiveEntry(entry: IncomeEntry | ExpenseEntry): boolean {
@@ -84,7 +78,7 @@ export function listOccurrencesInRange(
   let safety = 0;
   while (compareIsoDates(cursor, effectiveTo) <= 0 && safety < 500) {
     dates.push(cursor);
-    cursor = advance(cursor, rule);
+    cursor = nextOccurrence(entry.start_date, rule, addDays(cursor, 1));
     safety += 1;
   }
   return dates;
@@ -173,7 +167,7 @@ export function upcomingOccurrences(
         entryId: entry.id,
         frequency: entry.recurrence_frequency ?? null,
       });
-      cursor = advance(cursor, rule);
+      cursor = nextOccurrence(entry.start_date, rule, addDays(cursor, 1));
       added += 1;
       safety += 1;
     }

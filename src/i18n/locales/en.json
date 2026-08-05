@@ -124,6 +124,10 @@
         }
       },
       "showInvestments": "Show investments",
+      "showInvestmentAvailability": "Distinguish liquid and restricted investments",
+      "showInvestmentAvailabilityHint": "Shows classification, filters, and asset composition.",
+      "trackPension": "Track retirement savings",
+      "trackPensionHint": "Adds the Retirement section and includes pension funds in net worth.",
       "scrollBounce": "Scroll bounce",
       "monthsInChart": "Months in chart",
       "languageLabel": "Language",
@@ -182,7 +186,8 @@
       "toggle": {
         "total": "Total",
         "liquidity": "Liquidity",
-        "investments": "Investments"
+        "investments": "Investments",
+        "pension": "Retirement"
       },
       "empty": "No data available."
     },
@@ -230,8 +235,15 @@
     "kpi": {
       "liquidity": "Liquidity",
       "investments": "Investments",
+      "pension": "Retirement",
       "netWorth": "Net worth",
       "awaitingComparison": "Waiting for a comparison"
+    },
+    "availability": {
+      "title": "Asset composition", "available": "Available", "restrictedShort": "Restricted",
+      "immediate": "Immediate cash", "liquid": "Liquid investments", "restricted": "Restricted investments", "pension": "Retirement savings",
+      "availableFrom": "Available from: {{date}}",
+      "ratioA11y": "Available assets {{available}}, restricted assets {{restricted}}"
     },
     "range": {
       "label": "Period",
@@ -260,7 +272,7 @@
       "edit": "Edit order",
       "title": "Edit order",
       "done": "Done",
-      "hint": "Tap the arrow to move a card to the top."
+      "hint": "Drag the handle to freely change the order."
     },
     "mock": {
       "kpi": {
@@ -305,13 +317,15 @@
     "list": {
       "tabLiquidity": "Liquidity",
       "tabInvest": "Investments",
+      "tabPension": "Retirement",
       "reorderTitle": "Reorder wallets",
-      "reorderHint": "Tap the arrow to move a wallet to the top",
+      "reorderHint": "Drag the handle to freely change the order",
       "editOrder": "Edit order",
       "doneOrder": "Done",
       "addWallet": "Add wallet",
       "newLiquidityTitle": "New liquidity wallet",
       "newInvestTitle": "New investment wallet",
+      "newPensionTitle": "Add a pension fund",
       "categoriesTitle": "Expense categories",
       "newCategoryLabel": "Category name",
       "addCategory": "Add category",
@@ -325,7 +339,22 @@
       "name": "Name",
       "brokerLabel": "Broker",
       "investmentTypeLabel": "Investment type",
+      "pensionProviderLabel": "Fund or provider",
+      "pensionTypeLabel": "Retirement product type",
       "colorLabel": "Color"
+    },
+    "sheet": {
+      "pensionSubtitle": "Fund name, type, currency, and color. Retirement savings are treated as restricted assets."
+    },
+    "availability": {
+      "title": "Asset availability",
+      "immediate": { "label": "Immediately available", "description": "Money that can be used immediately." },
+      "liquid": { "label": "Liquid investment", "description": "An investment normally sellable within a few days." },
+      "restricted": { "label": "Restricted investment", "description": "Value unavailable before maturity or specific conditions." },
+      "date": "Availability date (optional)", "datePlaceholder": "YYYY-MM-DD",
+      "clearDate": "Remove availability date",
+      "note": "Restriction description (optional)",
+      "filter": { "all": "All", "immediate": "Immediate", "liquid": "Liquid", "restricted": "Restricted" }
     },
     "guide": {
       "title": "Below you already have your first wallet to get started",
@@ -559,6 +588,7 @@
     "totals": {
       "liquidity": "Liquidity",
       "investments": "Investments",
+      "pension": "Retirement",
       "netWorth": "Net worth"
     }
   },
