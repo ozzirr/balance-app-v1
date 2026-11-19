@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Animated, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
-import { Button, Modal, Portal, Text } from "react-native-paper";
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Button, Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import type { BalanceProPlanId } from "@/config/entitlements";
@@ -417,22 +417,13 @@ export default function LimitReachedModal({
   }, [annualBadgeMotion, shouldAnimateAnnualBadge]);
 
   return (
-    <Portal>
-      {visible ? (
-        <View pointerEvents="none" style={styles.portalBackdrop}>
+    <Modal visible={visible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={primaryLoading || secondaryActionLoading || tertiaryActionLoading ? undefined : onClose}>
+      <View style={styles.modal} accessibilityViewIsModal>
+        <Pressable disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading} onPress={onClose} style={styles.portalBackdrop} accessibilityRole="button" accessibilityLabel={t("common.close", { defaultValue: "Close" })}>
           <GlassBlur intensity={26} tint={blurTint} fallbackColor="transparent" />
           <View style={[styles.backdropTint, { backgroundColor: overlayTint }]} />
-        </View>
-      ) : null}
-
-      <Modal
-        visible={visible}
-        onDismiss={onClose}
-        dismissable={!primaryLoading && !secondaryActionLoading && !tertiaryActionLoading}
-        style={styles.modal}
-        contentContainerStyle={styles.content}
-        theme={{ colors: { backdrop: "transparent" } }}
-      >
+        </Pressable>
+        <View style={styles.content} pointerEvents="box-none">
         <Animated.View
           style={[
             styles.card,
@@ -760,14 +751,15 @@ export default function LimitReachedModal({
             </Button>
           </ScrollView>
         </Animated.View>
-      </Modal>
-    </Portal>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   modal: {
-    margin: 0,
+    flex: 1,
     justifyContent: "center",
   },
   content: {
@@ -775,10 +767,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   portalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   backdropTint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   card: {
     borderRadius: 30,

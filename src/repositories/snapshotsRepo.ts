@@ -66,6 +66,23 @@ export async function createSnapshotWithLines(
         [snapshotId, line.wallet_id, line.amount]
       );
     }
+    // Keep daily detail for the month being entered. Once a new month starts,
+    // older months retain only the most recently inserted snapshot (largest id).
+    const staleSnapshots = await db.getAllAsync<{ id: number }>(
+      `SELECT s.id
+       FROM snapshots s
+       WHERE substr(s.date, 1, 7) < substr(?, 1, 7)
+         AND s.id <> (
+           SELECT MAX(newer.id)
+           FROM snapshots newer
+           WHERE substr(newer.date, 1, 7) = substr(s.date, 1, 7)
+         )`,
+      [date]
+    );
+    for (const stale of staleSnapshots) {
+      await db.runAsync("DELETE FROM snapshot_lines WHERE snapshot_id = ?", [stale.id]);
+      await db.runAsync("DELETE FROM snapshots WHERE id = ?", [stale.id]);
+    }
   });
   return snapshotId;
 }

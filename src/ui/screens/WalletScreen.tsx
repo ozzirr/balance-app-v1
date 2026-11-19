@@ -30,7 +30,7 @@ import { orderWalletsForUI } from "@/domain/walletOrdering";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import type { BalanceProPlanId } from "@/config/entitlements";
 import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
-import CoachTipCard from "@/ui/components/CoachTipCard";
+import TutorialSpotlight from "@/ui/components/TutorialSpotlight";
 import BottomSheet from "@/ui/components/BottomSheet";
 import { inferAssetAvailability } from "@/domain/assetAvailability";
 import { isIsoDate } from "@/utils/dates";
@@ -40,6 +40,7 @@ type BalanceProPaywallSource = "wallet-limit" | "settings-upsell";
 type WalletTab = "LIQUIDITY" | "INVEST" | "PENSION";
 
 type WalletRouteParams = {
+  tutorialRequest?: number;
   walletId?: number;
   startSetup?: boolean;
   paywallSource?: BalanceProPaywallSource;
@@ -57,7 +58,7 @@ const presetColors = [
   "#F97316",
   "#22D3EE",
 ];
-const REORDER_ROW_HEIGHT = 66;
+const REORDER_ROW_HEIGHT = 72;
 
 type WalletDraft = {
   name: string;
@@ -316,6 +317,7 @@ export default function WalletScreen(): React.ReactElement {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [walletsLoaded, setWalletsLoaded] = useState(false);
   const { t } = useTranslation();
   const [reorderMode, setReorderMode] = useState(false);
   const [reorderLists, setReorderLists] = useState<Record<WalletTab, Wallet[]>>({
@@ -324,12 +326,14 @@ export default function WalletScreen(): React.ReactElement {
     PENSION: [],
   });
   const [reorderVisible, setReorderVisible] = useState(false);
-  const [draggingWalletId, setDraggingWalletId] = useState<number | null>(null);
   const reorderAnim = useRef(new Animated.Value(0)).current;
   const reorderDropY = useRef(new Animated.Value(0)).current;
   const reorderDropOpacity = useRef(new Animated.Value(0)).current;
   const { showInvestments, showInvestmentAvailability, trackPension, scrollBounceEnabled } = useSettings();
   const [walletEdits, setWalletEdits] = useState<Record<number, WalletDraft>>({});
+  const walletEditsRef = useRef<Record<number, WalletDraft>>({});
+  const walletSaveQueues = useRef<Record<number, Promise<void>>>({});
+  const pendingWalletSaves = useRef<Record<number, number>>({});
   const [availabilityFilter, setAvailabilityFilter] = useState<AssetAvailability | "all">("all");
   const [tab, setTab] = useState<WalletTab>("LIQUIDITY");
   const [newWalletDraft, setNewWalletDraft] = useState<WalletDraft>({
@@ -353,6 +357,7 @@ export default function WalletScreen(): React.ReactElement {
   const [confirmWalletError, setConfirmWalletError] = useState<string | null>(null);
   const addWalletPulse = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef<ScrollView | null>(null);
+  const walletTutorialTarget = useRef<View>(null);
   const [pendingWalletType, setPendingWalletType] = useState<WalletTab | null>(null);
   const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null);
   const [proWelcomeVisible, setProWelcomeVisible] = useState(false);
@@ -427,6 +432,7 @@ export default function WalletScreen(): React.ReactElement {
   const load = useCallback(async () => {
     const walletList = await listWallets();
     setWallets(walletList);
+    setWalletsLoaded(true);
     const edits: Record<number, WalletDraft> = {};
     walletList.forEach((wallet) => {
       edits[wallet.id] = {
@@ -439,6 +445,13 @@ export default function WalletScreen(): React.ReactElement {
         restrictionNote: wallet.restrictionNote ?? "",
       };
     });
+    for (const id of Object.keys(pendingWalletSaves.current)) {
+      const walletId = Number(id);
+      if (pendingWalletSaves.current[walletId] && walletEditsRef.current[walletId]) {
+        edits[walletId] = walletEditsRef.current[walletId];
+      }
+    }
+    walletEditsRef.current = edits;
     setWalletEdits(edits);
   }, []);
 
@@ -475,7 +488,7 @@ export default function WalletScreen(): React.ReactElement {
     async (walletId: number, updates: Partial<WalletDraft>) => {
       const wallet = wallets.find((w) => w.id === walletId);
       if (!wallet) return;
-      const current = walletEdits[walletId] ?? {
+      const current = walletEditsRef.current[walletId] ?? {
         name: wallet.name,
         tag: normalizeInvestmentTag(wallet, wallet.tag),
         currency: wallet.currency,
@@ -485,6 +498,7 @@ export default function WalletScreen(): React.ReactElement {
         restrictionNote: wallet.restrictionNote ?? "",
       };
       const merged = { ...current, ...updates };
+      walletEditsRef.current = { ...walletEditsRef.current, [walletId]: merged };
       setWalletEdits((prev) => ({ ...prev, [walletId]: merged }));
       const trimmedName = merged.name.trim();
       if (!trimmedName) return;
@@ -507,7 +521,9 @@ export default function WalletScreen(): React.ReactElement {
             : item
         )
       );
-      try {
+      pendingWalletSaves.current[walletId] = (pendingWalletSaves.current[walletId] ?? 0) + 1;
+      const previousSave = walletSaveQueues.current[walletId] ?? Promise.resolve();
+      const save = previousSave.catch(() => undefined).then(async () => {
         await updateWallet(
           walletId, trimmedName, wallet.type, merged.currency, trimmedTag, wallet.active, color,
           merged.availability,
@@ -515,11 +531,17 @@ export default function WalletScreen(): React.ReactElement {
           merged.availability === "restricted" ? merged.restrictionNote.trim() || null : null,
           wallet.investmentKind
         );
+      });
+      walletSaveQueues.current[walletId] = save;
+      try {
+        await save;
       } catch (error) {
         console.warn("Failed to auto-save wallet", error);
+      } finally {
+        pendingWalletSaves.current[walletId] -= 1;
       }
     },
-    [walletEdits, wallets]
+    [wallets]
   );
 
   const openConfirmDeleteWallet = useCallback((walletId: number) => {
@@ -712,7 +734,6 @@ export default function WalletScreen(): React.ReactElement {
     const translateY = useRef(new Animated.Value(0)).current;
     const startIndexRef = useRef(index);
     const listLength = reorderLists[group].length;
-    const isDragging = draggingWalletId === wallet.id;
     const panResponder = useMemo(
       () =>
         PanResponder.create({
@@ -722,7 +743,6 @@ export default function WalletScreen(): React.ReactElement {
           onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dy) > 2,
           onPanResponderGrant: () => {
             startIndexRef.current = index;
-            setDraggingWalletId(wallet.id);
             reorderDropOpacity.setValue(0);
             translateY.setOffset(0);
             translateY.setValue(0);
@@ -753,7 +773,6 @@ export default function WalletScreen(): React.ReactElement {
               speed: 24,
               bounciness: 4,
             }).start();
-            setDraggingWalletId(null);
             reorderDropOpacity.setValue(0);
             void moveWalletInReorderList(group, startIndexRef.current, nextIndex);
           },
@@ -764,7 +783,6 @@ export default function WalletScreen(): React.ReactElement {
               speed: 24,
               bounciness: 4,
             }).start();
-            setDraggingWalletId(null);
             reorderDropOpacity.setValue(0);
           },
         }),
@@ -776,9 +794,8 @@ export default function WalletScreen(): React.ReactElement {
         {...panResponder.panHandlers}
         style={[
           styles.reorderRow,
-          isDragging ? styles.reorderRowActive : undefined,
           {
-            borderColor: isDragging ? tokens.colors.accent : tokens.colors.glassBorder,
+            borderColor: tokens.colors.glassBorder,
             backgroundColor: tokens.colors.glassBg,
             transform: [{ translateY }],
           },
@@ -1104,17 +1121,6 @@ export default function WalletScreen(): React.ReactElement {
       </PressScale>
     </View>
   ) : null;
-  const handleWalletGuidePress = useCallback(() => {
-    if (!guideWallet) {
-      return;
-    }
-    setExpandedWalletId(guideWallet.id);
-  }, [guideWallet]);
-
-  const handleWalletGuideAddNew = useCallback(() => {
-    handleRequestAddWallet(tab);
-  }, [handleRequestAddWallet, tab]);
-
   return (
     <View style={styles.screenRoot}>
       <AppBackground>
@@ -1151,28 +1157,6 @@ export default function WalletScreen(): React.ReactElement {
                 />
               ))}
             </View> : null}
-
-            {shouldShowWalletGuide ? (
-              <CoachTipCard
-                title={t("wallets.guide.title")}
-                lines={[t("wallets.guide.bodyLine1"), t("wallets.guide.bodyLine2")]}
-                leadingIcon={<MaterialCommunityIcons name="lightbulb-outline" size={18} color={tokens.colors.accent} />}
-                actions={
-                  <View style={styles.guideActions}>
-                    <SmallOutlinePillButton
-                      label={t("wallets.guide.cta")}
-                      onPress={handleWalletGuidePress}
-                      color={tokens.colors.accent}
-                    />
-                    <SmallOutlinePillButton
-                      label={t("wallets.guide.ctaNew", { defaultValue: "Aggiungi nuovo" })}
-                      onPress={handleWalletGuideAddNew}
-                      color={tokens.colors.accent}
-                    />
-                  </View>
-                }
-              />
-            ) : null}
 
             {tab === "LIQUIDITY" && (
               <>
@@ -1475,7 +1459,7 @@ export default function WalletScreen(): React.ReactElement {
               </>
             )}
             {!showAddWallet[tab] ? (
-              <Animated.View style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
+              <Animated.View ref={walletTutorialTarget} collapsable={false} style={shouldPulseAdd ? { transform: [{ scale: addWalletPulse }] } : undefined}>
                 <PrimaryPillButton
                   label={t("wallets.list.addWallet")}
                   onPress={() => handleRequestAddWallet(tab)}
@@ -1536,7 +1520,8 @@ export default function WalletScreen(): React.ReactElement {
         <Snackbar visible={purchaseNotice !== null} onDismiss={() => setPurchaseNotice(null)} duration={4000}>
           {purchaseNotice}
         </Snackbar>
-      </ScrollView>
+        </ScrollView>
+        <TutorialSpotlight id="wallets" requestToken={routeParams?.tutorialRequest} eligible={walletsLoaded && (wallets.length === 0 || (shouldShowWalletGuide && !wallets.some((wallet) => !isSeededDefaultWallet(wallet))))} canShow={walletsLoaded && !showAddWallet[tab]} target={walletTutorialTarget} title={t("tutorial.wallet.title")} description={t("tutorial.wallet.body")} targetLabel={t("wallets.list.addWallet")} onTargetPress={() => handleRequestAddWallet(tab)} />
       <Modal
         visible={reorderVisible && canReorder}
         transparent
@@ -1584,7 +1569,6 @@ export default function WalletScreen(): React.ReactElement {
               style={styles.reorderScroll}
               contentContainerStyle={styles.reorderGroups}
               showsVerticalScrollIndicator={false}
-              scrollEnabled={draggingWalletId === null}
               bounces={scrollBounceEnabled}
               alwaysBounceVertical={scrollBounceEnabled}
               overScrollMode={scrollBounceEnabled ? "always" : "never"}
@@ -1725,7 +1709,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   reorderOverlayDim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   reorderSheet: {
     borderTopLeftRadius: 18,

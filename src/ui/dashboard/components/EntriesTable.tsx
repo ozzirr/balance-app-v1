@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FlatList, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Text } from "react-native-paper";
 import Chip from "@/ui/dashboard/components/Chip";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
@@ -47,6 +47,7 @@ export default function EntriesTable<M = unknown>({
 }: EntriesTableProps<M>): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
+  const { width: screenWidth } = useWindowDimensions();
   const [pageIndex, setPageIndex] = useState(0);
   const amountColorForTone = (tone: "income" | "expense") =>
     tone === "income" ? tokens.colors.income : tokens.colors.expense;
@@ -97,6 +98,37 @@ export default function EntriesTable<M = unknown>({
       setPageIndex(0);
     }
   }, [pageIndex, totalPages]);
+
+  if (screenWidth < 600) {
+    return (
+      <View style={styles.mobileList}>
+        {pageRows.length === 0 ? (
+          <Text style={{ color: tokens.colors.muted, paddingVertical: 12 }}>{emptyLabel ?? t("entries.empty.noEntries")}</Text>
+        ) : pageRows.map((row) => (
+          <View key={row.id} style={[styles.mobileRow, { borderBottomColor: tokens.colors.border }]}>
+            <View style={[styles.mobileIcon, { backgroundColor: tokens.colors.surface2 }]}>
+              <MaterialCommunityIcons name={row.amountTone === "income" ? "arrow-bottom-left" : "arrow-top-right"} size={20} color={row.amountColor ?? amountColorForTone(row.amountTone)} />
+            </View>
+            <View style={styles.mobileDetails}>
+              <Text style={[styles.mobileName, { color: tokens.colors.text }]} numberOfLines={1}>{row.name}</Text>
+              <Text style={[styles.mobileMeta, { color: tokens.colors.muted }]} numberOfLines={1}>
+                {[row.dateLabel, row.subtitle, showCategory ? row.categoryLabel : null].filter(Boolean).join(" · ")}
+              </Text>
+            </View>
+            <Text style={[styles.mobileAmount, { color: row.amountColor ?? amountColorForTone(row.amountTone) }]}>{row.amountLabel}</Text>
+            {renderAction ? <View style={styles.mobileAction}>{renderAction(row)}</View> : null}
+          </View>
+        ))}
+        {showPagination && totalPages > 1 ? (
+          <View style={styles.paginationRow}>
+            <SmallOutlinePillButton label="" onPress={() => setPageIndex((prev) => Math.max(0, prev - 1))} color={pageIndex > 0 ? tokens.colors.accent : tokens.colors.muted} icon={<MaterialCommunityIcons name="chevron-left" size={18} color={pageIndex > 0 ? tokens.colors.accent : tokens.colors.muted} />} />
+            <Text style={[styles.paginationText, { color: tokens.colors.muted }]}>{pageIndex + 1}/{totalPages}</Text>
+            <SmallOutlinePillButton label="" onPress={() => setPageIndex((prev) => Math.min(totalPages - 1, prev + 1))} color={pageIndex < totalPages - 1 ? tokens.colors.accent : tokens.colors.muted} icon={<MaterialCommunityIcons name="chevron-right" size={18} color={pageIndex < totalPages - 1 ? tokens.colors.accent : tokens.colors.muted} />} />
+          </View>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.tableWrap}>
@@ -227,6 +259,14 @@ export default function EntriesTable<M = unknown>({
 }
 
 const styles = StyleSheet.create({
+  mobileList: { width: "100%" },
+  mobileRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  mobileIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  mobileDetails: { flex: 1, minWidth: 0, gap: 3 },
+  mobileName: { fontSize: 15, fontWeight: "700" },
+  mobileMeta: { fontSize: 11 },
+  mobileAmount: { fontSize: 14, fontWeight: "700" },
+  mobileAction: { marginLeft: 0 },
   tableWrap: {
     width: "100%",
   },

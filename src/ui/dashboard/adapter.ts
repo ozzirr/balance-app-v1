@@ -289,8 +289,8 @@ function deltaFromTotals(endTotals: ReturnType<typeof totalsFromSnapshotLines>, 
   };
 }
 
-// Selezione delta: 1D = ultimo snapshot vs precedente; 7D/28D = ultimo snapshot vs snapshot <= end-7/28g;
-// 3M/6M/12M = ultimo punto mensile vs punto mensile <= target month.
+// Selezione delta: 1D = ultimo snapshot vs precedente; 28D = ultimo snapshot vs snapshot <= end-28g;
+// 3M/6M/12M use the complete snapshot history for their baseline, independent of chart length.
 export function buildKpiDeltaForRange(
   range: KpiDeltaRange | "1D",
   snapshots: Snapshot[],
@@ -309,14 +309,14 @@ export function buildKpiDeltaForRange(
     );
     return { ...result, meta: { startDate: startSnapshot.date, endDate: endSnapshot.date } };
   }
-  if (range === "7D" || range === "28D") {
+  if (range === "28D") {
     const endSnapshot = snapshots[0];
     if (!endSnapshot) {
       return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
     }
     const endTotals = totalsFromSnapshotLines(snapshotLinesById[endSnapshot.id]);
     const startSnapshot =
-      findSnapshotOnOrBefore(snapshots, addDays(endSnapshot.date, range === "7D" ? -7 : -28));
+      findSnapshotOnOrBefore(snapshots, addDays(endSnapshot.date, -28));
     if (!startSnapshot) {
       return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
     }
@@ -328,15 +328,16 @@ export function buildKpiDeltaForRange(
     };
   }
 
-  if (portfolioSeries.length < 2) {
+  if (portfolioSeries.length === 0) {
     return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
   }
   const endPoint = portfolioSeries[portfolioSeries.length - 1];
   const endKey = monthKeyFromIso(endPoint.date);
   const monthsBack = range === "3M" ? -3 : range === "6M" ? -6 : -12;
   const targetMonth = shiftMonthKey(endKey, monthsBack);
-  const startPoint = [...portfolioSeries].reverse().find((point) => monthKeyFromIso(point.date) <= targetMonth);
-  if (!startPoint) {
+  const startSnapshot = snapshots.find((snapshot) => monthKeyFromIso(snapshot.date) <= targetMonth);
+  const startTotals = startSnapshot ? totalsFromSnapshotLines(snapshotLinesById[startSnapshot.id]) : null;
+  if (!startSnapshot || !startTotals) {
     return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
   }
   const calc = (end: number, start: number): DeltaPair => ({
@@ -346,12 +347,12 @@ export function buildKpiDeltaForRange(
   return {
     status: "OK",
     deltas: {
-      liquidity: calc(endPoint.liquidity, startPoint.liquidity),
-      investments: calc(endPoint.investments, startPoint.investments),
-      pension: calc(endPoint.pension ?? 0, startPoint.pension ?? 0),
-      total: calc(endPoint.total, startPoint.total),
+      liquidity: calc(endPoint.liquidity, startTotals.liquidity),
+      investments: calc(endPoint.investments, startTotals.investments),
+      pension: calc(endPoint.pension ?? 0, startTotals.pension),
+      total: calc(endPoint.total, startTotals.total),
     },
-    meta: { startDate: startPoint.date, endDate: endPoint.date },
+    meta: { startDate: startSnapshot.date, endDate: endPoint.date },
   };
 }
 
@@ -427,6 +428,7 @@ function buildCategories(expense: ExpenseEntry[], categories: ExpenseCategory[])
       const label = info?.label ?? i18n.t("dashboard.categories.uncategorized");
       return {
         id: `${label}-${index}`,
+        categoryId: categoryId === -1 ? null : categoryId,
         label,
         value,
         color: info?.color ?? palette[index % palette.length],
@@ -522,7 +524,7 @@ export function buildDashboardData(
     input.expenseEntries,
     new Date().getFullYear(),
     new Date().getMonth() + 1,
-    input.chartPoints
+    cashflowMonths.length
   );
   return {
     kpis,
@@ -590,10 +592,10 @@ export function createMockDashboardData(showInvestments = true): DashboardData {
     ],
   };
   const categories: CategoryRow[] = [
-    { id: "c1", label: i18n.t("dashboard.mock.categories.home"), value: 520, pct: 0.32, color: palette[3] },
-    { id: "c2", label: i18n.t("dashboard.mock.categories.food"), value: 420, pct: 0.26, color: palette[4] },
-    { id: "c3", label: i18n.t("dashboard.mock.categories.transport"), value: 310, pct: 0.19, color: palette[5] },
-    { id: "c4", label: i18n.t("dashboard.mock.categories.other"), value: 240, pct: 0.15, color: palette[6] },
+    { id: "c1", categoryId: 1, label: i18n.t("dashboard.mock.categories.home"), value: 520, pct: 0.32, color: palette[3] },
+    { id: "c2", categoryId: 2, label: i18n.t("dashboard.mock.categories.food"), value: 420, pct: 0.26, color: palette[4] },
+    { id: "c3", categoryId: 3, label: i18n.t("dashboard.mock.categories.transport"), value: 310, pct: 0.19, color: palette[5] },
+    { id: "c4", categoryId: 4, label: i18n.t("dashboard.mock.categories.other"), value: 240, pct: 0.15, color: palette[6] },
   ];
   const recurrences: RecurrenceRow[] = [
     {

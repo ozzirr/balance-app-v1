@@ -91,7 +91,7 @@ export function GlassCardContainer({
       tint={tint}
       backgroundColor={tokens.colors.glassBg}
       borderColor={tokens.colors.glassBorder}
-      radius={18}
+      radius={22}
       style={[styles.glassCard, { width: "100%", alignSelf: "stretch" }, style]}
     >
       <View
@@ -214,30 +214,32 @@ export function DatePill({ day, month }: { day: string; month: string }): JSX.El
 const styles = StyleSheet.create({
   segmentWrap: {
     flexDirection: "row",
-    borderRadius: 999,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: "hidden",
   },
   segment: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 11,
+    margin: 3,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   segmentLabel: {
-    fontWeight: "600",
-    fontSize: 15,
+    fontWeight: "700",
+    fontSize: 14,
   },
   glassCard: {
-    borderRadius: 18,
+    borderRadius: 22,
   },
   glassInner: {
-    padding: 16,
-    borderRadius: 18,
+    padding: 18,
+    borderRadius: 22,
   },
   primaryPill: {
     width: "100%",
-    borderRadius: 999,
+    borderRadius: 16,
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",

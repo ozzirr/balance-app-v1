@@ -1,5 +1,5 @@
-import { buildKpiDeltaForRange } from "@/ui/dashboard/adapter";
-import type { Snapshot, SnapshotLineDetail } from "@/repositories/types";
+import { buildDashboardData, buildKpiDeltaForRange } from "@/ui/dashboard/adapter";
+import type { ExpenseEntry, Snapshot, SnapshotLineDetail } from "@/repositories/types";
 import type { PortfolioPoint } from "@/ui/dashboard/types";
 
 const makeLine = (
@@ -14,6 +14,27 @@ const makeLine = (
   wallet_name: walletType === "LIQUIDITY" ? "Cash" : "Invest",
   wallet_type: walletType,
   wallet_tag: null,
+});
+
+describe("dashboard expense categories", () => {
+  test("keeps category IDs distinct even when names match and preserves uncategorized entries", () => {
+    const date = new Date();
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+    const expense = (id: number, categoryId: number | null, amount: number): ExpenseEntry => ({
+      id, name: `Expense ${id}`, amount, start_date: day, end_date: null,
+      recurrence_frequency: null, recurrence_interval: null, one_shot: 1,
+      note: null, active: 1, wallet_id: null, expense_category_id: categoryId as number,
+    });
+    const data = buildDashboardData({
+      latestLines: [], snapshots: [], snapshotLines: {}, incomeEntries: [],
+      expenseEntries: [expense(1, 11, 100), expense(2, 22, 50), expense(3, null, 25)],
+      expenseCategories: [{ id: 11, name: "Casa", color: "#123456", active: 1 }, { id: 22, name: "Casa", color: "#654321", active: 0 }],
+      chartPoints: 3, wallets: [],
+    });
+    expect(data.categories.map(({ categoryId, value }) => ({ categoryId, value }))).toEqual([
+      { categoryId: 11, value: 100 }, { categoryId: 22, value: 50 }, { categoryId: null, value: 25 },
+    ]);
+  });
 });
 
 describe("buildKpiDeltaForRange", () => {
@@ -83,19 +104,32 @@ describe("buildKpiDeltaForRange", () => {
     expect(result.deltas.total.deltaAbs).toBe(35);
   });
 
-  test("3M: uses monthly portfolio series with missing months", () => {
-    const portfolioSeries: PortfolioPoint[] = [
-      { date: "2025-10-01", total: 100, liquidity: 60, investments: 40 },
-      { date: "2025-12-01", total: 120, liquidity: 70, investments: 50 },
-      { date: "2026-01-01", total: 130, liquidity: 75, investments: 55 },
+  test("3M: uses complete snapshot history when the chart has missing months", () => {
+    const snapshots: Snapshot[] = [
+      { id: 2, date: "2026-01-31" },
+      { id: 1, date: "2025-10-31" },
     ];
+    const portfolioSeries: PortfolioPoint[] = [
+      { date: "2025-12-01", total: 135, liquidity: 70, investments: 50, pension: 15 },
+      { date: "2026-01-01", total: 150, liquidity: 75, investments: 55, pension: 20 },
+    ];
+    const pensionStart = {
+      ...makeLine(1, "INVEST", 10),
+      id: 13,
+      wallet_id: 3,
+      wallet_investment_kind: "PENSION" as const,
+    };
+    const snapshotLinesById: Record<number, SnapshotLineDetail[]> = {
+      1: [makeLine(1, "LIQUIDITY", 60), makeLine(1, "INVEST", 40), pensionStart],
+    };
 
-    const result = buildKpiDeltaForRange("3M", [], portfolioSeries, {});
+    const result = buildKpiDeltaForRange("3M", snapshots, portfolioSeries, snapshotLinesById);
     expect(result.status).toBe("OK");
-    expect(result.deltas.total.deltaAbs).toBe(30);
+    expect(result.deltas.total.deltaAbs).toBe(40);
     expect(result.deltas.liquidity.deltaAbs).toBe(15);
     expect(result.deltas.investments.deltaAbs).toBe(15);
-    expect(result.meta?.startDate).toBe("2025-10-01");
+    expect(result.deltas.pension.deltaAbs).toBe(10);
+    expect(result.meta?.startDate).toBe("2025-10-31");
     expect(result.meta?.endDate).toBe("2026-01-01");
   });
 });

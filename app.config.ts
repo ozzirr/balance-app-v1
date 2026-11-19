@@ -14,6 +14,11 @@ const BASE_PLUGINS = [
   "expo-font",
   "expo-iap",
   "expo-notifications",
+  "expo-localization",
+  "expo-secure-store",
+  "expo-sharing",
+  "expo-splash-screen",
+  "expo-status-bar",
 ];
 
 const FACE_ID_USAGE_DESCRIPTION = "Usiamo Face ID per proteggere l'accesso a Balance.";
@@ -24,6 +29,8 @@ export default function ({ config }: ConfigContext): ExpoConfig {
 
   const iosInfoPlistRest = { ...iosInfoPlist };
   delete iosInfoPlistRest.NSFaceIDUsageDescription;
+  // The generated Expo AppDelegate owns the window; it has no SceneDelegate.
+  delete iosInfoPlistRest.UIApplicationSceneManifest;
 
   const androidConfig = config.android ?? {};
   const { versionCode: _ignoredVersionCode, ...androidRest } = androidConfig;
@@ -34,11 +41,10 @@ export default function ({ config }: ConfigContext): ExpoConfig {
     ...config,
     name: APP_NAME,
     slug: "balance",
-    version: "1.5",
+    version: "2.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    newArchEnabled: false,
     scheme: APP_SCHEME,
     splash: {
       image: "./assets/splash-icon.png",

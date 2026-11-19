@@ -14,6 +14,7 @@ import {
 import type { ExpenseCategory, ExpenseEntry, IncomeEntry, RecurrenceFrequency } from "@/repositories/types";
 import { addDays, addMonths, compareIsoDates, isIsoDate, todayIso } from "@/utils/dates";
 import { listOccurrencesInRange } from "@/domain/recurrence";
+import { totalsForMonth } from "@/domain/finance";
 import { formatEUR, formatMonthLabel, formatShortDate } from "@/ui/dashboard/formatters";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import AppBackground from "@/ui/components/AppBackground";
@@ -35,8 +36,10 @@ import PressScale from "@/ui/dashboard/components/PressScale";
 import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import CoachTipCard from "@/ui/components/CoachTipCard";
+import TutorialSpotlight from "@/ui/components/TutorialSpotlight";
 import { useSettings } from "@/settings/useSettings";
 import BottomSheet from "@/ui/components/BottomSheet";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -55,7 +58,10 @@ type CategoryEdit = {
 };
 
 type EntriesRouteParams = {
+  categoryFilterRequest?: { categoryId: number | null; month: string; key: number };
+  tutorialRequest?: number;
   entryType?: EntryType;
+  navigationKey?: number;
   formMode?: FormMode;
   entryId?: number;
 };
@@ -74,17 +80,17 @@ type FormState = {
 
 const ENTRIES_BATCH_SIZE = 10;
 
-const emptyForm: FormState = {
+const emptyForm = (): FormState => ({
   id: null,
   name: "",
   amount: "",
   startDate: todayIso(),
-  endDate: todayIso(),
+  endDate: "",
   categoryId: "",
   active: true,
   recurring: false,
   frequency: "MONTHLY",
-};
+});
 
 const presetColors = [
   "#9B7BFF",
@@ -216,6 +222,15 @@ export default function EntriesScreen(): JSX.Element {
   );
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
   const [expenseEntries, setExpenseEntries] = useState<ExpenseEntry[]>([]);
+  const [entriesLoaded, setEntriesLoaded] = useState(false);
+  const entryTutorialTarget = useRef<View>(null);
+  const [forecastOffset, setForecastOffset] = useState(0);
+  const forecastDate = addMonths(todayIso(), forecastOffset);
+  const [forecastYear, forecastMonth] = forecastDate.split("-").map(Number);
+  const forecast = useMemo(
+    () => totalsForMonth(incomeEntries, expenseEntries, forecastYear, forecastMonth),
+    [incomeEntries, expenseEntries, forecastYear, forecastMonth]
+  );
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [categoryEdits, setCategoryEdits] = useState<Record<number, CategoryEdit>>({});
   const [newCategory, setNewCategory] = useState("");
@@ -226,6 +241,7 @@ export default function EntriesScreen(): JSX.Element {
   const [confirmCategoryLoading, setConfirmCategoryLoading] = useState(false);
   const [confirmCategoryError, setConfirmCategoryError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const appliedCategoryRequest = useRef<number | null>(null);
   const [monthFilter, setMonthFilter] = useState<MonthFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
@@ -250,6 +266,7 @@ export default function EntriesScreen(): JSX.Element {
     setIncomeEntries(income);
     setExpenseEntries(expense);
     setCategories(cats);
+    setEntriesLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -286,7 +303,7 @@ export default function EntriesScreen(): JSX.Element {
     if (routeParams.entryType) {
       setEntryType(routeParams.entryType);
     }
-  }, [routeParams.entryType]);
+  }, [routeParams.entryType, routeParams.navigationKey]);
 
   useEffect(() => {
     const nextFormMode = routeParams.formMode;
@@ -305,7 +322,7 @@ export default function EntriesScreen(): JSX.Element {
       if (lastFormModeRef.current !== "create") {
         setFormMode("create");
         setEditingId(null);
-        setForm(emptyForm);
+        setForm(emptyForm());
       }
     }
     lastFormModeRef.current = nextFormMode;
@@ -325,7 +342,7 @@ export default function EntriesScreen(): JSX.Element {
       name: entry.name,
       amount: String(entry.amount),
       startDate: entry.start_date,
-      endDate: entry.end_date ?? entry.start_date,
+      endDate: entry.end_date ?? "",
       categoryId:
         "expense_category_id" in entry && entry.expense_category_id
           ? String(entry.expense_category_id)
@@ -339,7 +356,7 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const resetToCreateMode = () => {
-    setForm(emptyForm);
+    setForm(emptyForm());
     setFormMode("create");
     setEditingId(null);
     (navigation as any).setParams({ formMode: "create", entryId: undefined, entryType });
@@ -370,11 +387,11 @@ export default function EntriesScreen(): JSX.Element {
       setError(t("entries.validation.invalidDate"));
       return;
     }
-    if (form.recurring && !isIsoDate(form.endDate)) {
+    if (form.recurring && form.endDate && !isIsoDate(form.endDate)) {
       setError(t("entries.validation.endDateRequired", { defaultValue: "Data fine obbligatoria per ricorrenza." }));
       return;
     }
-    if (form.recurring && compareIsoDates(form.endDate, form.startDate) < 0) {
+    if (form.recurring && form.endDate && compareIsoDates(form.endDate, form.startDate) < 0) {
       setError(
         t("entries.validation.endDateBeforeStart", {
           defaultValue: "La data fine deve essere uguale o successiva alla data inizio.",
@@ -411,7 +428,7 @@ export default function EntriesScreen(): JSX.Element {
         name: form.name.trim(),
         amount,
         start_date: form.startDate,
-        end_date: recurring ? form.endDate : null,
+        end_date: recurring ? form.endDate || null : null,
         recurrence_frequency: frequency,
         recurrence_interval: interval,
         one_shot: oneShot,
@@ -450,7 +467,7 @@ export default function EntriesScreen(): JSX.Element {
         name: form.name.trim(),
         amount,
         start_date: form.startDate,
-        end_date: recurring ? form.endDate : null,
+        end_date: recurring ? form.endDate || null : null,
         recurrence_frequency: frequency,
         recurrence_interval: interval,
         one_shot: oneShot,
@@ -526,7 +543,8 @@ export default function EntriesScreen(): JSX.Element {
   };
 
   const entries = entryType === "income" ? incomeEntries : expenseEntries;
-  const shouldShowSearch = entries.length > 0;
+  const shouldShowEntryFilters = entries.length > 0;
+  const shouldShowSearch = shouldShowEntryFilters;
 
   const activeCategories = useMemo(() => categories.filter((cat) => cat.active === 1), [categories]);
   const inputProps = createStandardTextInputProps(tokens);
@@ -650,7 +668,7 @@ export default function EntriesScreen(): JSX.Element {
             setForm((prev) => {
               if (datePickerTarget === "start") {
                 const nextEndDate =
-                  prev.recurring && compareIsoDates(prev.endDate, isoDate) < 0 ? isoDate : prev.endDate;
+                  prev.recurring && prev.endDate && compareIsoDates(prev.endDate, isoDate) < 0 ? isoDate : prev.endDate;
                 return { ...prev, startDate: isoDate, endDate: nextEndDate };
               }
               return { ...prev, endDate: isoDate };
@@ -704,7 +722,7 @@ export default function EntriesScreen(): JSX.Element {
     if (entryType === "expense") {
       result = result.filter((entry) => {
         if (categoryFilter === "all") return true;
-        return "expense_category_id" in entry.base && entry.base.expense_category_id === categoryFilter;
+        return "expense_category_id" in entry.base && (entry.base.expense_category_id ?? -1) === categoryFilter;
       });
     }
     if (normalizedSearch) {
@@ -731,10 +749,10 @@ export default function EntriesScreen(): JSX.Element {
 
   const filteredEntries = useMemo(() => {
     if (monthFilter === "all") {
-      return defaultVisibleEntries;
+      return normalizedSearch ? entriesAfterCategoryAndSearch : defaultVisibleEntries;
     }
     return entriesAfterCategoryAndSearch.filter((entry) => entry.date.startsWith(monthFilter));
-  }, [defaultVisibleEntries, entriesAfterCategoryAndSearch, monthFilter]);
+  }, [defaultVisibleEntries, entriesAfterCategoryAndSearch, monthFilter, normalizedSearch]);
 
   const sortedEntries = useMemo(() => {
     return [...filteredEntries].sort((a, b) => {
@@ -765,14 +783,13 @@ export default function EntriesScreen(): JSX.Element {
     });
     return ids.size;
   }, [activeCategories, entries, entryType]);
-  const shouldShowEntriesCard = entries.length > 0;
   const shouldShowCategoryFilter =
-    entryType === "expense" && entries.length >= 5 && expenseCategoryCount >= 2;
+    entryType === "expense" && shouldShowEntryFilters && (expenseCategoryCount >= 2 || categoryFilter !== "all");
   const hasHiddenPastEntries = useMemo(
     () => entriesAfterCategoryAndSearch.some((entry) => compareIsoDates(entry.date, defaultVisibleStart) < 0),
     [defaultVisibleStart, entriesAfterCategoryAndSearch]
   );
-  const shouldShowMonthFilter = availableMonthKeys.length > 1 || hasHiddenPastEntries;
+  const shouldShowMonthFilter = shouldShowEntryFilters && (availableMonthKeys.length > 1 || hasHiddenPastEntries);
   const canSubmitNewCategory = showAddCategory && newCategory.trim().length > 0;
   const categoryIdNumber = Number(form.categoryId);
   const isCategorySelected = entryType !== "expense" || (Number.isFinite(categoryIdNumber) && categoryIdNumber > 0);
@@ -780,11 +797,9 @@ export default function EntriesScreen(): JSX.Element {
   const isSaveDisabled = entryType === "expense" && !isCategorySelected;
   const categoryFiltersActive = showCategoryFilters || categoryFilter !== "all";
   const monthFiltersActive = showMonthFilters || monthFilter !== "all";
-  const newEntryTitle =
-    entryType === "income"
-      ? t("entries.form.newIncomeTitle", { defaultValue: "Nuova voce in entrata" })
-      : t("entries.form.newExpenseTitle", { defaultValue: "Nuova voce in uscita" });
-  const shouldShowEmptyEntriesGuide = entries.length === 0 && !showNewEntry;
+  const newEntryTitle = formMode === "edit"
+    ? t(entryType === "income" ? "entries.form.editIncomeTitle" : "entries.form.editExpenseTitle")
+    : t(entryType === "income" ? "entries.form.newIncomeTitle" : "entries.form.newExpenseTitle");
   const emptyEntriesGuideTitle = t("entries.guide.title", {
     defaultValue: "Come funziona questa sezione",
   });
@@ -816,17 +831,34 @@ export default function EntriesScreen(): JSX.Element {
       : t("entries.guide.cta", { defaultValue: "Aggiungi voce" });
 
   useEffect(() => {
+    const request = routeParams.categoryFilterRequest;
+    if (!request || !entriesLoaded || entryType !== "expense" || appliedCategoryRequest.current === request.key) return;
+    appliedCategoryRequest.current = request.key;
+    setShowNewEntry(false);
+    setSearchQuery("");
+    setShowSearchInput(false);
+    setCategoryFilter(request.categoryId ?? -1);
+    setMonthFilter(request.month);
+    setShowCategoryFilters(true);
+    setShowMonthFilters(true);
+    (navigation as any).setParams({ categoryFilterRequest: undefined });
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [entriesLoaded, entryType, navigation, routeParams.categoryFilterRequest]);
+
+  useEffect(() => {
     if (!shouldShowCategoryFilter && categoryFilter !== "all") {
       setCategoryFilter("all");
     }
   }, [categoryFilter, shouldShowCategoryFilter]);
 
   useEffect(() => {
+    const request = routeParams.categoryFilterRequest;
+    if (request && (categoryFilter !== (request.categoryId ?? -1) || searchQuery !== "")) return;
     if (monthFilter === "all") return;
     if (!availableMonthKeys.includes(monthFilter)) {
       setMonthFilter("all");
     }
-  }, [availableMonthKeys, monthFilter]);
+  }, [availableMonthKeys, categoryFilter, monthFilter, routeParams.categoryFilterRequest, searchQuery]);
 
   useEffect(() => {
     if (showSearchInput) {
@@ -924,6 +956,8 @@ export default function EntriesScreen(): JSX.Element {
     () => tableRows.slice(0, visibleEntriesCount),
     [tableRows, visibleEntriesCount]
   );
+  const shouldShowEntriesTable = entries.length > 0;
+  const shouldShowEmptyEntriesGuide = !shouldShowEntriesTable && !showNewEntry;
 
   const canLoadMoreRows = visibleEntriesCount < tableRows.length;
   const visibleRows = Math.min(visibleEntriesCount, tableRows.length);
@@ -974,17 +1008,6 @@ export default function EntriesScreen(): JSX.Element {
             { gap: tokens.spacing.lg, paddingBottom: 140 + insets.bottom, paddingTop: headerHeight + 12 },
           ]}
         >
-        {shouldShowEmptyEntriesGuide ? (
-          <CoachTipCard
-            title={emptyEntriesGuideTitle}
-            lines={emptyEntriesGuideLines}
-            ctaLabel={emptyEntriesGuideCtaLabel}
-            onPress={handleEmptyEntriesGuidePress}
-            ctaColor={tokens.colors.accent}
-            leadingIcon={<MaterialCommunityIcons name="lightbulb-outline" size={18} color={tokens.colors.accent} />}
-          />
-        ) : null}
-
         <BottomSheet
           visible={showNewEntry}
           title={newEntryTitle}
@@ -1051,7 +1074,7 @@ export default function EntriesScreen(): JSX.Element {
                         </Text>
                       </Text>
                     ) : null}
-                    {activeCategories.map((cat) => {
+                    {categories.filter((cat) => cat.active === 1 || cat.id === categoryFilter).map((cat) => {
                       const selected = form.categoryId === String(cat.id);
                       return (
                         <Pressable
@@ -1071,6 +1094,11 @@ export default function EntriesScreen(): JSX.Element {
                         </Pressable>
                       );
                     })}
+                    {categoryFilter !== "all" && !categories.some((cat) => cat.id === categoryFilter) ? (
+                      <Pressable onPress={() => setCategoryFilter(categoryFilter)} style={[styles.filterChip, { borderColor: tokens.colors.accent, backgroundColor: `${tokens.colors.accent}22` }]}>
+                        <Text style={{ color: tokens.colors.text, fontWeight: "600" }}>{t("dashboard.categories.uncategorized")}</Text>
+                      </Pressable>
+                    ) : null}
                   </ScrollView>
                   {shouldShowCategoryHint ? (
                     <Text style={[styles.categoryHint, { color: tokens.colors.expense }]}>
@@ -1084,16 +1112,7 @@ export default function EntriesScreen(): JSX.Element {
                 <Text style={{ color: tokens.colors.text, flex: 1 }}>{t("entries.form.recurringLabel")}</Text>
                 <Switch
                   value={form.recurring}
-                  onValueChange={(value) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      recurring: value,
-                      endDate:
-                        value && (!isIsoDate(prev.endDate) || compareIsoDates(prev.endDate, prev.startDate) < 0)
-                          ? prev.startDate
-                          : prev.endDate,
-                    }))
-                  }
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, recurring: value }))}
                   color={entryAccent}
                 />
               </View>
@@ -1109,7 +1128,15 @@ export default function EntriesScreen(): JSX.Element {
                       { value: "YEARLY", label: t("entries.form.frequency.yearly"), tint: `${entryAccent}33` },
                     ]}
                   />
-                  <TextInput
+                  <View style={[styles.inlineInputs, { alignItems: "center" }]}>
+                    <Text style={{ color: tokens.colors.text, flex: 1 }}>{t("entries.form.hasEndDate")}</Text>
+                    <Switch
+                      value={Boolean(form.endDate)}
+                      onValueChange={(value) => setForm((prev) => ({ ...prev, endDate: value ? prev.startDate : "" }))}
+                      color={entryAccent}
+                    />
+                  </View>
+                  {Boolean(form.endDate) && <TextInput
                     label={t("entries.form.endDate", { defaultValue: "Data fine" })}
                     value={formatIsoToDMY(form.endDate)}
                     editable={false}
@@ -1120,7 +1147,7 @@ export default function EntriesScreen(): JSX.Element {
                     right={<TextInput.Icon icon="calendar" />}
                     style={[styles.glassInput, { backgroundColor: tokens.colors.glassBg }]}
                     onPressIn={() => openDatePicker("end")}
-                  />
+                  />}
                   {renderDatePicker("end")}
                 </>
               )}
@@ -1138,7 +1165,7 @@ export default function EntriesScreen(): JSX.Element {
                 >
                   {t("common.save")}
                 </Button>
-                <Button mode="outlined" textColor={tokens.colors.text} onPress={() => setForm(emptyForm)} style={styles.flex}>
+                <Button mode="outlined" textColor={tokens.colors.text} onPress={() => setForm(emptyForm())} style={styles.flex}>
                   {t("common.reset")}
                 </Button>
                 {form.id && (
@@ -1150,7 +1177,79 @@ export default function EntriesScreen(): JSX.Element {
             </View>
         </BottomSheet>
 
+        {(incomeEntries.length > 0 || expenseEntries.length > 0) && (
+          <View style={[styles.forecastCard, { borderColor: tokens.colors.glassBorder }]}>
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <Svg width="100%" height="100%" preserveAspectRatio="none">
+              <Defs>
+                <LinearGradient id="cashflowForecastGradient" x1="0" y1="0" x2="1" y2="1">
+                  <Stop offset="0" stopColor={isDark ? "#30245A" : "#EAE1FF"} />
+                  <Stop offset="0.58" stopColor={isDark ? "#1B1B36" : "#F8F5FF"} />
+                  <Stop offset="1" stopColor={isDark ? "#142D32" : "#E7F5F1"} />
+                </LinearGradient>
+              </Defs>
+              <Rect width="100%" height="100%" fill="url(#cashflowForecastGradient)" />
+            </Svg>
+            </View>
+            <View style={styles.forecastHeader}>
+              <View style={styles.flex}>
+                <Text style={[styles.forecastEyebrow, { color: tokens.colors.muted }]}>{t("entries.forecast.title", { defaultValue: "PREVISIONE MENSILE" })}</Text>
+                <Text style={[styles.forecastMonth, { color: tokens.colors.text }]}>{formatMonthLabel(forecastDate)}</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("entries.forecast.previous", { defaultValue: "Mese precedente" })} onPress={() => setForecastOffset((value) => value - 1)} style={[styles.forecastArrow, { backgroundColor: isDark ? "#FFFFFF12" : "#FFFFFF99" }]}>
+                <MaterialCommunityIcons name="chevron-left" size={24} color={tokens.colors.text} />
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("entries.forecast.next", { defaultValue: "Mese successivo" })} onPress={() => setForecastOffset((value) => value + 1)} style={[styles.forecastArrow, { backgroundColor: isDark ? "#FFFFFF12" : "#FFFFFF99" }]}>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={tokens.colors.text} />
+              </Pressable>
+            </View>
+            <View style={styles.forecastBalance}>
+              <Text style={[styles.forecastBalanceLabel, { color: tokens.colors.muted }]}>{t("entries.forecast.balancePlanned", { defaultValue: "Saldo previsto" })}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.forecastBalanceValue, { color: tokens.colors.text }]}>
+                {forecast.net > 0 ? "+" : ""}{formatEUR(forecast.net)}
+              </Text>
+            </View>
+            <View style={styles.forecastStats}>
+              {[
+                { label: t("dashboard.pulse.income"), value: forecast.income, color: tokens.colors.income, icon: "arrow-bottom-left" as const },
+                { label: t("dashboard.pulse.expense"), value: forecast.expense, color: tokens.colors.expense, icon: "arrow-top-right" as const },
+              ].map((item) => (
+                <View key={item.label} style={[styles.forecastStat, { backgroundColor: isDark ? "#FFFFFF0D" : "#FFFFFF99" }]}>
+                  <View style={styles.forecastStatLabel}>
+                    <MaterialCommunityIcons name={item.icon} size={15} color={item.color} />
+                    <Text style={{ color: tokens.colors.muted, fontSize: 12 }}>{item.label}</Text>
+                  </View>
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: tokens.colors.text, fontSize: 20, fontWeight: "700" }}>{formatEUR(item.value)}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.forecastBar} accessibilityElementsHidden>
+              {forecast.income + forecast.expense > 0 ? (
+                <>
+                  <View style={{ flex: forecast.income, backgroundColor: tokens.colors.income }} />
+                  <View style={{ flex: forecast.expense, backgroundColor: tokens.colors.expense }} />
+                </>
+              ) : <View style={{ flex: 1, backgroundColor: tokens.colors.glassBorder }} />}
+            </View>
+            <View style={styles.forecastNote}>
+              <MaterialCommunityIcons name="calendar-refresh-outline" size={15} color={tokens.colors.muted} />
+              <Text style={{ color: tokens.colors.muted, fontSize: 12, flex: 1 }}>{t("entries.forecast.shortNote", { defaultValue: "Include i movimenti ricorrenti pianificati" })}</Text>
+            </View>
+          </View>
+        )}
         <GlassCardContainer contentStyle={styles.entriesTableCard}>
+          {!showNewEntry ? (
+            <View ref={entryTutorialTarget} collapsable={false}>
+            <PrimaryPillButton
+              label={t("entries.actions.toggleForm")}
+              onPress={() => {
+                toggleNewEntryVisibility();
+                setTimeout(scrollToForm, 80);
+              }}
+              color={tokens.colors.purplePrimary}
+            />
+            </View>
+          ) : null}
           <SegmentedControlPill
             value={entryType}
             onChange={(next) => setEntryType(next as EntryType)}
@@ -1159,7 +1258,7 @@ export default function EntriesScreen(): JSX.Element {
               { value: "income", label: t("entries.list.tabIncome"), tint: `${tokens.colors.income}44` },
             ]}
           />
-          {shouldShowEntriesCard ? (
+          {shouldShowEntriesTable ? (
             <>
             <ScrollView
               ref={filtersRowRef}
@@ -1222,12 +1321,15 @@ export default function EntriesScreen(): JSX.Element {
                 {shouldShowSearch && !showSearchInput && !searchQuery ? (
                   <Pressable
                     onPress={() => setShowSearchInput(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("entries.list.searchAction")}
                     style={[
-                      styles.filterIconButton,
+                      styles.filterPill,
                       { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
                     ]}
                   >
                     <MaterialCommunityIcons name="magnify" size={16} color={tokens.colors.muted} />
+                    <Text style={[styles.filterPillText, { color: tokens.colors.muted }]}>{t("entries.list.searchAction")}</Text>
                   </Pressable>
                 ) : null}
                 {shouldShowSearch && (showSearchInput || searchQuery) ? (
@@ -1341,7 +1443,7 @@ export default function EntriesScreen(): JSX.Element {
             <EntriesTable
               rows={visibleTableRows}
               minWidth={entryType === "income" ? Math.max(420, width - 64) : Math.max(436, width - 64)}
-              emptyLabel={t("entries.empty.noEntries")}
+              emptyLabel={t("entries.list.noResults")}
               showCategory={entryType !== "income"}
               showPagination={false}
               renderAction={(row) =>
@@ -1370,17 +1472,17 @@ export default function EntriesScreen(): JSX.Element {
             ) : null}
             </>
           ) : null}
-          {!showNewEntry ? (
-            <PrimaryPillButton
-              label={t("entries.actions.toggleForm")}
-              onPress={() => {
-                toggleNewEntryVisibility();
-                setTimeout(scrollToForm, 80);
-              }}
-              color={tokens.colors.purplePrimary}
-            />
-          ) : null}
         </GlassCardContainer>
+        {shouldShowEmptyEntriesGuide && entryType === "expense" && activeCategories.length === 0 ? (
+          <CoachTipCard
+            title={emptyEntriesGuideTitle}
+            lines={emptyEntriesGuideLines}
+            ctaLabel={emptyEntriesGuideCtaLabel}
+            onPress={handleEmptyEntriesGuidePress}
+            ctaColor={tokens.colors.accent}
+            leadingIcon={<MaterialCommunityIcons name="lightbulb-outline" size={18} color={tokens.colors.accent} />}
+          />
+        ) : null}
         {entryType === "expense" ? (
           <View
             onLayout={(event) => {
@@ -1524,12 +1626,26 @@ export default function EntriesScreen(): JSX.Element {
           confirmColor={tokens.colors.expense}
         />
         </ScrollView>
+        <TutorialSpotlight id={`cashflow-${entryType}`} requestToken={routeParams.tutorialRequest} eligible={entriesLoaded && shouldShowEmptyEntriesGuide && (entryType === "income" || activeCategories.length > 0)} canShow={entriesLoaded && !showNewEntry && (entryType === "income" || activeCategories.length > 0)} target={entryTutorialTarget} title={t(`tutorial.cashflow.${entryType}.title`)} description={t(`tutorial.cashflow.${entryType}.body`)} targetLabel={t("entries.actions.toggleForm")} onTargetPress={() => { toggleNewEntryVisibility(); setTimeout(scrollToForm, 80); }} />
       </AppBackground>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  forecastCard: { gap: 16, padding: 20, borderRadius: 24, borderWidth: 1, overflow: "hidden" },
+  forecastHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  forecastEyebrow: { fontSize: 10, fontWeight: "700", letterSpacing: 1.2 },
+  forecastMonth: { fontSize: 22, fontWeight: "700", marginTop: 3 },
+  forecastArrow: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  forecastBalance: { gap: 3 },
+  forecastBalanceLabel: { fontSize: 13 },
+  forecastBalanceValue: { fontSize: 36, fontWeight: "800", letterSpacing: -1 },
+  forecastStats: { flexDirection: "row", gap: 8 },
+  forecastStat: { flex: 1, minWidth: 0, gap: 6, padding: 12, borderRadius: 14 },
+  forecastStatLabel: { flexDirection: "row", alignItems: "center", gap: 5 },
+  forecastBar: { height: 6, borderRadius: 3, overflow: "hidden", flexDirection: "row" },
+  forecastNote: { flexDirection: "row", alignItems: "center", gap: 6 },
   screen: {
     flex: 1,
   },

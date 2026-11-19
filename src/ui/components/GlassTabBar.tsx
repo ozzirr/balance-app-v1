@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import GlassSurface from "@/ui/components/GlassSurface";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -28,6 +28,13 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [blockedModalVisible, setBlockedModalVisible] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(true);
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => { if (active) setReduceMotion(enabled); }).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
   const blockedTitle = t("navigation.blockedNoWalletTitle", { defaultValue: "Nessun wallet" });
   const blockedBody = t("navigation.blockedNoWalletBody", {
     defaultValue: "Crea prima il tuo primo wallet per iniziare.",
@@ -43,31 +50,41 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
   const isDark = theme.dark;
   const blurTint = isDark ? "dark" : "light";
   const blurIntensity = 35;
-  const barBg =
-    Platform.OS === "android"
-      ? isDark
-        ? tokens.colors.surface2
-        : tokens.colors.surface
-      : isDark
-      ? "rgba(15, 18, 30, 0.55)"
-      : "rgba(169, 124, 255, 0.32)";
+  const barBg = isDark ? "rgba(28, 27, 43, 0.96)" : "rgba(255, 255, 255, 0.96)";
   const borderColor =
-    Platform.OS === "android" ? tokens.colors.border : isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
-  const inactiveColor = isDark ? theme.colors.onSurface : "#4B4B60";
+    Platform.OS === "android" ? tokens.colors.border : isDark ? "rgba(255,255,255,0.14)" : "rgba(55,40,80,0.12)";
+  const inactiveColor = tokens.colors.muted;
   const tabRoutes = state.routes.filter((route) => route.name !== "Impostazioni");
+  const focusedIndex = tabRoutes.findIndex((route) => route.key === state.routes[state.index].key);
+  const [barWidth, setBarWidth] = useState(0);
+  const indicatorPosition = useRef(new Animated.Value(0)).current;
+  const initializedIndicator = useRef(false);
+  useEffect(() => {
+    if (!barWidth || focusedIndex < 0) return;
+    const destination = (barWidth / tabRoutes.length) * focusedIndex;
+    indicatorPosition.stopAnimation();
+    if (!initializedIndicator.current || reduceMotion) {
+      indicatorPosition.setValue(destination);
+      initializedIndicator.current = true;
+      return;
+    }
+    const animation = Animated.timing(indicatorPosition, { toValue: destination, duration: 300, easing: Easing.inOut(Easing.cubic), useNativeDriver: true });
+    animation.start();
+    return () => animation.stop();
+  }, [barWidth, focusedIndex, indicatorPosition, reduceMotion, tabRoutes.length]);
   return (
     <>
-      <View style={styles.container} pointerEvents="box-none">
+      <View style={[styles.container, { bottom: Math.max(12, insets.bottom) }]} pointerEvents="box-none">
         <GlassSurface
           intensity={blurIntensity}
           tint={blurTint}
           backgroundColor={barBg}
           borderColor={borderColor}
-          radius={0}
+          radius={24}
           style={[
             styles.blur,
             {
-              minHeight: BAR_HEIGHT + insets.bottom,
+              minHeight: BAR_HEIGHT,
             },
           ]}
         >
@@ -75,12 +92,12 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
             style={[
               styles.barContent,
               {
-                minHeight: BAR_HEIGHT + insets.bottom,
-                paddingBottom: insets.bottom + 8,
+                minHeight: BAR_HEIGHT,
               },
             ]}
           >
-            <View style={styles.inner}>
+            <View style={styles.inner} onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}>
+              {barWidth > 0 && focusedIndex >= 0 ? <Animated.View pointerEvents="none" style={[styles.movingIndicator, { width: barWidth / tabRoutes.length, transform: [{ translateX: indicatorPosition }] }]}><View style={[styles.indicatorPill, { backgroundColor: isDark ? "rgba(185,152,255,0.22)" : "rgba(118,80,214,0.16)" }]} /></Animated.View> : null}
               {tabRoutes.map((route) => {
                 const { options } = descriptors[route.key];
                 const label = options.tabBarLabel ?? options.title ?? route.name;
@@ -115,18 +132,17 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
                   <Pressable
                     key={route.key}
                     onPress={onPress}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: isFocused }}
+                    accessibilityLabel={String(label)}
                     style={styles.tabItem}
                   >
-                    <MaterialCommunityIcons
-                      name={icon}
-                      size={isFocused ? 28 : 24}
-                      color={isFocused ? theme.colors.primary : inactiveColor}
-                    />
+                    <View style={styles.iconWrap}><MaterialCommunityIcons name={icon} size={23} color={isFocused ? tokens.colors.accent : inactiveColor} /></View>
                     <Text
                       variant="labelSmall"
                       style={[
                         styles.label,
-                        { color: isFocused ? theme.colors.primary : inactiveColor },
+                        { color: isFocused ? tokens.colors.accent : inactiveColor },
                       ]}
                       numberOfLines={1}
                       ellipsizeMode="tail"
@@ -156,17 +172,16 @@ export default function GlassTabBar({ state, descriptors, navigation }: BottomTa
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 16,
+    right: 16,
+    bottom: 12,
   },
   blur: {
     width: "100%",
     minHeight: BAR_HEIGHT,
     overflow: "hidden",
-    paddingHorizontal: 16,
-    borderWidth: 0,
-    borderTopWidth: 1,
+    paddingHorizontal: 8,
+    borderWidth: 1,
   },
   barContent: {
     justifyContent: "center",
@@ -183,6 +198,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 4,
   },
+  iconWrap: { width: 48, height: 30, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  movingIndicator: { position: "absolute", top: 6, left: 0, alignItems: "center" },
+  indicatorPill: { width: "92%", maxWidth: 120, height: 60, borderRadius: 18 },
   label: {
     marginTop: 2,
   },

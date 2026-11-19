@@ -3,6 +3,20 @@ import type { IncomeEntry } from "@/repositories/types";
 import { sampleExpenseEntries, sampleIncomeEntries } from "./fixtures/sampleData";
 
 describe("recurrence", () => {
+  test("monthly entries without an end date continue across months", () => {
+    const entry: IncomeEntry = {
+      ...sampleIncomeEntries[0],
+      start_date: "2025-01-15",
+      end_date: null,
+      recurrence_frequency: "MONTHLY",
+      recurrence_interval: 1,
+      one_shot: 0,
+      active: 1,
+    };
+    expect(listOccurrencesInRange(entry, "2025-01-01", "2025-04-30")).toEqual([
+      "2025-01-15", "2025-02-15", "2025-03-15", "2025-04-15",
+    ]);
+  });
   test("monthly clamped for end-of-month", () => {
     const entry: IncomeEntry = {
       id: 1,

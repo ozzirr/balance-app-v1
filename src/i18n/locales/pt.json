@@ -97,7 +97,9 @@
       }
     }
   },
+  "tutorial": { "gotIt": "Entendi", "skip": "Pular", "close": "Fechar dica", "wallet": { "title": "Adicione um wallet", "body": "Use este botão para adicionar uma conta ou outro wallet. Para editar um wallet existente, toque no nome dele." }, "snapshot": { "title": "Salve seu primeiro snapshot", "body": "Toque aqui e informe os saldos dos seus wallets para registrar seu patrimônio." }, "cashflow": { "income": { "title": "Adicione uma entrada", "body": "Toque aqui para incluir uma entrada única ou recorrente na previsão." }, "expense": { "title": "Adicione uma saída", "body": "Toque aqui para incluir uma despesa única ou recorrente na previsão." } } },
   "settings": {
+    "menu": { "profile": "Apelido e idioma", "general": "Tema, painel e investimentos", "notifications": "Lembretes de snapshot", "securityTitle": "Segurança", "security": "Código, biometria e bloqueio", "data": "Exportar, importar ou apagar dados", "plan": "Plano atual e Balance Pro", "back": "Voltar às configurações" },
     "title": "Definições",
     "profile": {
       "title": "Perfil",
@@ -108,6 +110,7 @@
       "title": "Notificações"
     },
     "preferences": {
+      "showGreeting": "Mostrar saudação no painel",
       "title": "Geral",
       "darkTheme": "Tema escuro",
       "prefillSnapshot": "Pré-preencher snapshot",
@@ -159,6 +162,16 @@
     "reset": "Repor"
   },
   "dashboard": {
+    "setup": { "eyebrow": "PRIMEIROS PASSOS", "title": "Configure o Balance", "progress": "{{count}} de {{total}} etapas concluídas", "dismiss": "Ocultar configuração", "done": "concluído", "pending": "por concluir", "wallet": { "title": "Prepare seus wallets", "description": "Adicione ou edite suas contas." }, "snapshot": { "title": "Salve um snapshot", "description": "Registre os saldos dos seus wallets." }, "cashflow": { "title": "Adicione um movimento", "description": "Inclua uma entrada ou saída." } },
+    "amountPrivacy": { "hide": "Ocultar patrimônio", "show": "Mostrar patrimônio", "hidden": "Patrimônio oculto" },
+    "insights": { "title": "Em destaque", "topCategory": "Principal categoria do mês", "next": "Próximo movimento" },
+    "analysis": { "eyebrow": "SUA VISÃO GERAL", "title": "Análises e gráficos" },
+    "chartChooser": { "title": "Escolhe um gráfico", "subtitle": "Vai diretamente à visualização que te interessa.", "empty": "Adiciona dados para veres os gráficos." },
+    "reportSettings": { "subtitle": "Escolhe o que incluir na imagem.", "wealth": "Património", "wealthDetail": "Total e distribuição por tipo de carteira", "flow": "Entradas e despesas", "flowDetail": "Resumo previsto do mês atual", "qr": "Divulga o Balance", "qrDetail": "Adiciona o QR para descarregar a aplicação", "privacy": "Partilha apenas o que desejas mostrar. Revê a imagem antes de enviar.", "preview": "Criar pré-visualização", "back": "Editar conteúdos", "requirement": "Seleciona pelo menos uma secção." },
+    "reportDownloadPrompt": "Digitaliza e obtém na App Store",
+    "pulse": { "eyebrow": "O TEU MÊS", "income": "Entradas", "expense": "Despesas", "net": "Saldo previsto", "note": "Movimentos previstos no mês, incluindo recorrências.", "edit": "Editar entradas e despesas" },
+    "report": { "title": "O teu relatório Balance", "subtitle": "Património e movimentos numa página.", "action": "O teu relatório", "actionSubtitle": "Partilha o património e o fluxo de caixa", "snapshot": "O TEU PATRIMÓNIO", "flowTitle": "O MÊS EM RESUMO", "planned": "previstos", "flowNote": "Movimentos previstos, incluindo recorrências.", "footer": "AS TUAS FINANÇAS, COM MAIS CLAREZA.", "share": "Partilhar imagem", "sharing": "A preparar…", "hint": "A imagem contém os teus dados financeiros.", "close": "Fechar", "error": "Não foi possível preparar o relatório. Tenta novamente." },
+    "portfolioPrivate": "Os teus dados permanecem no dispositivo",
     "errorTitle": "Não foi possível carregar a dashboard",
     "emptyTitle": "Sem dados disponíveis",
     "emptyBody": "Cria pelo menos uma carteira para começar.",
@@ -206,6 +219,8 @@
       "header": "Cash Flow. Visão geral",
       "empty": "Sem dados disponíveis.",
       "avgIncome": "Entradas médias mensais",
+      "averagePeriod_one": "Média do último mês, incluindo o mês atual",
+      "averagePeriod_other": "Média dos últimos {{count}} meses, incluindo o mês atual",
       "avgExpense": "Despesas médias mensais",
       "avgSavings": "Poupança média mensal",
       "annualLabel": "Anual",
@@ -248,9 +263,8 @@
     "range": {
       "label": "Período",
       "title": "Alterar intervalo",
-      "subtitle": "Escolhe o intervalo para a comparação dos KPI. Exemplo: com “Últimos 7 dias” comparamos o teu último snapshot com o mais próximo de há 7 dias (se disponível).",
+      "subtitle": "Escolhe um período para comparar os KPI: últimos 28 dias, últimos 3 ou 6 meses, ou o último ano.",
       "options": {
-        "last7Days": "Últimos 7 dias",
         "last28Days": "Últimos 28 dias",
         "last3Months": "Últimos 3 meses",
         "last6Months": "Últimos 6 meses",
@@ -272,6 +286,9 @@
       "edit": "Editar ordem",
       "title": "Editar ordem",
       "done": "Concluído",
+      "hintControls": "Arrasta a pega ou usa as setas para mudar a ordem.",
+      "moveUp": "Mover {{name}} para cima",
+      "moveDown": "Mover {{name}} para baixo",
       "hint": "Arrasta a pega para alterar livremente a ordem."
     },
     "mock": {
@@ -434,6 +451,7 @@
     }
   },
   "entries": {
+    "forecast": { "title": "PREVISÃO MENSAL", "previous": "Mês anterior", "next": "Próximo mês", "balance": "Saldo", "balancePlanned": "Saldo previsto", "shortNote": "Inclui movimentos recorrentes planejados", "note": "Movimentos planejados, incluindo recorrências. A lista abaixo mantém seus filtros." },
     "list": {
       "tabIncome": "Entradas",
       "tabExpense": "Despesas",
@@ -441,6 +459,8 @@
       "filterByCategory": "Filtrar por categoria",
       "searchLabel": "Pesquisar por nome",
       "searchPlaceholder": "Pesquisar...",
+      "searchAction": "Pesquisar",
+      "noResults": "Nenhuma entrada encontrada. Experimenta alterar os filtros.",
       "sortAnnualLabel": "Ordenar por valor anual",
       "sortAnnualAsc": "Crescente",
       "sortAnnualDesc": "Decrescente",
@@ -466,10 +486,13 @@
       "endDate": "Data de fim",
       "newEntryTitle": "Nova entrada",
       "newIncomeTitle": "Nova entrada de receita",
+      "editIncomeTitle": "Editar receita",
+      "editExpenseTitle": "Editar despesa",
       "newExpenseTitle": "Nova entrada de despesa",
       "categoryHint": "Seleciona uma categoria.",
       "categoryTitle": "Categoria de despesa",
       "recurringLabel": "Recorrente",
+      "hasEndDate": "Definir data de fim",
       "intervalLabel": "Intervalo",
       "frequency": {
         "weekly": "Semanal",

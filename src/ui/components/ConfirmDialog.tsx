@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Platform, StyleSheet, View } from "react-native";
-import { Button, Modal, Portal, Text } from "react-native-paper";
+import { Animated, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Button, Text } from "react-native-paper";
 import GlassBlur from "@/ui/components/GlassBlur";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 
@@ -66,15 +66,10 @@ export default function ConfirmDialog({
     Platform.OS === "android" ? tokens.colors.border : isDark ? "rgba(255,255,255,0.12)" : "rgba(169, 124, 255, 0.5)";
 
   return (
-    <Portal>
-      <Modal
-        visible={visible}
-        onDismiss={loading ? undefined : onCancel}
-        dismissable={!loading}
-        style={styles.modal}
-        contentContainerStyle={styles.content}
-        theme={{ colors: { backdrop: overlayTint } }}
-      >
+    <Modal visible={visible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={loading ? undefined : onCancel}>
+      <View style={styles.modal} accessibilityViewIsModal>
+        <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} disabled={loading} onPress={onCancel} style={[StyleSheet.absoluteFill, { backgroundColor: overlayTint }]} />
+        <View style={styles.content} pointerEvents="box-none">
         <Animated.View
           style={[
             styles.card,
@@ -120,14 +115,15 @@ export default function ConfirmDialog({
             </Button>
           </View>
         </Animated.View>
-      </Modal>
-    </Portal>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   modal: {
-    margin: 0,
+    flex: 1,
     justifyContent: "center",
   },
   content: {

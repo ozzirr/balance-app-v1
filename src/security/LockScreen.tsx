@@ -26,13 +26,14 @@ import { useTranslation } from "react-i18next";
 type LockScreenProps = {
   config: SecurityConfig;
   onAuthenticated: () => void;
+  allowAutoBiometry: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 const SHAKE_DURATION = 80;
 const SHAKE_DISTANCE = 8;
 
-export default function LockScreen({ config, onAuthenticated, style }: LockScreenProps): JSX.Element {
+export default function LockScreen({ config, onAuthenticated, allowAutoBiometry, style }: LockScreenProps): JSX.Element {
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,6 +41,7 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [biometryAvailable, setBiometryAvailable] = useState(false);
   const [autoBiometryTried, setAutoBiometryTried] = useState(false);
+  const [appIsActive, setAppIsActive] = useState(AppState.currentState === "active");
   const { tokens } = useDashboardTheme();
   const { t } = useTranslation();
 
@@ -229,7 +231,7 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
       if (!active) return;
       const available = info.hasHardware && info.hasEnrolled;
       setBiometryAvailable(available);
-      if (available && !autoBiometryTried) {
+      if (available && allowAutoBiometry && appIsActive && !autoBiometryTried) {
         setAutoBiometryTried(true);
         scheduleBiometry({ silent: true });
       }
@@ -237,12 +239,14 @@ export default function LockScreen({ config, onAuthenticated, style }: LockScree
     return () => {
       active = false;
     };
-  }, [autoBiometryTried, config.biometryEnabled, scheduleBiometry]);
+  }, [allowAutoBiometry, appIsActive, autoBiometryTried, config.biometryEnabled, scheduleBiometry]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
+      const previousState = appStateRef.current;
       appStateRef.current = nextState;
-      if (nextState === "active" && config.biometryEnabled) {
+      setAppIsActive(nextState === "active");
+      if (nextState === "active" && previousState === "background" && config.biometryEnabled) {
         setAutoBiometryTried(false);
       }
     });

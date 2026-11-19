@@ -28,7 +28,10 @@ import { todayIso } from "@/utils/dates";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import type { DashboardData, KpiDeltaRange } from "@/ui/dashboard/types";
 import { buildDashboardData, buildKpiDeltaForRange, createMockDashboardData } from "@/ui/dashboard/adapter";
+import { formatEUR, formatPct, formatShortDate } from "@/ui/dashboard/formatters";
 import PortfolioSummaryCard from "@/ui/dashboard/components/PortfolioSummaryCard";
+import BalanceReport from "@/ui/dashboard/components/BalanceReport";
+import MonthlyPulse from "@/ui/dashboard/components/MonthlyPulse";
 import KPIStrip from "@/ui/dashboard/components/KPIStrip";
 import RangeSelector from "@/ui/dashboard/components/RangeSelector";
 import PortfolioLineChartCard from "@/ui/dashboard/components/PortfolioLineChartCard";
@@ -44,6 +47,7 @@ import LimitReachedModal from "@/ui/components/LimitReachedModal";
 import { GlassCardContainer, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import CoachTipCard from "@/ui/components/CoachTipCard";
 import GlassBlur from "@/ui/components/GlassBlur";
+import BottomSheet from "@/ui/components/BottomSheet";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
@@ -77,10 +81,11 @@ const SECTION_ORDER: SectionId[] = [
   "categories",
   "prossimi",
 ];
-const REORDER_ROW_HEIGHT = 62;
+const REORDER_ROW_HEIGHT = 72;
 
 type SectionAccordionProps = {
   title: string;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -91,6 +96,7 @@ type SectionAccordionProps = {
 
 const SectionAccordion = ({
   title,
+  icon = "chart-box-outline",
   open,
   onToggle,
   children,
@@ -115,6 +121,7 @@ const SectionAccordion = ({
           style={[styles.cardHeader, { borderColor: tokens.colors.glassBorder }]}
           onPress={handleToggle}
         >
+          <View style={[styles.sectionIcon, { backgroundColor: `${tokens.colors.accent}18` }]}><MaterialCommunityIcons name={icon} size={19} color={tokens.colors.accent} /></View>
           <View style={styles.cardTitleBlock}>
             <Text style={[styles.accordionTitle, { color: tokens.colors.text }]}>{title}</Text>
             {locked && lockedSubtitle ? (
@@ -124,7 +131,7 @@ const SectionAccordion = ({
           {locked ? (
             <MaterialCommunityIcons name="lock-outline" size={20} color={tokens.colors.muted} />
           ) : (
-            <Text style={[styles.accordionIcon, { color: tokens.colors.muted }]}>{isOpen ? "−" : "+"}</Text>
+            <MaterialCommunityIcons name={isOpen ? "chevron-up" : "chevron-down"} size={22} color={tokens.colors.muted} />
           )}
         </PressScale>
         {isOpen && <View style={styles.accordionContent}>{children}</View>}
@@ -139,6 +146,11 @@ export default function DashboardScreen(): JSX.Element {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const dashboardScrollRef = useRef<ScrollView>(null);
+  const sectionPositions = useRef<Partial<Record<SectionId, number>>>({});
+  const [chartChooserVisible, setChartChooserVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [reportSnapshotDate, setReportSnapshotDate] = useState("");
   const [walletsCount, setWalletsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,11 +161,12 @@ export default function DashboardScreen(): JSX.Element {
   const [sectionOrder, setSectionOrder] = useState<SectionId[]>(SECTION_ORDER);
   const [orderLoaded, setOrderLoaded] = useState(false);
   const [reorderVisible, setReorderVisible] = useState(false);
-  const [draggingSectionId, setDraggingSectionId] = useState<SectionId | null>(null);
+  const reorderScrollRef = useRef<ScrollView>(null);
   const reorderAnim = useRef(new Animated.Value(0)).current;
   const reorderDropY = useRef(new Animated.Value(0)).current;
   const reorderDropOpacity = useRef(new Animated.Value(0)).current;
   const [showPrivacyCard, setShowPrivacyCard] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(true);
   const [kpiDeltaRange, setKpiDeltaRange] = useState<KpiDeltaRange>("28D");
   const [availableRanges, setAvailableRanges] = useState<KpiDeltaRange[]>([]);
   const [dashboardCounts, setDashboardCounts] = useState({
@@ -175,10 +188,9 @@ export default function DashboardScreen(): JSX.Element {
     message: string;
   }>({ visible: false, sectionId: null, message: "" });
   const { t } = useTranslation();
-  const { showInvestments, trackPension, scrollBounceEnabled } = useSettings();
+  const { showInvestments, trackPension, scrollBounceEnabled, showGreeting } = useSettings();
   const kpiRangeOptions = useMemo(() => {
     const labels: Record<KpiDeltaRange, string> = {
-      "7D": t("dashboard.range.options.last7Days"),
       "28D": t("dashboard.range.options.last28Days"),
       "3M": t("dashboard.range.options.last3Months"),
       "6M": t("dashboard.range.options.last6Months"),
@@ -210,7 +222,7 @@ export default function DashboardScreen(): JSX.Element {
       const visibleWalletIds = new Set(wallets.map((wallet) => wallet.id));
       setWalletsCount(wallets.length);
 
-      const [snapshots, incomeEntries, expenseEntries, expenseCategories, pref, profile, privacyPref] = await Promise.all([
+      const [snapshots, incomeEntries, expenseEntries, expenseCategories, pref, profile, privacyPref, setupPref] = await Promise.all([
         listSnapshots(),
         listIncomeEntries(),
         listExpenseEntries(),
@@ -218,9 +230,11 @@ export default function DashboardScreen(): JSX.Element {
         getPreference("chart_points"),
         getPreference("profile_name"),
         getPreference("privacy_tooltip_dismissed"),
+        getPreference("dashboard.setup.dismissed"),
       ]);
 
       const latestSnapshot = await getLatestSnapshot();
+      setReportSnapshotDate(latestSnapshot?.date ?? "");
       let latestLines: SnapshotLineDetail[] = [];
       if (latestSnapshot) {
         latestLines = (await listSnapshotLines(latestSnapshot.id))
@@ -257,7 +271,7 @@ export default function DashboardScreen(): JSX.Element {
         kpiDeltaRange
       );
       setDashboard(data);
-      const rangeCandidates: KpiDeltaRange[] = ["7D", "28D", "3M", "6M", "12M"];
+      const rangeCandidates: KpiDeltaRange[] = ["28D", "3M", "6M", "12M"];
       const rangesWithData = rangeCandidates.filter((range) => {
         const result = buildKpiDeltaForRange(range, snapshots, data.portfolioSeries, snapshotLines);
         return result.status === "OK";
@@ -281,6 +295,7 @@ export default function DashboardScreen(): JSX.Element {
       const ask = await getPreference("ask_snapshot_on_start");
       setProfileName(profile?.value?.trim() ?? "");
       setShowPrivacyCard(privacyPref?.value !== "true");
+      setSetupDismissed(setupPref?.value === "true");
       if (!prompted && ask?.value === "true") {
         const today = todayIso();
         if (!latestSnapshot || latestSnapshot.date !== today) {
@@ -423,6 +438,7 @@ export default function DashboardScreen(): JSX.Element {
   }, [reorderAnim]);
 
   const closeReorderSheet = useCallback(() => {
+    reorderScrollRef.current?.setNativeProps({ scrollEnabled: true });
     Animated.timing(reorderAnim, {
       toValue: 0,
       duration: 180,
@@ -483,7 +499,6 @@ export default function DashboardScreen(): JSX.Element {
     const startIndexRef = useRef(index);
     const sectionList = normalizeSectionOrder(sectionOrder);
     const listLength = sectionList.length;
-    const isDragging = draggingSectionId === sectionId;
     const panResponder = useMemo(
       () =>
         PanResponder.create({
@@ -491,9 +506,10 @@ export default function DashboardScreen(): JSX.Element {
           onStartShouldSetPanResponderCapture: () => true,
           onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 2,
           onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dy) > 2,
+          onPanResponderTerminationRequest: () => false,
           onPanResponderGrant: () => {
+            reorderScrollRef.current?.setNativeProps({ scrollEnabled: false });
             startIndexRef.current = index;
-            setDraggingSectionId(sectionId);
             reorderDropOpacity.setValue(0);
             translateY.setOffset(0);
             translateY.setValue(0);
@@ -512,6 +528,7 @@ export default function DashboardScreen(): JSX.Element {
             reorderDropOpacity.setValue(nextIndex === startIndexRef.current ? 0 : 1);
           },
           onPanResponderRelease: (_, gesture) => {
+            reorderScrollRef.current?.setNativeProps({ scrollEnabled: true });
             const nextIndex = Math.max(
               0,
               Math.min(listLength - 1, startIndexRef.current + Math.round(gesture.dy / REORDER_ROW_HEIGHT))
@@ -522,18 +539,17 @@ export default function DashboardScreen(): JSX.Element {
               speed: 24,
               bounciness: 4,
             }).start();
-            setDraggingSectionId(null);
             reorderDropOpacity.setValue(0);
             moveSection(startIndexRef.current, nextIndex);
           },
           onPanResponderTerminate: () => {
+            reorderScrollRef.current?.setNativeProps({ scrollEnabled: true });
             Animated.spring(translateY, {
               toValue: 0,
               useNativeDriver: true,
               speed: 24,
               bounciness: 4,
             }).start();
-            setDraggingSectionId(null);
             reorderDropOpacity.setValue(0);
           },
         }),
@@ -542,12 +558,10 @@ export default function DashboardScreen(): JSX.Element {
 
     return (
       <Animated.View
-        {...panResponder.panHandlers}
         style={[
           styles.reorderRow,
-          isDragging ? styles.reorderRowActive : undefined,
           {
-            borderColor: isDragging ? tokens.colors.accent : tokens.colors.glassBorder,
+            borderColor: tokens.colors.glassBorder,
             backgroundColor: tokens.colors.glassBg,
             transform: [{ translateY }],
           },
@@ -558,13 +572,20 @@ export default function DashboardScreen(): JSX.Element {
             {sectionLabels[sectionId]}
           </Text>
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("dashboard.reorder.moveUp", { name: sectionLabels[sectionId], defaultValue: "Sposta {{name}} in alto" })} accessibilityState={{ disabled: index === 0 }} disabled={index === 0} onPress={() => moveSection(index, index - 1)} style={styles.reorderArrow}>
+          <MaterialCommunityIcons name="chevron-up" size={24} color={index === 0 ? tokens.colors.muted : tokens.colors.accent} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("dashboard.reorder.moveDown", { name: sectionLabels[sectionId], defaultValue: "Sposta {{name}} in basso" })} accessibilityState={{ disabled: index === listLength - 1 }} disabled={index === listLength - 1} onPress={() => moveSection(index, index + 1)} style={styles.reorderArrow}>
+          <MaterialCommunityIcons name="chevron-down" size={24} color={index === listLength - 1 ? tokens.colors.muted : tokens.colors.accent} />
+        </Pressable>
         <View
+          {...panResponder.panHandlers}
           style={[
             styles.reorderAction,
             { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
           ]}
         >
-          <MaterialCommunityIcons name="drag-horizontal-variant" size={22} color={tokens.colors.accent} />
+          <MaterialCommunityIcons name="drag-vertical" size={22} color={tokens.colors.accent} />
         </View>
       </Animated.View>
     );
@@ -623,39 +644,19 @@ export default function DashboardScreen(): JSX.Element {
     [tokens.radius.md]
   );
 
-  const firstRunActions = useMemo(
-    () => (
-      <View style={styles.onboardingActions}>
-        <SmallOutlinePillButton
-          label={t("dashboard.firstRun.ctaWallet", { defaultValue: "Configura i tuoi wallet" })}
-          onPress={() => navigation.navigate("Wallet")}
-          color={tokens.colors.accent}
-          fullWidth
-          size="large"
-        />
-        <SmallOutlinePillButton
-          label={t("dashboard.firstRun.ctaSnapshot", { defaultValue: "Aggiungi i tuoi primi snapshot" })}
-          onPress={() => navigation.navigate("Snapshot", { openNew: true })}
-          color={tokens.colors.accent}
-          fullWidth
-          size="large"
-        />
-        <SmallOutlinePillButton
-          label={t("dashboard.firstRun.ctaBalance", { defaultValue: "Aggiungi entrate e uscite" })}
-          onPress={() => navigation.navigate("Balance")}
-          color={tokens.colors.accent}
-          fullWidth
-          size="large"
-        />
-      </View>
-    ),
-    [navigation, t, tokens.colors.accent]
-  );
+  const setupSteps = [
+    { id: "wallet", title: t("dashboard.setup.wallet.title"), description: t("dashboard.setup.wallet.description"), done: walletsCount > 0, onPress: () => navigation.navigate("Wallet", { tutorialRequest: Date.now() }) },
+    { id: "snapshot", title: t("dashboard.setup.snapshot.title"), description: t("dashboard.setup.snapshot.description"), done: dashboardCounts.snapshots > 0, onPress: () => walletsCount > 0 ? navigation.navigate("Snapshot", { tutorialRequest: Date.now() }) : navigation.navigate("Wallet", { tutorialRequest: Date.now() }) },
+    { id: "cashflow", title: t("dashboard.setup.cashflow.title"), description: t("dashboard.setup.cashflow.description"), done: dashboardCounts.incomeEntries + dashboardCounts.expenseEntries > 0, onPress: () => walletsCount > 0 ? navigation.navigate("Balance", { entryType: "income", formMode: "create", entryId: undefined, navigationKey: Date.now(), tutorialRequest: Date.now() }) : navigation.navigate("Wallet", { tutorialRequest: Date.now() }) },
+  ];
+  const completedSetupSteps = setupSteps.filter((step) => step.done).length;
+  const showSetup = !loading && !setupDismissed && completedSetupSteps < setupSteps.length;
 
   return (
     <View style={styles.screenRoot}>
       <AppBackground>
         <ScrollView
+          ref={dashboardScrollRef}
           bounces={scrollBounceEnabled}
           alwaysBounceVertical={scrollBounceEnabled}
           overScrollMode={scrollBounceEnabled ? "always" : "never"}
@@ -689,12 +690,14 @@ export default function DashboardScreen(): JSX.Element {
           {dashboard ? (
             <>
               <View style={styles.greetingBlock}>
-                <View style={styles.greetingRow}>
+                {(showGreeting || (!isFirstRunDashboard && kpiRangeOptions.length > 1)) ? <View style={styles.greetingRow}>
+                  {showGreeting ? (
                   <Text style={[styles.greetingText, { color: tokens.colors.text }]}>
                     {profileName
                       ? t("dashboard.greetingWithName", { name: profileName })
                       : t("dashboard.greeting")}
                   </Text>
+                  ) : null}
                   {!isFirstRunDashboard && kpiRangeOptions.length > 1 ? (
                     <View style={styles.rangeRow}>
                       <RangeSelector
@@ -705,14 +708,47 @@ export default function DashboardScreen(): JSX.Element {
                       />
                     </View>
                   ) : null}
-                </View>
+                </View> : null}
+                {showSetup ? <View style={[styles.setupCard, { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg }]}>
+                  <View style={styles.setupHeader}><View style={styles.setupHeaderText}><Text style={[styles.setupEyebrow, { color: tokens.colors.accent }]}>{t("dashboard.setup.eyebrow")}</Text><Text style={[styles.setupTitle, { color: tokens.colors.text }]}>{t("dashboard.setup.title")}</Text><Text style={[styles.setupSubtitle, { color: tokens.colors.muted }]}>{t("dashboard.setup.progress", { count: completedSetupSteps, total: setupSteps.length })}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={t("dashboard.setup.dismiss")} onPress={() => { setSetupDismissed(true); void setPreference("dashboard.setup.dismissed", "true").catch(() => {}); }} hitSlop={10}><MaterialCommunityIcons name="close" size={22} color={tokens.colors.muted} /></Pressable></View>
+                  <View style={[styles.setupTrack, { backgroundColor: tokens.colors.surface2 }]}><View style={{ width: `${(completedSetupSteps / setupSteps.length) * 100}%`, height: "100%", backgroundColor: tokens.colors.accent, borderRadius: 9 }} /></View>
+                  {setupSteps.map((step, index) => <Pressable key={step.id} accessibilityRole="button" accessibilityLabel={`${step.title}, ${step.done ? t("dashboard.setup.done") : t("dashboard.setup.pending")}`} onPress={step.onPress} style={[styles.setupStep, { borderColor: tokens.colors.glassBorder }]}>
+                    <View style={[styles.setupNumber, { backgroundColor: step.done ? `${tokens.colors.green}22` : `${tokens.colors.accent}20` }]}>{step.done ? <MaterialCommunityIcons name="check" size={20} color={tokens.colors.green} /> : <Text style={{ color: tokens.colors.accent, fontWeight: "800" }}>{index + 1}</Text>}</View>
+                    <View style={styles.setupStepText}><Text style={[styles.setupStepTitle, { color: tokens.colors.text }]}>{step.title}</Text><Text style={[styles.setupStepDescription, { color: tokens.colors.muted }]}>{step.description}</Text></View><MaterialCommunityIcons name="chevron-right" size={21} color={tokens.colors.muted} />
+                  </Pressable>)}
+                </View> : null}
                 {!isFirstRunDashboard ? (
                   <View style={styles.summaryBlock}>
-                    <KPIStrip items={dashboard.kpis.filter((item) => item.id !== "netWorth")} />
                     <PortfolioSummaryCard
                       items={dashboard.kpis}
                       availability={dashboard.availability}
+                      onOpenDistribution={() => setChartChooserVisible(true)}
                     />
+                    <KPIStrip items={dashboard.kpis.filter((item) => item.id !== "netWorth")} />
+                    {dashboard.cashflow.months.length > 0 ? <MonthlyPulse month={dashboard.cashflow.months[dashboard.cashflow.months.length - 1]} onOpenCashflow={(entryType) => navigation.navigate("Balance", { formMode: "create", entryId: undefined, ...(entryType ? { entryType, navigationKey: Date.now() } : {}) })} /> : null}
+                    {(dashboard.categories.length > 0 || dashboard.recurrences.length > 0) ? (
+                      <View style={[styles.insightsCard, { backgroundColor: tokens.colors.glassBg, borderColor: tokens.colors.glassBorder }]}>
+                        <View style={styles.insightsHeader}><Text style={[styles.insightsTitle, { color: tokens.colors.text }]}>{t("dashboard.insights.title", { defaultValue: "In evidenza" })}</Text><MaterialCommunityIcons name="auto-fix" size={19} color={tokens.colors.accent} /></View>
+                        {dashboard.categories[0] ? <Pressable accessibilityRole="button" style={styles.insightRow} onPress={() => navigation.navigate("Balance", { entryType: "expense", formMode: "create", entryId: undefined, tutorialRequest: undefined, navigationKey: Date.now(), categoryFilterRequest: { categoryId: dashboard.categories[0].categoryId, month: todayIso().slice(0, 7), key: Date.now() } })}>
+                          <View style={[styles.insightIcon, { backgroundColor: `${dashboard.categories[0].color}25` }]}><MaterialCommunityIcons name="chart-pie" size={19} color={dashboard.categories[0].color} /></View>
+                          <View style={styles.insightText}><Text style={[styles.insightLabel, { color: tokens.colors.muted }]}>{t("dashboard.insights.topCategory", { defaultValue: "Categoria principale del mese" })}</Text><Text numberOfLines={1} style={[styles.insightValue, { color: tokens.colors.text }]}>{dashboard.categories[0].label} · {formatPct(dashboard.categories[0].pct)}</Text></View>
+                          <Text style={[styles.insightAmount, { color: tokens.colors.text }]}>{formatEUR(dashboard.categories[0].value)}</Text><MaterialCommunityIcons name="chevron-right" size={20} color={tokens.colors.muted} />
+                        </Pressable> : null}
+                        {dashboard.recurrences[0] ? <Pressable accessibilityRole="button" style={[styles.insightRow, dashboard.categories.length ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: tokens.colors.glassBorder, paddingTop: 12 } : null]} onPress={() => navigation.navigate("Balance", { entryType: dashboard.recurrences[0].type, formMode: "edit", entryId: dashboard.recurrences[0].entryId, navigationKey: Date.now() })}>
+                          <View style={[styles.insightIcon, { backgroundColor: `${tokens.colors.accent}1C` }]}><MaterialCommunityIcons name="calendar-clock-outline" size={19} color={tokens.colors.accent} /></View>
+                          <View style={styles.insightText}><Text style={[styles.insightLabel, { color: tokens.colors.muted }]}>{t("dashboard.insights.next", { defaultValue: "Prossimo movimento" })} · {formatShortDate(dashboard.recurrences[0].date)}</Text><Text numberOfLines={1} style={[styles.insightValue, { color: tokens.colors.text }]}>{dashboard.recurrences[0].description}</Text></View>
+                          <Text style={[styles.insightAmount, { color: dashboard.recurrences[0].type === "income" ? tokens.colors.green : tokens.colors.expense }]}>{dashboard.recurrences[0].type === "income" ? "+" : "−"}{formatEUR(dashboard.recurrences[0].amount)}</Text><MaterialCommunityIcons name="chevron-right" size={20} color={tokens.colors.muted} />
+                        </Pressable> : null}
+                      </View>
+                    ) : null}
+                    {reportSnapshotDate ? (
+                      <Pressable accessibilityRole="button" onPress={() => setReportVisible(true)} style={[styles.reportButton, { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg }]}>
+                        <View style={styles.reportIcon}><MaterialCommunityIcons name="creation" size={21} color="#C6A4FF" /></View>
+                        <View style={{ flex: 1 }}><Text style={[styles.reportTitle, { color: tokens.colors.text }]}>{t("dashboard.report.action")}</Text><Text style={[styles.reportSubtitle, { color: tokens.colors.muted }]}>{t("dashboard.report.actionSubtitle")}</Text></View>
+                        <MaterialCommunityIcons name="arrow-right" size={21} color={tokens.colors.accent} />
+                      </Pressable>
+                    ) : null}
+                    <BalanceReport visible={reportVisible} onClose={() => setReportVisible(false)} data={dashboard} snapshotDate={reportSnapshotDate} />
                   </View>
                 ) : null}
               </View>
@@ -738,16 +774,16 @@ export default function DashboardScreen(): JSX.Element {
                 }
                 />
               )}
-              {isFirstRunDashboard ? firstRunActions : null}
 
+              {!isFirstRunDashboard ? <View style={styles.analysisHeading}><View><Text style={[styles.analysisEyebrow, { color: tokens.colors.accent }]}>{t("dashboard.analysis.eyebrow", { defaultValue: "LA TUA PANORAMICA" })}</Text><Text style={[styles.analysisTitle, { color: tokens.colors.text }]}>{t("dashboard.analysis.title", { defaultValue: "Analisi e grafici" })}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={t("dashboard.chartChooser.title")} onPress={() => setChartChooserVisible(true)} style={[styles.analysisButton, { backgroundColor: `${tokens.colors.accent}1C` }]}><MaterialCommunityIcons name="chart-box-outline" size={20} color={tokens.colors.accent} /></Pressable></View> : null}
               {!isFirstRunDashboard &&
                 orderedSections.map((sectionId) => {
                 const isAvailable = sectionAvailability[sectionId];
                 if (sectionId === "andamento") {
                   return (
-                  <SectionAccordion
-                    key={sectionId}
+                  <View key={sectionId} onLayout={(event) => { sectionPositions.current[sectionId] = event.nativeEvent.layout.y; }}><SectionAccordion
                     title={t("dashboard.section.trend")}
+                    icon="chart-line"
                     open={sectionStates.andamento}
                     onToggle={() => handleToggleSection("andamento")}
                     locked={!isAvailable}
@@ -772,14 +808,14 @@ export default function DashboardScreen(): JSX.Element {
                           : undefined
                         : ["total"]}
                     />
-                  </SectionAccordion>
+                  </SectionAccordion></View>
                 );
               }
               if (sectionId === "distribuzione") {
                 return (
-                  <SectionAccordion
-                    key={sectionId}
+                  <View key={sectionId} onLayout={(event) => { sectionPositions.current[sectionId] = event.nativeEvent.layout.y; }}><SectionAccordion
                     title={t("dashboard.section.distribution")}
+                    icon="chart-donut"
                     open={sectionStates.distribuzione}
                     onToggle={() => handleToggleSection("distribuzione")}
                     locked={!isAvailable}
@@ -794,14 +830,14 @@ export default function DashboardScreen(): JSX.Element {
                     }
                   >
                     <DonutDistributionCard items={dashboard.distributions} hideHeader noCard />
-                  </SectionAccordion>
+                  </SectionAccordion></View>
                 );
               }
               if (sectionId === "cashflow") {
                 return (
-                  <SectionAccordion
-                    key={sectionId}
+                  <View key={sectionId} onLayout={(event) => { sectionPositions.current[sectionId] = event.nativeEvent.layout.y; }}><SectionAccordion
                     title={t("dashboard.section.cashflow")}
+                    icon="chart-bar"
                     open={sectionStates.cashflow}
                     onToggle={() => handleToggleSection("cashflow")}
                     locked={!isAvailable}
@@ -816,14 +852,14 @@ export default function DashboardScreen(): JSX.Element {
                     }
                   >
                     <CashflowOverviewCard cashflow={dashboard.cashflow} hideHeader noCard />
-                  </SectionAccordion>
+                  </SectionAccordion></View>
                 );
               }
               if (sectionId === "categories") {
                 return (
-                  <SectionAccordion
-                    key={sectionId}
+                  <View key={sectionId} onLayout={(event) => { sectionPositions.current[sectionId] = event.nativeEvent.layout.y; }}><SectionAccordion
                     title={t("dashboard.section.categories")}
+                    icon="shape-outline"
                     open={sectionStates.categories}
                     onToggle={() => handleToggleSection("categories")}
                     locked={!isAvailable}
@@ -838,13 +874,14 @@ export default function DashboardScreen(): JSX.Element {
                     }
                   >
                     <CategoriesBreakdownCard items={dashboard.categories} hideHeader noCard />
-                  </SectionAccordion>
+                  </SectionAccordion></View>
                 );
               }
               return (
                 <SectionAccordion
                   key={sectionId}
                   title={t("dashboard.section.recurrences")}
+                  icon="calendar-clock-outline"
                   open={sectionStates.prossimi}
                   onToggle={() => handleToggleSection("prossimi")}
                   locked={!isAvailable}
@@ -924,13 +961,13 @@ export default function DashboardScreen(): JSX.Element {
                 />
               </View>
               <Text style={[styles.orderHint, { color: tokens.colors.muted }]}>
-                {t("dashboard.reorder.hint", { defaultValue: "Trascina la maniglia per cambiare liberamente l'ordine." })}
+                {t("dashboard.reorder.hintControls", { defaultValue: "Trascina la maniglia oppure usa le frecce per cambiare ordine." })}
               </Text>
               <ScrollView
+                ref={reorderScrollRef}
                 style={styles.reorderScroll}
                 contentContainerStyle={styles.reorderList}
                 showsVerticalScrollIndicator={false}
-                scrollEnabled={draggingSectionId === null}
               >
                 <Animated.View
                   pointerEvents="none"
@@ -965,12 +1002,38 @@ export default function DashboardScreen(): JSX.Element {
           benefits={[]}
           iconName="lock-outline"
         />
+        <BottomSheet visible={chartChooserVisible} title={t("dashboard.chartChooser.title")} subtitle={t("dashboard.chartChooser.subtitle")} onClose={() => setChartChooserVisible(false)}>
+          {(["andamento", "distribuzione", "cashflow", "categories"] as SectionId[]).filter((id) => sectionAvailability[id]).map((id) => (
+            <Pressable key={id} accessibilityRole="button" style={[styles.chartChoice, { backgroundColor: tokens.colors.glassBg, borderColor: tokens.colors.glassBorder }]} onPress={() => {
+              setChartChooserVisible(false);
+              setSectionStates((prev) => ({ ...prev, [id]: true }));
+              requestAnimationFrame(() => dashboardScrollRef.current?.scrollTo({ y: Math.max(0, (sectionPositions.current[id] ?? 0) - headerHeight - 12), animated: true }));
+            }}>
+              <MaterialCommunityIcons name={id === "andamento" ? "chart-line" : id === "distribuzione" ? "chart-donut" : id === "cashflow" ? "chart-bar" : "chart-pie"} size={22} color={tokens.colors.accent} />
+              <Text style={[styles.chartChoiceLabel, { color: tokens.colors.text }]}>{sectionLabels[id]}</Text>
+              <MaterialCommunityIcons name="arrow-right" size={20} color={tokens.colors.muted} />
+            </Pressable>
+          ))}
+          {!(["andamento", "distribuzione", "cashflow", "categories"] as SectionId[]).some((id) => sectionAvailability[id]) ? <Text style={{ color: tokens.colors.muted }}>{t("dashboard.chartChooser.empty")}</Text> : null}
+        </BottomSheet>
       </AppBackground>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  setupCard: { borderWidth: 1, borderRadius: 22, padding: 18, gap: 12 },
+  setupHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  setupHeaderText: { flex: 1, gap: 4 },
+  setupEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.2 },
+  setupTitle: { fontSize: 21, fontWeight: "800" },
+  setupSubtitle: { fontSize: 12 },
+  setupTrack: { height: 5, borderRadius: 9, overflow: "hidden", marginBottom: 3 },
+  setupStep: { flexDirection: "row", alignItems: "center", gap: 11, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
+  setupNumber: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  setupStepText: { flex: 1, minWidth: 0, gap: 3 },
+  setupStepTitle: { fontSize: 14, fontWeight: "700" },
+  setupStepDescription: { fontSize: 12, lineHeight: 16 },
   container: {
     paddingHorizontal: 16,
     gap: 10,
@@ -986,8 +1049,28 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   summaryBlock: {
-    gap: 10,
+    gap: 12,
   },
+  analysisHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 12, paddingHorizontal: 2 },
+  analysisEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.2 },
+  analysisTitle: { fontSize: 21, fontWeight: "800", letterSpacing: -0.4, marginTop: 3 },
+  analysisButton: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  sectionIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 10 },
+  insightsCard: { borderWidth: 1, borderRadius: 22, padding: 18, gap: 12 },
+  insightsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  insightsTitle: { fontSize: 16, fontWeight: "800" },
+  insightRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  insightIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  insightText: { flex: 1, minWidth: 0, gap: 3 },
+  insightLabel: { fontSize: 11 },
+  insightValue: { fontSize: 14, fontWeight: "700" },
+  insightAmount: { fontSize: 13, fontWeight: "700" },
+  reportButton: { borderWidth: 1, borderRadius: 18, padding: 15, flexDirection: "row", alignItems: "center", gap: 12 },
+  reportIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#392953" },
+  reportTitle: { fontSize: 14, fontWeight: "700" },
+  reportSubtitle: { fontSize: 12, marginTop: 2 },
+  chartChoice: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, padding: 16 },
+  chartChoiceLabel: { flex: 1, fontSize: 15, fontWeight: "700" },
   greetingRow: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -1069,9 +1152,9 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   greetingText: {
-    fontSize: 34,
+    fontSize: 27,
     fontWeight: "700",
-    letterSpacing: 0.25,
+    letterSpacing: -0.4,
     flexShrink: 1,
     flexGrow: 1,
     minWidth: 180,
@@ -1085,7 +1168,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   reorderOverlayDim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   reorderSheet: {
     borderTopLeftRadius: 18,
@@ -1161,6 +1244,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  reorderArrow: { width: 36, height: 40, alignItems: "center", justifyContent: "center" },
   errorBody: {
     marginTop: 6,
   },

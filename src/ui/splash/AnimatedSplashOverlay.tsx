@@ -22,7 +22,9 @@ export default function AnimatedSplashOverlay({
     if (!visible || !active) {
       return;
     }
-    Animated.parallel([
+    // Do not leave an opaque overlay on screen if iOS interrupts the animation.
+    const fallback = setTimeout(onAnimationComplete, 1500);
+    const animation = Animated.parallel([
       Animated.timing(scale, {
         toValue: 18,
         duration: 550,
@@ -35,9 +37,15 @@ export default function AnimatedSplashOverlay({
         easing: Easing.out(Easing.exp),
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      setTimeout(onAnimationComplete, 150);
+    ]);
+    animation.start(() => {
+      clearTimeout(fallback);
+      onAnimationComplete();
     });
+    return () => {
+      clearTimeout(fallback);
+      animation.stop();
+    };
   }, [visible, active, onAnimationComplete, opacity, scale]);
 
   if (!visible) {
@@ -57,7 +65,7 @@ export default function AnimatedSplashOverlay({
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 9999,

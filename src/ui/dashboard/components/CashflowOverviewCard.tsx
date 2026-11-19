@@ -28,7 +28,7 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
   const { width } = useWindowDimensions();
   const chartScrollRef = useRef<ScrollView | null>(null);
   const [chartViewportWidth, setChartViewportWidth] = useState(0);
-  const isCompact = width < 380;
+  const isCompact = width < 600;
   const incomeData = cashflow.months.map((month) => ({
     x: formatMonthLabel(month.month),
     y: month.income,
@@ -84,6 +84,9 @@ export default function CashflowOverviewCard({ cashflow, hideHeader = false, noC
       ) : (
         <View style={[styles.layout, isCompact && styles.layoutStacked]}>
           <View style={styles.kpiCol}>
+            <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>
+              {t("dashboard.cashflow.averagePeriod", { count: cashflow.months.length })}
+            </Text>
             <View style={styles.kpiRow}>
             <Text style={[styles.kpiLabel, { color: tokens.colors.muted }]}>{t("dashboard.cashflow.avgIncome")}</Text>
             <Text style={[styles.kpiValue, { color: tokens.colors.text }]}>{formatEUR(cashflow.avgIncome)}</Text>

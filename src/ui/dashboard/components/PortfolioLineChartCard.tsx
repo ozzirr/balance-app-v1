@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   sheetOverlayDim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   walletSheet: {
     borderTopLeftRadius: 18,

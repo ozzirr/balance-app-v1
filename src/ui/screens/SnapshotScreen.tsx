@@ -33,7 +33,7 @@ import {
   PillChip,
   SmallOutlinePillButton,
 } from "@/ui/components/EntriesUI";
-import CoachTipCard from "@/ui/components/CoachTipCard";
+import TutorialSpotlight from "@/ui/components/TutorialSpotlight";
 import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { syncSnapshotReminderSchedule } from "@/notifications/snapshotReminder";
@@ -45,6 +45,7 @@ type DraftLine = {
 };
 
 type SnapshotRouteParams = {
+  tutorialRequest?: number;
   openNew?: boolean;
   walletId?: number;
 };
@@ -172,6 +173,7 @@ export default function SnapshotScreen(): JSX.Element {
   const [confirmSnapshotDeleteError, setConfirmSnapshotDeleteError] = useState<string | null>(null);
   const [profileName, setProfileName] = useState("");
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
+  const snapshotTutorialTarget = useRef<View>(null);
   const monthsScrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
   const monthChipLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
   const inputRefs = useRef<Record<number, React.ComponentRef<typeof TextInput> | null>>({});
@@ -621,12 +623,7 @@ export default function SnapshotScreen(): JSX.Element {
     editingSnapshotId !== null &&
     activeMonth?.snapshots[0]?.id === editingSnapshotId;
 
-  const heroCtaLabel = (() => {
-    if (activeMonth?.snapshots.length) {
-      return isEditingCurrent ? t("common.cancel") : t("snapshot.actions.edit");
-    }
-    return showForm && !editingSnapshotId ? t("common.cancel") : t("snapshot.actions.new");
-  })();
+  const heroCtaLabel = activeMonth?.snapshots.length ? t("snapshot.actions.edit") : t("snapshot.actions.new");
 
   const handleHeroCta = () => {
     if (activeMonth?.snapshots.length) {
@@ -662,16 +659,7 @@ export default function SnapshotScreen(): JSX.Element {
 
   const shouldShowFirstSnapshotTip =
     onboardingCompleted && snapshots.length === 0 && wallets.length > 0 && !showForm;
-  const shouldShowEmptySnapshotPreview = snapshots.length === 0 && wallets.length > 0 && !showForm;
-  const firstSnapshotGuideTitle = profileName
-    ? t("snapshot.guide.titleNamed", {
-        name: profileName,
-        defaultValue: `Ciao ${profileName}, aggiungi qui il tuo primo snapshot`,
-      })
-    : t("snapshot.guide.title", {
-        defaultValue: "Ciao, aggiungi qui il tuo primo snapshot",
-      });
-
+  const shouldShowEmptySnapshotPreview = snapshots.length === 0 && wallets.length > 0;
   return (
     <View style={styles.screenRoot}>
       <AppBackground>
@@ -790,31 +778,14 @@ export default function SnapshotScreen(): JSX.Element {
           </GlassCardContainer>
         )}
 
-        {shouldShowFirstSnapshotTip && (
-          <CoachTipCard
-            title={firstSnapshotGuideTitle}
-            lines={[
-              t("snapshot.guide.bodyLine1", {
-                defaultValue: "Uno snapshot è il saldo di tutti i tuoi wallet in una data specifica.",
-              }),
-              t("snapshot.guide.bodyLine2", {
-                defaultValue: "Inizia inserendo il saldo di oggi.",
-              }),
-            ]}
-            lineNumberOfLines={2}
-            ctaLabel={t("snapshot.guide.cta", { defaultValue: "Aggiungi snapshot" })}
-            onPress={handleHeroCta}
-            ctaColor={tokens.colors.accent}
-            leadingIcon={<MaterialCommunityIcons name="lightbulb-outline" size={18} color={tokens.colors.accent} />}
-          />
-        )}
-
-        {activeMonth && !showForm ? (
+        {activeMonth ? (
+          <View ref={snapshotTutorialTarget} collapsable={false}>
           <PrimaryPillButton
             label={heroCtaLabel}
             onPress={handleHeroCta}
             color={tokens.colors.accent}
           />
+          </View>
         ) : null}
 
         <BottomSheet
@@ -827,6 +798,20 @@ export default function SnapshotScreen(): JSX.Element {
             setShowForm(false);
             setEditingSnapshotId(null);
           }}
+          footer={
+            <View style={styles.fixedActions}>
+              <PrimaryPillButton label={t("common.save")} onPress={saveSnapshot} color={tokens.colors.accent} />
+              <SmallOutlinePillButton
+                label={t("common.close")}
+                onPress={() => {
+                  setShowForm(false);
+                  setEditingSnapshotId(null);
+                }}
+                color={tokens.colors.text}
+                fullWidth
+              />
+            </View>
+          }
         >
             <View style={styles.form}>
               <TextInput
@@ -890,29 +875,16 @@ export default function SnapshotScreen(): JSX.Element {
                 );
               })}
               {error && <Text style={{ color: tokens.colors.red }}>{error}</Text>}
-            </View>
-            <View style={styles.actionsColumn}>
-              <PrimaryPillButton label={t("common.save")} onPress={saveSnapshot} color={tokens.colors.accent} />
-              <View style={styles.actionsRow}>
-                <View style={styles.actionSlot}>
+              {editingSnapshotId !== null && (
+                <View style={styles.deleteAction}>
                   <SmallOutlinePillButton
-                    label={t("common.close")}
-                    onPress={() => setShowForm(false)}
-                    color={tokens.colors.text}
+                    label={t("common.delete")}
+                    onPress={openConfirmDeleteSnapshot}
+                    color={tokens.colors.red}
                     fullWidth
                   />
                 </View>
-                {editingSnapshotId !== null && (
-                  <View style={styles.actionSlot}>
-                    <SmallOutlinePillButton
-                      label={t("common.delete")}
-                      onPress={openConfirmDeleteSnapshot}
-                      color={tokens.colors.red}
-                      fullWidth
-                    />
-                  </View>
-                )}
-              </View>
+              )}
             </View>
         </BottomSheet>
 
@@ -1069,6 +1041,7 @@ export default function SnapshotScreen(): JSX.Element {
         )}
 
         </ScrollView>
+        <TutorialSpotlight id="snapshot" requestToken={routeParams?.tutorialRequest} eligible={shouldShowFirstSnapshotTip} canShow={!showForm && Boolean(activeMonth)} target={snapshotTutorialTarget} title={t("tutorial.snapshot.title")} description={t("tutorial.snapshot.body")} targetLabel={heroCtaLabel} onTargetPress={handleHeroCta} />
         <BottomSheet
           visible={walletAction !== null}
           title={walletAction?.wallet_name ?? t("wallets.snapshot.unknown")}
@@ -1149,25 +1122,11 @@ const styles = StyleSheet.create({
   headerRow: {
     // unused after header simplification
   },
-  actionsRow: {
-    flexDirection: "row",
+  fixedActions: {
     gap: 12,
-    width: "100%",
-    alignItems: "stretch",
   },
-  actionsColumn: {
-    gap: 12,
+  deleteAction: {
     marginTop: 12,
-  },
-  actionSlot: {
-    flex: 1,
-  },
-  fullWidthButton: {
-    alignSelf: "stretch",
-    flex: 1,
-  },
-  fullWidthButtonContent: {
-    width: "100%",
   },
   list: {
     gap: 8,

@@ -97,7 +97,9 @@
       }
     }
   },
+  "tutorial": { "gotIt": "Got it", "skip": "Skip", "close": "Close tip", "wallet": { "title": "Add a wallet", "body": "Use this button to add an account or another wallet. To edit an existing wallet, tap its name." }, "snapshot": { "title": "Save your first snapshot", "body": "Tap here and enter your wallet balances to save a picture of your net worth." }, "cashflow": { "income": { "title": "Add income", "body": "Tap here to add one-time or recurring income to your forecast." }, "expense": { "title": "Add an expense", "body": "Tap here to add a one-time or recurring expense to your forecast." } } },
   "settings": {
+    "menu": { "profile": "Nickname and language", "general": "Theme, dashboard and investments", "notifications": "Snapshot reminders", "securityTitle": "Security", "security": "Passcode, biometrics and lock", "data": "Export, import or delete data", "plan": "Current plan and Balance Pro", "back": "Back to settings" },
     "title": "Settings",
     "profile": {
       "title": "Profile",
@@ -108,6 +110,7 @@
       "title": "Notifications"
     },
     "preferences": {
+      "showGreeting": "Show greeting on dashboard",
       "title": "General",
       "darkTheme": "Dark theme",
       "prefillSnapshot": "Prefill snapshot",
@@ -159,6 +162,16 @@
     "reset": "Reset"
   },
   "dashboard": {
+    "setup": { "eyebrow": "GET STARTED", "title": "Set up Balance", "progress": "{{count}} of {{total}} steps completed", "dismiss": "Hide setup", "done": "completed", "pending": "not completed", "wallet": { "title": "Set up your wallets", "description": "Add or edit your accounts." }, "snapshot": { "title": "Save a snapshot", "description": "Record your wallet balances." }, "cashflow": { "title": "Add a transaction", "description": "Add income or an expense." } },
+    "amountPrivacy": { "hide": "Hide net worth", "show": "Show net worth", "hidden": "Net worth hidden" },
+    "insights": { "title": "Highlights", "topCategory": "Top category this month", "next": "Next transaction" },
+    "analysis": { "eyebrow": "YOUR OVERVIEW", "title": "Insights and charts" },
+    "chartChooser": { "title": "Choose a chart", "subtitle": "Go directly to the view you need.", "empty": "Add data to view charts." },
+    "reportSettings": { "subtitle": "Choose what to include in the image.", "wealth": "Net worth", "wealthDetail": "Total and breakdown by wallet type", "flow": "Income and expenses", "flowDetail": "Planned summary for the current month", "qr": "Share Balance", "qrDetail": "Include the QR code to download the app", "privacy": "Only share what you want others to see. Review the preview before sending.", "preview": "Create preview", "back": "Edit contents", "requirement": "Select at least one section." },
+    "reportDownloadPrompt": "Scan to get it on the App Store",
+    "pulse": { "eyebrow": "YOUR MONTH", "income": "Income", "expense": "Expenses", "net": "Planned balance", "note": "Planned movements this month, including recurring entries.", "edit": "Edit income and expenses" },
+    "report": { "title": "Your Balance report", "subtitle": "Net worth and cash flow in one view.", "action": "Your report", "actionSubtitle": "Share your net worth and cash flow", "snapshot": "YOUR NET WORTH", "flowTitle": "YOUR MONTH AT A GLANCE", "planned": "planned", "flowNote": "Planned movements, including recurring entries.", "footer": "YOUR FINANCES, WITH MORE CLARITY.", "share": "Share image", "sharing": "Preparing…", "hint": "The image contains your financial data.", "close": "Close", "error": "Could not prepare your report. Please try again." },
+    "portfolioPrivate": "Your data stays on your device",
     "errorTitle": "Unable to load the dashboard",
     "emptyTitle": "No data available",
     "emptyBody": "Create at least one wallet to get started.",
@@ -206,6 +219,8 @@
       "header": "Cash Flow overview",
       "empty": "No data available.",
       "avgIncome": "Average monthly income",
+      "averagePeriod_one": "Average over the last month, including the current month",
+      "averagePeriod_other": "Average over the last {{count}} months, including the current month",
       "avgExpense": "Average monthly expenses",
       "avgSavings": "Average monthly savings",
       "annualLabel": "Annual",
@@ -248,9 +263,8 @@
     "range": {
       "label": "Period",
       "title": "Change interval",
-      "subtitle": "Choose the interval for KPI comparison. Example: with “Last 7 days” we compare your latest snapshot with the closest one from 7 days ago (if available).",
+      "subtitle": "Choose a KPI comparison period: last 28 days, last 3 or 6 months, or the last year.",
       "options": {
-        "last7Days": "Last 7 days",
         "last28Days": "Last 28 days",
         "last3Months": "Last 3 months",
         "last6Months": "Last 6 months",
@@ -272,6 +286,9 @@
       "edit": "Edit order",
       "title": "Edit order",
       "done": "Done",
+      "hintControls": "Drag the handle or use the arrows to change the order.",
+      "moveUp": "Move {{name}} up",
+      "moveDown": "Move {{name}} down",
       "hint": "Drag the handle to freely change the order."
     },
     "mock": {
@@ -434,6 +451,7 @@
     }
   },
   "entries": {
+    "forecast": { "title": "MONTHLY FORECAST", "previous": "Previous month", "next": "Next month", "balance": "Balance", "balancePlanned": "Forecast balance", "shortNote": "Includes planned recurring transactions", "note": "Planned transactions, including recurring ones. The list below keeps its own filters." },
     "list": {
       "tabIncome": "Incomes",
       "tabExpense": "Expenses",
@@ -441,6 +459,8 @@
       "filterByCategory": "Filter by category",
       "searchLabel": "Search by name",
       "searchPlaceholder": "Search...",
+      "searchAction": "Search",
+      "noResults": "No entries found. Try changing your filters.",
       "sortAnnualLabel": "Sort by annual amount",
       "sortAnnualAsc": "Ascending",
       "sortAnnualDesc": "Descending",
@@ -468,10 +488,13 @@
       "endDate": "End date",
       "newEntryTitle": "New Entry",
       "newIncomeTitle": "New income entry",
+      "editIncomeTitle": "Edit income",
+      "editExpenseTitle": "Edit expense",
       "newExpenseTitle": "New expense entry",
       "categoryHint": "Select a category.",
       "categoryTitle": "Expense category",
       "recurringLabel": "Recurring",
+      "hasEndDate": "Set an end date",
       "intervalLabel": "Interval",
       "frequency": {
         "weekly": "Weekly",

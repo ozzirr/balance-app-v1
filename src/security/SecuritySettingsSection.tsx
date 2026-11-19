@@ -7,6 +7,7 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useTranslation } from "react-i18next";
 
 type Props = {
+  hideHeader?: boolean;
   securityEnabled: boolean;
   biometryEnabled: boolean;
   pinHashExists: boolean;
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export default function SecuritySettingsSection({
+  hideHeader = false,
   securityEnabled,
   biometryEnabled,
   pinHashExists,
@@ -37,7 +39,7 @@ export default function SecuritySettingsSection({
 
   return (
     <GlassCardContainer contentStyle={styles.container}>
-      <SectionHeader title={t("security.settings.title")} />
+      {!hideHeader ? <SectionHeader title={t("security.settings.title")} /> : null}
       <View style={styles.content}>
         <View style={styles.row}>
           <Text style={[styles.label, { color: tokens.colors.text }]}>{t("security.settings.requirePin")}</Text>

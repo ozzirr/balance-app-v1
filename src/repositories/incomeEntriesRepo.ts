@@ -10,7 +10,8 @@ export async function listIncomeEntries(): Promise<IncomeEntry[]> {
 function validateRecurringRange(entry: Omit<IncomeEntry, "id">): void {
   const recurring = entry.one_shot === 0 && Boolean(entry.recurrence_frequency);
   if (!recurring) return;
-  if (!entry.end_date || !isIsoDate(entry.end_date)) {
+  if (!entry.end_date) return;
+  if (!isIsoDate(entry.end_date)) {
     throw new Error("END_DATE_REQUIRED");
   }
   if (!isIsoDate(entry.start_date) || compareIsoDates(entry.end_date, entry.start_date) < 0) {

@@ -12,11 +12,16 @@ type Props = {
   item: KPIItem;
   emphasizeValue?: boolean;
   compact?: boolean;
+  dense?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+  rowWidth?: string;
 };
 
-export default function KPICard({ item, emphasizeValue = false, compact = false }: Props): JSX.Element {
+export default function KPICard({ item, emphasizeValue = false, compact = false, dense = false, expanded: controlledExpanded, onToggle: onControlledToggle, rowWidth }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
-  const [expanded, setExpanded] = useState(false);
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const expanded = controlledExpanded ?? localExpanded;
   const [displayValue, setDisplayValue] = useState(item.value);
   const animationRef = useRef<number | null>(null);
   const icon = useMemo(() => {
@@ -27,11 +32,12 @@ export default function KPICard({ item, emphasizeValue = false, compact = false 
   }, [item.id]);
   const hasDelta = item.deltaStatus !== "NO_DATA";
   const deltaIsPositive = item.deltaValue >= 0;
-  const deltaColor = deltaIsPositive ? tokens.colors.green : tokens.colors.red;
+  const deltaColor = item.deltaValue === 0 ? tokens.colors.muted : deltaIsPositive ? tokens.colors.green : tokens.colors.red;
 
   const onToggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded((prev) => !prev);
+    if (onControlledToggle) onControlledToggle();
+    else setLocalExpanded((prev) => !prev);
   };
 
   useEffect(() => {
@@ -61,8 +67,8 @@ export default function KPICard({ item, emphasizeValue = false, compact = false 
   }, [item.value]);
 
   return (
-    <PressScale onPress={onToggle} style={[styles.pressable, compact ? styles.pressableCompact : null]}>
-      <GlassCardContainer style={styles.card} contentStyle={compact ? styles.compactContent : undefined}>
+    <PressScale onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded }} style={[styles.pressable, compact ? styles.pressableCompact : null, dense ? { flexBasis: 0, minWidth: 0 } : null, rowWidth ? { flexBasis: rowWidth as `${number}%`, minWidth: 0 } : null]}>
+      <GlassCardContainer style={styles.card} contentStyle={dense ? styles.denseContent : compact ? styles.compactContent : undefined}>
         {compact ? (
           <View style={styles.compactMain}>
             <View style={styles.compactHeaderRow}>
@@ -91,7 +97,7 @@ export default function KPICard({ item, emphasizeValue = false, compact = false 
         ) : (
           <View style={styles.standardMain}>
             <View style={styles.headerRow}>
-              <Text style={[styles.label, { color: tokens.colors.muted }]}>{item.label}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.label, { color: tokens.colors.muted, flexShrink: 1 }]}>{item.label}</Text>
               <MaterialCommunityIcons name={icon} size={16} color={item.accent ?? tokens.colors.accent} />
             </View>
             <Text
@@ -99,7 +105,11 @@ export default function KPICard({ item, emphasizeValue = false, compact = false 
                 styles.value,
                 { color: tokens.colors.text },
                 emphasizeValue ? styles.valueEmphasis : null,
+                dense ? styles.denseValue : null,
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.65}
             >
               {formatEUR(displayValue)}
             </Text>
@@ -119,8 +129,8 @@ export default function KPICard({ item, emphasizeValue = false, compact = false 
         )}
         {expanded && item.breakdown?.length ? (
           <View style={styles.breakdown}>
-            {item.breakdown.slice(0, 4).map((row) => (
-              <View key={row.label} style={styles.breakdownRow}>
+            {item.breakdown.map((row, index) => (
+              <View key={`${row.label}-${index}`} style={styles.breakdownRow}>
                 <Text style={[styles.breakdownLabel, { color: tokens.colors.muted }]}>{row.label}</Text>
                 <Text style={[styles.breakdownValue, { color: tokens.colors.text }]}>{formatEUR(row.value)}</Text>
               </View>
@@ -144,6 +154,8 @@ const styles = StyleSheet.create({
   card: {
     gap: 6,
   },
+  denseContent: { paddingHorizontal: 12, paddingVertical: 15 },
+  denseValue: { fontSize: 19 },
   standardMain: {
     gap: 6,
   },

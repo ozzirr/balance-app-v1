@@ -7,9 +7,10 @@ import GlassBlur from "@/ui/components/GlassBlur";
 
 type SecurityGateProps = {
   children: React.ReactNode;
+  allowAutoBiometry: boolean;
 };
 
-export default function SecurityGate({ children }: SecurityGateProps): JSX.Element {
+export default function SecurityGate({ children, allowAutoBiometry }: SecurityGateProps): JSX.Element {
   const [config, setConfig] = useState<SecurityConfig | null>(null);
   const [unlocked, setUnlocked] = useState(false);
   const lastActivityRef = useRef(Date.now());
@@ -85,6 +86,7 @@ export default function SecurityGate({ children }: SecurityGateProps): JSX.Eleme
           <View style={styles.overlay} />
           <LockScreen
             config={config}
+            allowAutoBiometry={allowAutoBiometry}
             onAuthenticated={() => setUnlocked(true)}
             style={StyleSheet.absoluteFill}
           />
@@ -105,14 +107,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lockScreenOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 999,
     elevation: 20,
     justifyContent: "center",
     alignItems: "center",
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(8, 10, 18, 0.10)",
   },
 });

@@ -97,7 +97,9 @@
       }
     }
   },
+  "tutorial": { "gotIt": "Ho capito", "skip": "Salta", "close": "Chiudi suggerimento", "wallet": { "title": "Aggiungi un wallet", "body": "Con il pulsante evidenziato puoi aggiungere un conto o un altro wallet. Per modificarne uno esistente, tocca il suo nome." }, "snapshot": { "title": "Registra il primo snapshot", "body": "Usa il pulsante evidenziato per inserire i saldi dei wallet e salvare una fotografia del tuo patrimonio." }, "cashflow": { "income": { "title": "Aggiungi un’entrata", "body": "Usa il pulsante evidenziato per inserire un’entrata, singola o ricorrente, nelle previsioni." }, "expense": { "title": "Aggiungi un’uscita", "body": "Usa il pulsante evidenziato per inserire una spesa, singola o ricorrente, nelle previsioni." } } },
   "settings": {
+    "menu": { "profile": "Nickname e lingua", "general": "Tema, dashboard e investimenti", "notifications": "Promemoria per gli snapshot", "securityTitle": "Sicurezza", "security": "Codice, biometria e blocco", "data": "Esporta, importa o cancella i dati", "plan": "Piano attivo e Balance Pro", "back": "Torna alle impostazioni" },
     "title": "Impostazioni",
     "profile": {
       "title": "Profilo",
@@ -108,6 +110,7 @@
       "title": "Notifiche"
     },
     "preferences": {
+      "showGreeting": "Mostra il saluto nella dashboard",
       "title": "Generali",
       "darkTheme": "Tema scuro",
       "prefillSnapshot": "Precompila snapshot",
@@ -139,8 +142,8 @@
     },
     "data": {
       "title": "Dati",
-      "export": "Esporta",
-      "import": "Importa",
+      "export": "Esporta dati",
+      "import": "Importa dati",
       "loadTestData": "Carica dati di test"
     },
     "balancePro": {
@@ -159,6 +162,16 @@
     "reset": "Reset"
   },
   "dashboard": {
+    "setup": { "eyebrow": "PRIMI PASSI", "title": "Configura Balance", "progress": "{{count}} di {{total}} passi completati", "dismiss": "Nascondi la configurazione", "done": "completato", "pending": "da completare", "wallet": { "title": "Prepara i tuoi wallet", "description": "Aggiungi o modifica i tuoi conti." }, "snapshot": { "title": "Salva uno snapshot", "description": "Registra i saldi dei tuoi wallet." }, "cashflow": { "title": "Aggiungi un movimento", "description": "Inserisci un’entrata o un’uscita." } },
+    "amountPrivacy": { "hide": "Nascondi patrimonio", "show": "Mostra patrimonio", "hidden": "Patrimonio nascosto" },
+    "insights": { "title": "In evidenza", "topCategory": "Categoria principale del mese", "next": "Prossimo movimento" },
+    "analysis": { "eyebrow": "LA TUA PANORAMICA", "title": "Analisi e grafici" },
+    "chartChooser": { "title": "Scegli un grafico", "subtitle": "Vai direttamente alla visualizzazione che ti interessa.", "empty": "Aggiungi dati per visualizzare i grafici." },
+    "reportSettings": { "subtitle": "Scegli cosa includere nell’immagine.", "wealth": "Patrimonio", "wealthDetail": "Totale e suddivisione dei wallet per tipologia", "flow": "Entrate e uscite", "flowDetail": "Riepilogo pianificato del mese corrente", "qr": "Fai conoscere Balance", "qrDetail": "Aggiungi il QR per scaricare l’app", "privacy": "Condividi solo i dati che desideri mostrare. Controlla l’anteprima prima di inviarla.", "preview": "Crea anteprima", "back": "Modifica contenuti", "requirement": "Seleziona almeno una sezione." },
+    "reportDownloadPrompt": "Scansiona e scarica su App Store",
+    "pulse": { "eyebrow": "IL TUO MESE", "income": "Entrate", "expense": "Uscite", "net": "Saldo pianificato", "note": "Movimenti previsti nel mese, incluse le ricorrenze.", "edit": "Modifica entrate e uscite" },
+    "report": { "title": "Il tuo Balance report", "subtitle": "Patrimonio e movimenti in una pagina.", "action": "Il tuo report", "actionSubtitle": "Patrimonio e cashflow da condividere", "snapshot": "IL TUO PATRIMONIO", "flowTitle": "IL MESE IN SINTESI", "planned": "previsti", "flowNote": "Movimenti pianificati, incluse le ricorrenze.", "footer": "LA TUA FINANZA, CON PIÙ CHIAREZZA.", "share": "Condividi immagine", "sharing": "Preparazione…", "hint": "L’immagine contiene i tuoi dati finanziari.", "close": "Chiudi", "error": "Impossibile preparare il report. Riprova." },
+    "portfolioPrivate": "I tuoi dati restano sul dispositivo",
     "errorTitle": "Impossibile caricare la dashboard",
     "emptyTitle": "Configura subito Balance",
     "emptyBody": "Crea il tuo primo wallet per iniziare.",
@@ -206,6 +219,8 @@
       "header": "Cash Flow. Panoramica",
       "empty": "Nessun dato disponibile.",
       "avgIncome": "Entrate medie mensili",
+      "averagePeriod_one": "Media dell’ultimo mese, incluso quello corrente",
+      "averagePeriod_other": "Media degli ultimi {{count}} mesi, incluso quello corrente",
       "avgExpense": "Uscite medie mensili",
       "avgSavings": "Risparmio medio mensile",
       "annualLabel": "Annue",
@@ -248,9 +263,8 @@
     "range": {
       "label": "Periodo",
       "title": "Cambia intervallo",
-      "subtitle": "Scegli l’intervallo per il confronto dei KPI. Esempio: con “Ultimi 7 giorni” confronti il tuo ultimo snapshot con quello di 7 giorni fa, se esistente, altrimenti con il più vicino disponibile.",
+      "subtitle": "Scegli l’intervallo per il confronto dei KPI: ultimi 28 giorni, ultimi 3 o 6 mesi, oppure ultimo anno.",
       "options": {
-        "last7Days": "Ultimi 7 giorni",
         "last28Days": "Ultimi 28 giorni",
         "last3Months": "Ultimi 3 mesi",
         "last6Months": "Ultimi 6 mesi",
@@ -272,6 +286,9 @@
       "edit": "Modifica ordine",
       "title": "Modifica ordine",
       "done": "Fatto",
+      "hintControls": "Trascina la maniglia oppure usa le frecce per cambiare ordine.",
+      "moveUp": "Sposta {{name}} in alto",
+      "moveDown": "Sposta {{name}} in basso",
       "hint": "Trascina la maniglia per cambiare liberamente l'ordine."
     },
     "mock": {
@@ -434,6 +451,7 @@
     }
   },
   "entries": {
+    "forecast": { "title": "PREVISIONE MENSILE", "previous": "Mese precedente", "next": "Mese successivo", "balance": "Saldo", "balancePlanned": "Saldo previsto", "shortNote": "Include i movimenti ricorrenti pianificati", "note": "Movimenti pianificati, incluse le ricorrenze. La lista qui sotto mantiene i suoi filtri." },
     "list": {
       "tabIncome": "Entrate",
       "tabExpense": "Uscite",
@@ -441,6 +459,8 @@
       "filterByCategory": "Filtra per categoria",
       "searchLabel": "Cerca per nome",
       "searchPlaceholder": "Cerca...",
+      "searchAction": "Cerca",
+      "noResults": "Nessuna voce trovata. Prova a modificare i filtri.",
       "sortAnnualLabel": "Ordina per importo annuo",
       "sortAnnualAsc": "Crescente",
       "sortAnnualDesc": "Decrescente",
@@ -468,10 +488,13 @@
       "endDate": "Data fine",
       "newEntryTitle": "Nuova voce",
       "newIncomeTitle": "Nuova voce in entrata",
+      "editIncomeTitle": "Modifica entrata",
+      "editExpenseTitle": "Modifica uscita",
       "newExpenseTitle": "Nuova voce in uscita",
       "categoryHint": "Seleziona una categoria.",
       "categoryTitle": "Categoria spesa",
       "recurringLabel": "Ricorrente",
+      "hasEndDate": "Imposta una data di fine",
       "intervalLabel": "Intervallo",
       "frequency": {
         "weekly": "Settimanale",

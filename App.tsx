@@ -20,6 +20,7 @@ import WalletScreen from "@/ui/screens/WalletScreen";
 import SettingsScreen from "@/ui/screens/SettingsScreen";
 import { ThemeContext } from "@/ui/theme";
 import GlassTabBar from "@/ui/components/GlassTabBar";
+import TabContentTransition, { TabTransitionProvider } from "@/ui/components/TabContentTransition";
 import AppBackground from "@/ui/components/AppBackground";
 import AppBootScreen from "@/ui/components/AppBootScreen";
 import { DashboardThemeProvider } from "@/ui/dashboard/theme";
@@ -37,7 +38,7 @@ import type { SecurityModalStackParamList } from "@/security/securityFlowsTypes"
 import { initI18n } from "@/i18n";
 import { SettingsProvider } from "@/settings/useSettings";
 import { BalanceProProvider } from "@/features/pro/BalanceProProvider";
-import { useTranslation } from "react-i18next";
+import i18n from "i18next";
 
 enableScreens(false);
 
@@ -51,6 +52,10 @@ Notifications.setNotificationHandler({
 });
 
 const Tab = createBottomTabNavigator();
+const DashboardTab = () => <TabContentTransition index={0}><DashboardScreen /></TabContentTransition>;
+const SnapshotTab = () => <TabContentTransition index={1}><SnapshotScreen /></TabContentTransition>;
+const EntriesTab = () => <TabContentTransition index={2}><EntriesScreen /></TabContentTransition>;
+const WalletTab = () => <TabContentTransition index={3}><WalletScreen /></TabContentTransition>;
 type RootStackParamList = SecurityModalStackParamList & {
   MainContent: undefined;
 };
@@ -65,7 +70,6 @@ if (!splashPrevented) {
 
 export default function App(): React.JSX.Element | null {
   const { ready, error, themeMode, setThemeMode, retry } = useAppBootstrap();
-  const { t } = useTranslation();
   const [i18nReady, setI18nReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
   const [manualOnboarding, setManualOnboarding] = useState(false);
@@ -142,7 +146,8 @@ export default function App(): React.JSX.Element | null {
     };
   }, []);
 
-  const appReady = ready && securityReady;
+  // Show the lock/loading screen even if database initialization is slow or fails.
+  const appReady = i18nReady && securityReady;
   useEffect(() => {
     if (!appReady || !overlayVisible) {
       return;
@@ -212,18 +217,18 @@ export default function App(): React.JSX.Element | null {
       <ThemeContext.Provider value={{ mode: themeMode, setMode: setThemeMode }}>
         <PaperProvider theme={paperTheme}>
           <View style={{ flex: 1 }}>
-            <SecurityGate>
+            <SecurityGate allowAutoBiometry={!overlayVisible}>
               <DashboardThemeProvider isDark={paperTheme.dark}>
-                <SettingsProvider>
-                  <AppBackground>
+                <AppBackground>
                     <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
                     {!ready ? (
                       <AppBootScreen status="loading" />
                     ) : error ? (
                       <AppBootScreen status="error" error={error} onRetry={retry} />
                     ) : (
-                      <OnboardingFlowProvider value={{ requestReplay: requestManualOnboarding }}>
-                        <NavigationContainer theme={navTheme}>
+                      <SettingsProvider>
+                        <OnboardingFlowProvider value={{ requestReplay: requestManualOnboarding }}>
+                          <NavigationContainer theme={navTheme}>
                           <RootStack.Navigator screenOptions={{ headerShown: false }}>
                             <RootStack.Screen name="MainContent">
                               {() =>
@@ -235,6 +240,7 @@ export default function App(): React.JSX.Element | null {
                                   />
                                 ) : (
                                   <BalanceProProvider>
+                                    <TabTransitionProvider>
                                     <Tab.Navigator
                                       key={`main-tabs-${postOnboardingInitialTab}`}
                                       initialRouteName={postOnboardingInitialTab}
@@ -278,26 +284,28 @@ export default function App(): React.JSX.Element | null {
                                       })}
                                       tabBar={(props) => <GlassTabBar {...props} />}
                                     >
-                                      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-                                      <Tab.Screen name="Snapshot" component={SnapshotScreen} />
+                                      <Tab.Screen name="Dashboard" component={DashboardTab} options={{ lazy: false }} />
+                                      <Tab.Screen name="Snapshot" component={SnapshotTab} options={{ lazy: false }} />
                                       <Tab.Screen
                                         name="Balance"
-                                        component={EntriesScreen}
+                                        component={EntriesTab}
                                         options={{
-                                          tabBarLabel: t("navigation.tabEntries", { defaultValue: "Cashflow" }),
-                                          title: t("navigation.tabEntries", { defaultValue: "Cashflow" }),
+                                          lazy: false,
+                                          tabBarLabel: i18n.t("navigation.tabEntries", { defaultValue: "Cashflow" }),
+                                          title: i18n.t("navigation.tabEntries", { defaultValue: "Cashflow" }),
                                         }}
                                       />
-                                      <Tab.Screen name="Wallet" component={WalletScreen} />
+                                      <Tab.Screen name="Wallet" component={WalletTab} options={{ lazy: false }} />
                                       <Tab.Screen
                                         name="Impostazioni"
                                         component={SettingsScreen}
                                         options={{
                                           tabBarButton: () => null,
-                                          title: t("settings.title", { defaultValue: "Impostazioni" }),
+                                          title: i18n.t("settings.title", { defaultValue: "Impostazioni" }),
                                         }}
                                       />
                                     </Tab.Navigator>
+                                    </TabTransitionProvider>
                                   </BalanceProProvider>
                                 )
                               }
@@ -307,11 +315,11 @@ export default function App(): React.JSX.Element | null {
                               <RootStack.Screen name="VerifyPinModal" component={VerifyPinModal} />
                             </RootStack.Group>
                           </RootStack.Navigator>
-                        </NavigationContainer>
-                      </OnboardingFlowProvider>
+                          </NavigationContainer>
+                        </OnboardingFlowProvider>
+                      </SettingsProvider>
                     )}
-                  </AppBackground>
-                </SettingsProvider>
+                </AppBackground>
               </DashboardThemeProvider>
             </SecurityGate>
             <AnimatedSplashOverlay

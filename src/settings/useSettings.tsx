@@ -9,6 +9,7 @@ const TRACK_PENSION_KEY = "settings.trackPension";
 const DEFAULT_TRACK_PENSION = false;
 const SCROLL_BOUNCE_KEY = "settings.scrollBounce";
 const DEFAULT_SCROLL_BOUNCE = false;
+const SHOW_GREETING_KEY = "settings.showGreeting";
 
 type SettingsContextValue = {
   showInvestments: boolean;
@@ -19,6 +20,8 @@ type SettingsContextValue = {
   setTrackPension: (next: boolean) => Promise<void>;
   scrollBounceEnabled: boolean;
   setScrollBounceEnabled: (next: boolean) => Promise<void>;
+  showGreeting: boolean;
+  setShowGreeting: (next: boolean) => Promise<void>;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -32,15 +35,17 @@ export function SettingsProvider({ children }: SettingsProviderProps): JSX.Eleme
   const [showInvestmentAvailability, setShowInvestmentAvailabilityState] = useState(DEFAULT_SHOW_INVESTMENT_AVAILABILITY);
   const [trackPension, setTrackPensionState] = useState(DEFAULT_TRACK_PENSION);
   const [scrollBounceEnabled, setScrollBounceEnabledState] = useState(DEFAULT_SCROLL_BOUNCE);
+  const [showGreeting, setShowGreetingState] = useState(true);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const [investmentsPref, availabilityPref, pensionPref, bouncePref] = await Promise.all([
+      const [investmentsPref, availabilityPref, pensionPref, bouncePref, greetingPref] = await Promise.all([
         getPreference(SHOW_INVESTMENTS_KEY),
         getPreference(SHOW_INVESTMENT_AVAILABILITY_KEY),
         getPreference(TRACK_PENSION_KEY),
         getPreference(SCROLL_BOUNCE_KEY),
+        getPreference(SHOW_GREETING_KEY),
       ]);
       if (!active) return;
       const investmentsValue = investmentsPref ? investmentsPref.value === "true" : DEFAULT_SHOW_INVESTMENTS;
@@ -53,6 +58,7 @@ export function SettingsProvider({ children }: SettingsProviderProps): JSX.Eleme
       setShowInvestmentAvailabilityState(availabilityValue);
       setTrackPensionState(pensionValue);
       setScrollBounceEnabledState(bounceValue);
+      setShowGreetingState(greetingPref ? greetingPref.value === "true" : true);
     })();
     return () => {
       active = false;
@@ -79,6 +85,11 @@ export function SettingsProvider({ children }: SettingsProviderProps): JSX.Eleme
     setScrollBounceEnabledState(next);
   }, []);
 
+  const setShowGreeting = useCallback(async (next: boolean) => {
+    await setPreference(SHOW_GREETING_KEY, next ? "true" : "false");
+    setShowGreetingState(next);
+  }, []);
+
   return (
     <SettingsContext.Provider
       value={{
@@ -90,6 +101,8 @@ export function SettingsProvider({ children }: SettingsProviderProps): JSX.Eleme
         setTrackPension,
         scrollBounceEnabled,
         setScrollBounceEnabled,
+        showGreeting,
+        setShowGreeting,
       }}
     >
       {children}

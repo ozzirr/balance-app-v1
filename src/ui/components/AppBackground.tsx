@@ -10,8 +10,8 @@ export default function AppBackground({ children }: Props): JSX.Element {
   const { tokens } = useDashboardTheme();
   return (
     <View style={[styles.container, { backgroundColor: tokens.colors.bg }]}>
-      <View style={[styles.orbTop, { backgroundColor: `${tokens.colors.accent}1F` }]} />
-      <View style={[styles.orbBottom, { backgroundColor: `${tokens.colors.income}29` }]} />
+      <View pointerEvents="none" style={[styles.orbTop, { backgroundColor: `${tokens.colors.accent}0D` }]} />
+      <View pointerEvents="none" style={[styles.orbBottom, { backgroundColor: `${tokens.colors.income}0A` }]} />
       {children}
     </View>
   );

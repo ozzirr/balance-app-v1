@@ -34,7 +34,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
   subtitle: {
     marginTop: 4,

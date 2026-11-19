@@ -1,6 +1,6 @@
 /// <reference types="react" />
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, BackHandler, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Snackbar, Switch, Text, TextInput } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
@@ -12,7 +12,6 @@ import type { ExportPayload } from "@/importExport/types";
 import { runMigrations, withTransaction } from "@/db/db";
 import { emitDataReset } from "@/app/dataEvents";
 import { getPreference, setPreference } from "@/repositories/preferencesRepo";
-import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -69,6 +68,8 @@ type StorageAccessFrameworkLike = {
   writeAsStringAsync?: (fileUri: string, contents: string) => Promise<void>;
 };
 
+type SettingsSection = "plan" | "profile" | "general" | "notifications" | "security" | "data";
+
 function findSecurityModalNavigation(
   navigation: NavigationProp<ParamListBase>
 ): NavigationProp<SecurityModalStackParamList> | undefined {
@@ -87,6 +88,8 @@ export default function SettingsScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  const [activeSection, setActiveSection] = useState<SettingsSection | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [profileName, setProfileName] = useState("");
   const [prefillSnapshot, setPrefillSnapshot] = useState(true);
   const [chartMonths, setChartMonths] = useState(6);
@@ -112,6 +115,11 @@ export default function SettingsScreen(): JSX.Element {
   const { mode, setMode } = useContext(ThemeContext);
   const { requestReplay } = useOnboardingFlow();
   const { t, i18n } = useTranslation();
+  useFocusEffect(useCallback(() => {
+    if (!activeSection) return undefined;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => { setActiveSection(null); return true; });
+    return () => listener.remove();
+  }, [activeSection]));
   const {
     showInvestments,
     setShowInvestments,
@@ -121,6 +129,8 @@ export default function SettingsScreen(): JSX.Element {
     setTrackPension,
     scrollBounceEnabled,
     setScrollBounceEnabled,
+    showGreeting,
+    setShowGreeting,
   } = useSettings();
   const {
     isPro,
@@ -695,10 +705,25 @@ export default function SettingsScreen(): JSX.Element {
     : storeErrorMessage
     ? t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." })
     : undefined;
+  const sections: { id: SettingsSection; title: string; subtitle: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; color: string }[] = [
+    { id: "profile", title: t("settings.profile.title"), subtitle: t("settings.menu.profile", { defaultValue: "Nickname e lingua" }), icon: "account-outline", color: "#A885FF" },
+    { id: "general", title: t("settings.preferences.title"), subtitle: t("settings.menu.general", { defaultValue: "Aspetto, dashboard e preferenze" }), icon: "tune-variant", color: "#69A9FF" },
+    { id: "notifications", title: t("settings.notifications.title"), subtitle: t("settings.menu.notifications", { defaultValue: "Promemoria e frequenza" }), icon: "bell-outline", color: "#F0B771" },
+    { id: "security", title: t("settings.menu.securityTitle", { defaultValue: "Sicurezza" }), subtitle: t("settings.menu.security", { defaultValue: "Codice, biometria e blocco" }), icon: "shield-lock-outline", color: "#68D4A3" },
+    { id: "data", title: t("settings.data.title"), subtitle: t("settings.menu.data", { defaultValue: "Esporta, importa o cancella i dati" }), icon: "database-outline", color: "#F48F95" },
+    { id: "plan", title: t("settings.balancePro.title", { defaultValue: "Il tuo piano" }), subtitle: t("settings.menu.plan", { defaultValue: "Abbonamento e funzionalità" }), icon: "crown-outline", color: "#C5A3FF" },
+  ];
+  const selectedSection = sections.find((section) => section.id === activeSection);
+  const openSection = (section: SettingsSection | null) => {
+    Keyboard.dismiss();
+    setActiveSection(section);
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+  };
   return (
     <AppBackground>
       <>
         <ScrollView
+          ref={scrollRef}
           bounces={scrollBounceEnabled}
           alwaysBounceVertical={scrollBounceEnabled}
           overScrollMode={scrollBounceEnabled ? "always" : "never"}
@@ -707,12 +732,20 @@ export default function SettingsScreen(): JSX.Element {
             { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
           ]}
         >
-          <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader
-              title={t("settings.balancePro.title", {
-                defaultValue: "Il tuo piano",
-              })}
-            />
+          {!activeSection ? <>
+            <View style={styles.menuList}>
+              {sections.map((section) => <Pressable key={section.id} accessibilityRole="button" accessibilityLabel={section.title} onPress={() => openSection(section.id)} style={({ pressed }) => [styles.menuRow, { backgroundColor: tokens.colors.glassBg, borderColor: tokens.colors.glassBorder, opacity: pressed ? 0.7 : 1 }]}>
+                <View style={[styles.menuIcon, { backgroundColor: `${section.color}22` }]}><MaterialCommunityIcons name={section.icon} size={22} color={section.color} /></View>
+                <View style={styles.menuText}><Text style={[styles.menuTitle, { color: tokens.colors.text }]}>{section.title}</Text><Text numberOfLines={2} style={[styles.menuSubtitle, { color: tokens.colors.muted }]}>{section.subtitle}</Text></View>
+                <MaterialCommunityIcons name="chevron-right" size={22} color={tokens.colors.muted} />
+              </Pressable>)}
+            </View>
+          </> : <Pressable accessibilityRole="button" accessibilityLabel={t("settings.menu.back", { defaultValue: "Torna alle impostazioni" })} onPress={() => openSection(null)} style={styles.backRow}>
+            <View style={[styles.backIcon, { backgroundColor: `${tokens.colors.accent}20` }]}><MaterialCommunityIcons name="arrow-left" size={20} color={tokens.colors.accent} /></View>
+            <View style={styles.menuText}><Text style={[styles.detailTitle, { color: tokens.colors.text }]}>{selectedSection?.title}</Text></View>
+          </Pressable>}
+
+          {activeSection === "plan" ? <GlassCardContainer contentStyle={styles.cardContent}>
             <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
               {balanceProStatusTitle}
             </Text>
@@ -729,10 +762,9 @@ export default function SettingsScreen(): JSX.Element {
                 disabled={!isReady}
               />
             ) : null}
-        </GlassCardContainer>
+        </GlassCardContainer> : null}
 
-        <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader title={t("settings.profile.title")} />
+        {activeSection === "profile" ? <GlassCardContainer contentStyle={styles.cardContent}>
             <TextInput
               label={t("settings.profile.nameLabel")}
               placeholder={t("settings.profile.nameLabel")}
@@ -770,14 +802,9 @@ export default function SettingsScreen(): JSX.Element {
                 </Pressable>
               </View>
             </View>
-        </GlassCardContainer>
+        </GlassCardContainer> : null}
 
-        <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader
-              title={t("settings.notifications.title", {
-                defaultValue: "Notifiche",
-              })}
-            />
+        {activeSection === "notifications" ? <GlassCardContainer contentStyle={styles.cardContent}>
             <View style={[styles.row, styles.preferenceTopAlignedRow]}>
               <View style={styles.preferenceTextBlock}>
                 <Text style={[styles.label, { color: tokens.colors.text }]}>
@@ -816,10 +843,13 @@ export default function SettingsScreen(): JSX.Element {
                 />
               </View>
             ) : null}
-        </GlassCardContainer>
+        </GlassCardContainer> : null}
 
-        <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
-            <SectionHeader title={t("settings.preferences.title")} />
+        {activeSection === "general" ? <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.showGreeting", { defaultValue: "Mostra il saluto nella dashboard" })}</Text>
+              <Switch accessibilityLabel={t("settings.preferences.showGreeting", { defaultValue: "Mostra il saluto nella dashboard" })} value={showGreeting} onValueChange={(value) => { void setShowGreeting(value); }} color={tokens.colors.accent} />
+            </View>
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>
                 {t("settings.preferences.darkTheme")}
@@ -929,9 +959,9 @@ export default function SettingsScreen(): JSX.Element {
                 />
               </View>
             </View>
-        </GlassCardContainer>
+        </GlassCardContainer> : null}
 
-        <SecuritySettingsSection
+        {activeSection === "security" ? <SecuritySettingsSection hideHeader
           securityEnabled={securityEnabled}
           biometryEnabled={biometryEnabled}
           pinHashExists={pinHashExists}
@@ -942,14 +972,13 @@ export default function SettingsScreen(): JSX.Element {
           onToggleBiometry={handleBiometryToggle}
           autoLockEnabled={autoLockEnabled}
           onToggleAutoLock={handleAutoLockToggle}
-        />
+        /> : null}
 
-        <GlassCardContainer contentStyle={styles.cardContent}>
-            <SectionHeader title={t("settings.data.title")} />
+        {activeSection === "data" ? <GlassCardContainer contentStyle={styles.cardContent}>
             <PrimaryPillButton label={t("settings.data.export")} onPress={exportData} color={tokens.colors.accent} />
             <SmallOutlinePillButton label={t("settings.data.import")} onPress={importData} color={tokens.colors.text} fullWidth />
             <SmallOutlinePillButton label={t("settings.reset")} onPress={resetData} color={tokens.colors.red} fullWidth />
-        </GlassCardContainer>
+        </GlassCardContainer> : null}
         </ScrollView>
         <LimitReachedModal
           visible={settingsPaywallVisible}
@@ -992,6 +1021,15 @@ export default function SettingsScreen(): JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  menuList: { gap: 9 },
+  menuRow: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  menuIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  menuText: { flex: 1, minWidth: 0, gap: 3 },
+  menuTitle: { fontSize: 15, fontWeight: "700" },
+  menuSubtitle: { fontSize: 12, lineHeight: 17 },
+  backRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 },
+  backIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  detailTitle: { fontSize: 21, fontWeight: "800" },
   screen: {
     flex: 1,
   },
