@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Balance contributors
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Image, Platform, StyleSheet, Text, View } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
@@ -18,13 +18,14 @@ import EntriesScreen from "@/ui/screens/EntriesScreen";
 import SnapshotScreen from "@/ui/screens/SnapshotScreen";
 import WalletScreen from "@/ui/screens/WalletScreen";
 import SettingsScreen from "@/ui/screens/SettingsScreen";
+import NewsScreen from "@/ui/screens/NewsScreen";
 import { ThemeContext } from "@/ui/theme";
 import GlassTabBar from "@/ui/components/GlassTabBar";
 import TabContentTransition, { TabTransitionProvider } from "@/ui/components/TabContentTransition";
 import AppBackground from "@/ui/components/AppBackground";
 import AppBootScreen from "@/ui/components/AppBootScreen";
 import { DashboardThemeProvider } from "@/ui/dashboard/theme";
-import ProfileButton from "@/components/header/ProfileButton";
+import HeaderAction from "@/components/header/HeaderAction";
 import OnboardingNavigator from "@/onboarding/OnboardingNavigator";
 import { OnboardingFlowProvider } from "@/onboarding/flowContext";
 import { getOnboardingCompleted, setOnboardingCompleted } from "@/onboarding/onboardingStorage";
@@ -52,10 +53,12 @@ Notifications.setNotificationHandler({
 });
 
 const Tab = createBottomTabNavigator();
-const DashboardTab = () => <TabContentTransition index={0}><DashboardScreen /></TabContentTransition>;
-const SnapshotTab = () => <TabContentTransition index={1}><SnapshotScreen /></TabContentTransition>;
-const EntriesTab = () => <TabContentTransition index={2}><EntriesScreen /></TabContentTransition>;
-const WalletTab = () => <TabContentTransition index={3}><WalletScreen /></TabContentTransition>;
+const SettingsTab = () => <TabContentTransition index={-1} routeName="Impostazioni"><SettingsScreen /></TabContentTransition>;
+const DashboardTab = () => <TabContentTransition index={0} routeName="Dashboard"><DashboardScreen /></TabContentTransition>;
+const SnapshotTab = () => <TabContentTransition index={1} routeName="Snapshot"><SnapshotScreen /></TabContentTransition>;
+const EntriesTab = () => <TabContentTransition index={2} routeName="Balance"><EntriesScreen /></TabContentTransition>;
+const WalletTab = () => <TabContentTransition index={3} routeName="Wallet"><WalletScreen /></TabContentTransition>;
+const NewsTab = () => <TabContentTransition index={4} routeName="News"><NewsScreen /></TabContentTransition>;
 type RootStackParamList = SecurityModalStackParamList & {
   MainContent: undefined;
 };
@@ -69,6 +72,7 @@ if (!splashPrevented) {
 }
 
 export default function App(): React.JSX.Element | null {
+
   const { ready, error, themeMode, setThemeMode, retry } = useAppBootstrap();
   const [i18nReady, setI18nReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean | null>(null);
@@ -244,7 +248,13 @@ export default function App(): React.JSX.Element | null {
                                     <Tab.Navigator
                                       key={`main-tabs-${postOnboardingInitialTab}`}
                                       initialRouteName={postOnboardingInitialTab}
-                                      screenOptions={({ route }) => ({
+                                      screenOptions={({ route, navigation }) => ({
+                                        headerTitle: ({ tintColor }) => (
+                                          <View accessible accessibilityRole="header" accessibilityLabel="Balance" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                            <Image accessible={false} source={require("./assets/icon.png")} style={{ width: 32, height: 32, borderRadius: 8 }} />
+                                            <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={{ color: tintColor ?? navTheme.colors.text, fontSize: 22, fontWeight: "700", letterSpacing: -0.6 }}>Balance</Text>
+                                          </View>
+                                        ),
                                         headerTitleAlign: "center",
                                         headerTransparent: true,
                                         headerBackground: () =>
@@ -253,7 +263,7 @@ export default function App(): React.JSX.Element | null {
                                               style={[
                                                 StyleSheet.absoluteFill,
                                                 {
-                                                  borderBottomWidth: 1,
+                                                  borderBottomWidth: StyleSheet.hairlineWidth,
                                                   borderBottomColor: headerBorder,
                                                   backgroundColor: paperTheme.dark ? "#141923" : "#FFFFFF",
                                                 },
@@ -267,17 +277,27 @@ export default function App(): React.JSX.Element | null {
                                               style={[
                                                 StyleSheet.absoluteFill,
                                                 {
-                                                  borderBottomWidth: 1,
+                                                  borderBottomWidth: StyleSheet.hairlineWidth,
                                                   borderBottomColor: headerBorder,
                                                   backgroundColor: headerOverlay,
                                                 },
                                               ]}
                                             />
                                           ),
+                                        headerLeftContainerStyle: { paddingLeft: 12 },
+                                        headerRightContainerStyle: { paddingRight: 12 },
                                         headerLeft: () => (
-                                          <ProfileButton
-                                            isSettingsScreen={route.name === "Impostazioni"}
-                                            position="left"
+                                          <HeaderAction
+                                            icon={route.name === "Impostazioni" ? "close" : "account-outline"}
+                                            labelKey={route.name === "Impostazioni" ? "navigation.closeSettings" : "settings.title"}
+                                            onPress={() => navigation.navigate(route.name === "Impostazioni" ? "Dashboard" : "Impostazioni")}
+                                          />
+                                        ),
+                                        headerRight: () => (
+                                          <HeaderAction
+                                            icon={route.name === "News" ? "close" : "newspaper-variant-outline"}
+                                            labelKey={route.name === "News" ? "navigation.closeRadar" : "news.briefing"}
+                                            onPress={() => navigation.navigate(route.name === "News" ? "Dashboard" : "News")}
                                           />
                                         ),
                                         tabBarStyle: { display: "none" },
@@ -297,11 +317,18 @@ export default function App(): React.JSX.Element | null {
                                       />
                                       <Tab.Screen name="Wallet" component={WalletTab} options={{ lazy: false }} />
                                       <Tab.Screen
-                                        name="Impostazioni"
-                                        component={SettingsScreen}
+                                        name="News"
+                                        component={NewsTab}
                                         options={{
                                           tabBarButton: () => null,
-                                          title: i18n.t("settings.title", { defaultValue: "Impostazioni" }),
+                                        }}
+                                      />
+                                      <Tab.Screen
+                                        name="Impostazioni"
+                                        component={SettingsTab}
+                                        options={{
+                                          tabBarButton: () => null,
+                                          title: i18n.t("settings.title", { defaultValue: "Account" }),
                                         }}
                                       />
                                     </Tab.Navigator>

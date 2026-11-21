@@ -16,7 +16,8 @@
     "update": "Update",
     "reset": "Reset",
     "all": "All",
-    "openSettings": "Open settings"
+    "openSettings": "Open settings",
+    "retry": "Try again"
   },
   "onboardingV2": {
     "common": {
@@ -99,8 +100,8 @@
   },
   "tutorial": { "gotIt": "Got it", "skip": "Skip", "close": "Close tip", "wallet": { "title": "Add a wallet", "body": "Use this button to add an account or another wallet. To edit an existing wallet, tap its name." }, "snapshot": { "title": "Save your first snapshot", "body": "Tap here and enter your wallet balances to save a picture of your net worth." }, "cashflow": { "income": { "title": "Add income", "body": "Tap here to add one-time or recurring income to your forecast." }, "expense": { "title": "Add an expense", "body": "Tap here to add a one-time or recurring expense to your forecast." } } },
   "settings": {
-    "menu": { "profile": "Nickname and language", "general": "Theme, dashboard and investments", "notifications": "Snapshot reminders", "securityTitle": "Security", "security": "Passcode, biometrics and lock", "data": "Export, import or delete data", "plan": "Current plan and Balance Pro", "back": "Back to settings" },
-    "title": "Settings",
+    "menu": { "profile": "Nickname, greeting and language", "general": "Appearance, snapshots and investments", "notifications": "Snapshot reminders", "securityTitle": "Security", "security": "Passcode, biometrics and lock", "data": "Export, import or delete data", "plan": "Current plan and Balance Pro", "back": "Back to Account" },
+    "title": "Account",
     "profile": {
       "title": "Profile",
       "nameLabel": "Nickname",
@@ -110,6 +111,9 @@
       "title": "Notifications"
     },
     "preferences": {
+      "appearanceGroup": "Appearance and interaction",
+      "trackingGroup": "Snapshots and charts",
+      "investmentsGroup": "Investments",
       "showGreeting": "Show greeting on dashboard",
       "title": "General",
       "darkTheme": "Dark theme",
@@ -147,6 +151,11 @@
       "loadTestData": "Load test data"
     },
     "balancePro": {
+      "viewPlans": "View plans",
+      "billingOptions": "Choose how often Balance Pro renews.",
+      "offerTitle": "A wallet for every account",
+      "offerBody": "Keep everyday spending, savings and investments separate. See all your balances on one dashboard.",
+      "walletLimit": "Up to {{count}} wallets",
       "title": "Your plan",
       "statusFree": "Balance Free",
       "statusActive": "Balance Pro",
@@ -263,8 +272,10 @@
     "range": {
       "label": "Period",
       "title": "Change interval",
-      "subtitle": "Choose a KPI comparison period: last 28 days, last 3 or 6 months, or the last year.",
+      "subtitle": "Compare changes in your net worth using your available snapshots.",
       "options": {
+        "lastWeek": "Last 7 days",
+        "lastMonth": "Last month",
         "last28Days": "Last 28 days",
         "last3Months": "Last 3 months",
         "last6Months": "Last 6 months",
@@ -316,6 +327,157 @@
         "rent": "Rent",
         "expense": "Expense"
       }
+    }
+  },
+  "news": {
+    "quota": {"resumes": "Next change available on {{date}}. With Balance Pro you can edit anytime.", "stocks": "Up to 3 stocks. Changes available per rolling 7 days: {{left}} of 2.", "topics": "Up to 2 topics. Changes available per rolling 7 days: {{left}} of 1.", "locked": "Balance Free limit reached. Wait for a change to expire or switch to Balance Pro in Account.", "freePlan": "Radar: 3 stocks and 2 topics", "proPlan": "All catalog stocks and topics, with unlimited changes"},
+    "article": {
+      "previewHint": "Expands the summary in the list",
+      "collapseHint": "Collapses the summary",
+      "noSummary": "The source did not provide a summary."
+    },
+    "instruments": {
+      "following": "Your watchlist",
+      "manage": "Manage",
+      "title": "Stocks to follow",
+      "selection": "{{selected}} of {{count}} followed",
+      "groups": {
+        "all": "All",
+        "usa": "USA",
+        "italy": "Italy"
+      },
+      "filter": "News about {{instrument}}",
+      "topics": "General topics",
+      "saveError": "Unable to save interests",
+      "emptyTitle": "No stories found",
+      "emptyBody": "Check back later or return to general news.",
+      "searchError": "Search unavailable",
+      "searchErrorBody": "Try again in a moment.",
+      "searchPlaceholder": "Search company or ticker",
+      "clearSearch": "Clear search",
+      "featured": "Featured companies",
+      "resultCount_one": "{{count}} result",
+      "resultCount_other": "{{count}} results",
+      "noMatches": "No companies found",
+      "moreMatches": "Show more results"
+    },
+    "briefing": "Market radar",
+    "launch": {
+      "title": "Getting your radar ready",
+      "status": "Looking for stories that matter to you",
+      "sources": "News from official sources and publishers",
+      "interests": "The topics you chose, front and centre",
+      "market": "Quotes and charts for stocks you follow"
+    },
+    "market": {
+      "stories": "Instrument news",
+      "latest": "Latest available price",
+      "dailyChange": "Daily change {{value}}",
+      "graph": "From {{first}} to {{last}}",
+      "quoteUnavailable": "Quote unavailable",
+      "chartUnavailable": "Chart unavailable for this period",
+      "unavailable": "Market data unavailable",
+      "loading": "Loading market data",
+      "periods": {
+        "1d": {
+          "short": "1D",
+          "label": "Latest session"
+        },
+        "1m": {
+          "short": "1M",
+          "label": "One month"
+        },
+        "1y": {
+          "short": "1Y",
+          "label": "One year"
+        }
+      }
+    },
+    "impact": {
+      "title": "What this could mean for you",
+      "moreStories": "More stories",
+      "toggle": "Show or hide context",
+      "watch": "What to watch",
+      "loaded_one": "{{count}} story loaded",
+      "loaded_other": "{{count}} stories loaded",
+      "context": {
+        "markets": "Market news can matter to people following stocks, bonds or currencies.",
+        "rates": "Rates and inflation can affect variable payments, yields and purchasing power.",
+        "investing": "These events can affect the costs, risks or terms of the instruments mentioned.",
+        "personal-finance": "Changes affecting household finances can influence recurring spending and cash available.",
+        "pensions": "Retirement changes can affect people paying contributions or nearing retirement.",
+        "crypto": "Crypto developments can affect people using platforms or holding digital assets.",
+        "real-estate": "Prices, credit terms and rents can affect buyers and renters.",
+        "taxes": "Tax changes can affect deductions, deadlines and reportable income."
+      },
+      "watchFor": {
+        "markets": "Upcoming economic data and official statements.",
+        "rates": "The next central bank decisions and price data.",
+        "investing": "Official documents and effective dates.",
+        "personal-finance": "Effective dates and the terms announced.",
+        "pensions": "Eligibility rules, effective dates and agency notices.",
+        "crypto": "Regulatory notices and updates from the platforms mentioned.",
+        "real-estate": "The next market surveys and financing terms.",
+        "taxes": "The official text and applicable deadlines."
+      }
+    },
+    "feedTab": "Feed",
+    "refresh": "Refresh news",
+    "openError": "Unable to open the source",
+    "pilot": "Pilot source",
+    "saved": {
+      "tab": "Saved",
+      "title": "Reading list",
+      "emptyTitle": "No saved stories",
+      "emptyBody": "Tap the bookmark on a story to find it here.",
+      "add": "Save: {{title}}",
+      "remove": "Remove from saved: {{title}}",
+      "error": "Unable to update bookmarks",
+      "unavailable": "Unable to load saved stories"
+    },
+    "title": "Information that matters to you",
+    "subtitle": "Markets, savings and investments based on the topics you choose.",
+    "forYou": "Latest stories",
+    "openSource": "Open source",
+    "officialSource": "OFFICIAL SOURCE",
+    "loadMore": "Load more stories",
+    "loadingMore": "Loading…",
+    "loadMoreErrorTitle": "Unable to load more stories",
+    "loadMoreErrorBody": "Check your connection and try again.",
+    "staleNote": "The service is temporarily offline. You are seeing the latest available stories.",
+    "unavailableNote": "The live feed is unavailable. Pilot sources are shown temporarily.",
+    "previewNote": "Feed preview. Configure the News service to show real stories.",
+    "topics": {
+      "markets": "Markets",
+      "rates": "Rates and inflation",
+      "investing": "Investing",
+      "personal-finance": "Personal finance",
+      "pensions": "Retirement",
+      "crypto": "Crypto",
+      "real-estate": "Real estate",
+      "taxes": "Taxes"
+    },
+    "filters": {
+      "updating": "Updating filter",
+      "all": "All",
+      "storyCount_one": "{{count}} story",
+      "storyCount_other": "{{count}} stories",
+      "emptyBody": "There are no stories for this topic in the loaded feed yet.",
+      "reset": "Show all"
+    },
+    "config": {
+      "action": "Configure interests",
+      "title": "What do you want to follow?",
+      "subtitle": "You can change your interests at any time.",
+      "firstTitle": "Personalise your radar",
+      "firstSubtitle": "Choose your topics and any stocks you want to follow. You can change your choices later.",
+      "firstAction": "Save and open the radar",
+      "minimumTitle": "Choose at least one topic",
+      "minimumBody": "Select what you want to follow to build your feed."
+    },
+    "empty": {
+      "title": "No relevant stories",
+      "body": "Try adding another topic or refresh the feed later."
     }
   },
   "navigation": {
@@ -616,6 +778,9 @@
     }
   },
   "navigation": {
-    "tabEntries": "Cashflow"
+    "tabEntries": "Cashflow",
+    "tabNews": "News",
+    "closeSettings": "Close account",
+    "closeRadar": "Close financial radar"
   }
 }

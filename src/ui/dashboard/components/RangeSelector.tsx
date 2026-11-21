@@ -1,125 +1,51 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useTranslation } from "react-i18next";
-
-type Option<T extends string> = { value: T; label: string };
+import BottomSheet from "@/ui/components/BottomSheet";
+import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 type Props<T extends string> = {
   selectedRange: T;
   onChangeRange: (range: T) => void;
-  options: Option<T>[];
-  showLabel?: boolean;
-  label?: string;
-  accessibilityLabel?: string;
+  options: { value: T; label: string }[];
 };
 
-export default function RangeSelector<T extends string>({
-  selectedRange,
-  onChangeRange,
-  options,
-  showLabel = true,
-  label,
-  accessibilityLabel,
-}: Props<T>): JSX.Element {
-  const { tokens } = useDashboardTheme();
+export default function RangeSelector<T extends string>({ selectedRange, onChangeRange, options }: Props<T>) {
+  const { tokens: { colors } } = useDashboardTheme();
   const { t } = useTranslation();
-  const selectedLabel = useMemo(
-    () => options.find((opt) => opt.value === selectedRange)?.label ?? "",
-    [options, selectedRange]
-  );
-  const cycleRange = useCallback(() => {
-    if (options.length === 0) return;
-    const currentIndex = options.findIndex((opt) => opt.value === selectedRange);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % options.length : 0;
-    onChangeRange(options[nextIndex].value);
-  }, [onChangeRange, options, selectedRange]);
-
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === selectedRange);
   return (
     <>
-      <View style={styles.wrapper}>
-        <Pressable
-          onPress={cycleRange}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.selectorRow,
-            !showLabel && styles.selectorRowCompact,
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
-        accessibilityRole="button"
-        accessibilityLabel={
-          accessibilityLabel ??
-          t("dashboard.range.accessibility", {
-            defaultValue: "Seleziona intervallo KPI",
-          })
-        }
-      >
-        {showLabel ? (
-          <Text style={[styles.selectorLabel, { color: tokens.colors.muted }]}>
-            {label ?? t("dashboard.range.label")}
-          </Text>
-        ) : null}
-          <View style={styles.selectorValue}>
-            <Text
-              style={[
-                styles.selectorValueText,
-                !showLabel && styles.selectorValueTextCompact,
-                { color: tokens.colors.accent },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {selectedLabel}
-            </Text>
-            <MaterialCommunityIcons name="chevron-right" size={18} color={tokens.colors.accent} />
-          </View>
+      <View style={styles.row}>
+        <Text style={[styles.label, { color: colors.muted }]}>{t("dashboard.range.label")}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("dashboard.range.title")}
+          accessibilityValue={{ text: selected?.label }} accessibilityState={{ expanded: open }}
+          onPress={() => setOpen(true)} style={[styles.trigger, { backgroundColor: colors.surface, borderColor: colors.glassBorder }]}>
+          <MaterialCommunityIcons name="calendar-range" size={17} color={colors.accent} />
+          <Text style={[styles.value, { color: colors.text }]}>{selected?.label}</Text>
+          <MaterialCommunityIcons name="chevron-down" size={17} color={colors.muted} />
         </Pressable>
       </View>
+      <BottomSheet visible={open} title={t("dashboard.range.title")} subtitle={t("dashboard.range.subtitle")} onClose={() => setOpen(false)}>
+        {options.map(({ value, label }) => (
+          <Pressable key={value} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: value === selectedRange }}
+            onPress={() => { setOpen(false); onChangeRange(value); }} style={styles.option}>
+            <Text style={[styles.value, { color: colors.text }]}>{label}</Text>
+            {value === selectedRange && <MaterialCommunityIcons name="check" size={21} color={colors.accent} />}
+          </Pressable>
+        ))}
+      </BottomSheet>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: "relative",
-    alignSelf: "flex-start",
-    overflow: "visible",
-  },
-  selectorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    minWidth: 0,
-    maxWidth: "100%",
-    alignSelf: "flex-start",
-    gap: 4,
-    position: "relative",
-    zIndex: 1,
-  },
-  selectorRowCompact: {
-    minWidth: 0,
-  },
-  selectorLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "transparent",
-  },
-  selectorValue: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    maxWidth: "80%",
-    flexShrink: 1,
-  },
-  selectorValueText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  selectorValueTextCompact: {
-    fontSize: 13,
-  },
+  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  label: { fontSize: 14, fontWeight: "600" },
+  trigger: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, minHeight: 44, paddingHorizontal: 12 },
+  value: { fontSize: 15, fontWeight: "600", flexShrink: 1 },
+  option: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 8, minHeight: 48 },
 });

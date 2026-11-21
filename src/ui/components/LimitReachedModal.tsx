@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Button, Text } from "react-native-paper";
@@ -208,6 +209,7 @@ export default function LimitReachedModal({
 
   const shouldShowPlans = Boolean(plans?.length && selectedPlanId && onSelectPlan);
   const paywallPlans = plans ?? [];
+  const catalogUnavailable = Boolean(shouldShowPlans && !isStoreLoading && !paywallPlans.some((plan) => plan.product));
   const selectedPlan = useMemo(
     () => paywallPlans.find((plan) => plan.planId === selectedPlanId) ?? null,
     [paywallPlans, selectedPlanId]
@@ -326,7 +328,8 @@ export default function LimitReachedModal({
 
   const isTabletLayout = width >= 768;
   const cardWidth = Math.min(width - 32, isTabletLayout ? 560 : 398);
-  const cardMaxHeight = Math.max(440, height - (isTabletLayout ? 48 : 72));
+  const insets = useSafeAreaInsets();
+  const cardMaxHeight = height - insets.top - insets.bottom - 24;
   const overlayTint = isDark ? "rgba(8, 10, 18, 0.32)" : "rgba(245, 248, 255, 0.2)";
   const cardBackground =
     Platform.OS === "android"
@@ -418,7 +421,7 @@ export default function LimitReachedModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={primaryLoading || secondaryActionLoading || tertiaryActionLoading ? undefined : onClose}>
-      <View style={styles.modal} accessibilityViewIsModal>
+      <View style={[styles.modal, { paddingTop: insets.top, paddingBottom: insets.bottom }]} accessibilityViewIsModal>
         <Pressable disabled={primaryLoading || secondaryActionLoading || tertiaryActionLoading} onPress={onClose} style={styles.portalBackdrop} accessibilityRole="button" accessibilityLabel={t("common.close", { defaultValue: "Close" })}>
           <GlassBlur intensity={26} tint={blurTint} fallbackColor="transparent" />
           <View style={[styles.backdropTint, { backgroundColor: overlayTint }]} />
@@ -442,7 +445,8 @@ export default function LimitReachedModal({
 
           <ScrollView
             bounces={false}
-            showsVerticalScrollIndicator={false}
+            style={{ flexShrink: 1 }}
+            showsVerticalScrollIndicator
             contentContainerStyle={styles.scrollContent}
           >
             <View style={styles.headerRow}>
@@ -504,7 +508,7 @@ export default function LimitReachedModal({
               </View>
             ) : null}
 
-            {shouldShowPlans ? (
+            {shouldShowPlans && !catalogUnavailable ? (
               <View style={styles.plans}>
                 {paywallPlans.map((plan) => {
                   const isSelected = plan.planId === selectedPlanId;
@@ -599,7 +603,7 @@ export default function LimitReachedModal({
                         </Text>
 
                         <View style={styles.planBadges}>
-                          {plan.isBestValue ? (
+                          {plan.isBestValue && yearlyPlanSavingsPercentage && yearlyPlanSavingsPercentage > 0 ? (
                             <Animated.View
                               style={[
                                 styles.planBadge,
@@ -664,7 +668,7 @@ export default function LimitReachedModal({
               </View>
             ) : null}
 
-            <View style={styles.ctaSection}>
+            {!catalogUnavailable && <View style={styles.ctaSection}>
               <Button
                 mode="contained"
                 buttonColor={tokens.colors.accent}
@@ -690,7 +694,7 @@ export default function LimitReachedModal({
               {selectedPlanBillingHelper ? (
                 <Text style={[styles.billingHelper, { color: subtleTextColor }]}>{selectedPlanBillingHelper}</Text>
               ) : null}
-            </View>
+            </View>}
 
             {(secondaryActionLabel || tertiaryActionLabel) ? (
               <View style={styles.secondaryActions}>
@@ -739,7 +743,9 @@ export default function LimitReachedModal({
               </View>
             ) : null}
 
+          </ScrollView>
             <Button
+              testID="balance-paywall-dismiss"
               mode="text"
               textColor={subtleTextColor}
               onPress={onSecondaryLabelPress ?? onClose}
@@ -749,7 +755,6 @@ export default function LimitReachedModal({
             >
               {resolvedSecondaryLabel}
             </Button>
-          </ScrollView>
         </Animated.View>
         </View>
       </View>

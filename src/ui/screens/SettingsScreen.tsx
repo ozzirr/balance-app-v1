@@ -1,6 +1,6 @@
 /// <reference types="react" />
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, BackHandler, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, BackHandler, Image, Keyboard, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Snackbar, Switch, Text, TextInput } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
@@ -208,20 +208,7 @@ export default function SettingsScreen(): JSX.Element {
         });
   }, [isPro, t]);
 
-  const balanceProSummary = useMemo(() => {
-    if (isPro) {
-      return t("settings.balancePro.summaryActive", {
-        defaultValue:
-          "Abbonamento attivo. Puoi gestire o annullare l'abbonamento dalle impostazioni del tuo account Apple.",
-      });
-    }
 
-    return t("settings.balancePro.summaryFree", {
-      defaultValue:
-        "Con Balance Free puoi creare fino a {{count}} wallet. Passa a Balance Pro per wallet illimitati e insight avanzati.",
-      count: FREE_WALLET_LIMIT,
-    });
-  }, [isPro, t]);
 
   const load = useCallback(async () => {
     const [name, prefill, points, reminderEnabledPref, reminderFrequencyPref] = await Promise.all([
@@ -299,10 +286,6 @@ export default function SettingsScreen(): JSX.Element {
     },
     [snapshotReminderEnabled]
   );
-
-  const handleOpenBalanceProPlans = useCallback(() => {
-    setSettingsPaywallVisible(true);
-  }, []);
 
   const selectedPlan = availablePlans.find((plan) => plan.planId === selectedPlanId) ?? null;
   const canPurchaseSelectedPlan = Boolean(isStoreAvailable && selectedPlan?.product);
@@ -666,14 +649,6 @@ export default function SettingsScreen(): JSX.Element {
     textColor: tokens.colors.text,
     style: { backgroundColor: tokens.colors.glassBg },
   };
-  const balanceProBenefits = useMemo(
-    () => [
-      t("wallets.actions.limitBenefitUnlimited"),
-      t("wallets.actions.limitBenefitInsights"),
-      t("wallets.actions.limitBenefitControl"),
-    ],
-    [t]
-  );
   const paywallLegalLinks = useMemo(
     () => [
       {
@@ -711,7 +686,6 @@ export default function SettingsScreen(): JSX.Element {
     { id: "notifications", title: t("settings.notifications.title"), subtitle: t("settings.menu.notifications", { defaultValue: "Promemoria e frequenza" }), icon: "bell-outline", color: "#F0B771" },
     { id: "security", title: t("settings.menu.securityTitle", { defaultValue: "Sicurezza" }), subtitle: t("settings.menu.security", { defaultValue: "Codice, biometria e blocco" }), icon: "shield-lock-outline", color: "#68D4A3" },
     { id: "data", title: t("settings.data.title"), subtitle: t("settings.menu.data", { defaultValue: "Esporta, importa o cancella i dati" }), icon: "database-outline", color: "#F48F95" },
-    { id: "plan", title: t("settings.balancePro.title", { defaultValue: "Il tuo piano" }), subtitle: t("settings.menu.plan", { defaultValue: "Abbonamento e funzionalità" }), icon: "crown-outline", color: "#C5A3FF" },
   ];
   const selectedSection = sections.find((section) => section.id === activeSection);
   const openSection = (section: SettingsSection | null) => {
@@ -723,6 +697,7 @@ export default function SettingsScreen(): JSX.Element {
     <AppBackground>
       <>
         <ScrollView
+          keyboardShouldPersistTaps="handled"
           ref={scrollRef}
           bounces={scrollBounceEnabled}
           alwaysBounceVertical={scrollBounceEnabled}
@@ -733,6 +708,19 @@ export default function SettingsScreen(): JSX.Element {
           ]}
         >
           {!activeSection ? <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("settings.balancePro.title") + ", " + balanceProStatusTitle}
+              disabled={!isReady}
+              onPress={() => openSection("plan")}
+              style={({ pressed }) => [styles.planCard, { backgroundColor: tokens.colors.accent + "16", borderColor: tokens.colors.accent + "45", opacity: pressed ? 0.75 : 1 }]}
+            >
+              <View style={styles.menuText}>
+                <Text style={[styles.groupTitle, { color: tokens.colors.accent }]}>{t("settings.balancePro.title")}</Text>
+                <Text style={[styles.planName, { color: tokens.colors.text }]}>{balanceProStatusTitle}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={tokens.colors.accent} />
+            </Pressable>
             <View style={styles.menuList}>
               {sections.map((section) => <Pressable key={section.id} accessibilityRole="button" accessibilityLabel={section.title} onPress={() => openSection(section.id)} style={({ pressed }) => [styles.menuRow, { backgroundColor: tokens.colors.glassBg, borderColor: tokens.colors.glassBorder, opacity: pressed ? 0.7 : 1 }]}>
                 <View style={[styles.menuIcon, { backgroundColor: `${section.color}22` }]}><MaterialCommunityIcons name={section.icon} size={22} color={section.color} /></View>
@@ -740,29 +728,46 @@ export default function SettingsScreen(): JSX.Element {
                 <MaterialCommunityIcons name="chevron-right" size={22} color={tokens.colors.muted} />
               </Pressable>)}
             </View>
-          </> : <Pressable accessibilityRole="button" accessibilityLabel={t("settings.menu.back", { defaultValue: "Torna alle impostazioni" })} onPress={() => openSection(null)} style={styles.backRow}>
+          </> : <Pressable accessibilityRole="button" accessibilityLabel={t("settings.menu.back", { defaultValue: "Torna ad Account" })} onPress={() => openSection(null)} style={styles.backRow}>
             <View style={[styles.backIcon, { backgroundColor: `${tokens.colors.accent}20` }]}><MaterialCommunityIcons name="arrow-left" size={20} color={tokens.colors.accent} /></View>
-            <View style={styles.menuText}><Text style={[styles.detailTitle, { color: tokens.colors.text }]}>{selectedSection?.title}</Text></View>
+            <View style={styles.menuText}><Text style={[styles.detailTitle, { color: tokens.colors.text }]}>{activeSection === "plan" ? t("settings.balancePro.title") : selectedSection?.title}</Text></View>
           </Pressable>}
 
-          {activeSection === "plan" ? <GlassCardContainer contentStyle={styles.cardContent}>
+          {activeSection === "plan" && isPro ? <GlassCardContainer contentStyle={styles.cardContent}>
             <Text style={[styles.balanceProTitle, { color: tokens.colors.text }]}>
               {balanceProStatusTitle}
             </Text>
             <Text style={[styles.balanceProBody, { color: tokens.colors.text }]}>
-              {balanceProSummary}
+              {t("settings.balancePro.summaryActive")}
             </Text>
-            {!isPro ? (
-              <PrimaryPillButton
-                label={t("settings.balancePro.upgrade", {
-                  defaultValue: "Scopri Balance Pro",
-                })}
-                onPress={handleOpenBalanceProPlans}
-                color={tokens.colors.accent}
-                disabled={!isReady}
-              />
-            ) : null}
         </GlassCardContainer> : null}
+
+        {activeSection === "plan" && !isPro ? (
+          <>
+            <View style={[styles.offerHero, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.glassBorder }]}>
+              <Image source={require("../../../assets/onboarding/onboarding-3.png")} resizeMode="contain" accessible={false} style={styles.offerArt} />
+              <Text accessibilityRole="header" style={[styles.planName, { color: tokens.colors.text }]}>Balance Pro</Text>
+              <Text variant="titleMedium" style={{ color: tokens.colors.text }}>{t("settings.balancePro.offerTitle")}</Text>
+              <Text variant="bodyMedium" style={{ color: tokens.colors.muted }}>{t("settings.balancePro.offerBody")}</Text>
+            </View>
+            <View style={[styles.planComparison, { borderColor: tokens.colors.glassBorder }]}>
+              <View style={styles.offerColumn}>
+                <Text variant="labelMedium" style={{ color: tokens.colors.muted }}>Balance Free</Text>
+                <Text variant="titleMedium" style={{ color: tokens.colors.text }}>{t("settings.balancePro.walletLimit", { count: FREE_WALLET_LIMIT })}</Text>
+                <Text variant="bodySmall" style={{ color: tokens.colors.muted }}>{t("news.quota.freePlan")}</Text>
+              </View>
+              <View style={[styles.offerColumn, { backgroundColor: tokens.colors.accent + "14" }]}>
+                <Text variant="labelMedium" style={{ color: tokens.colors.accent }}>Balance Pro</Text>
+                <Text variant="titleMedium" style={{ color: tokens.colors.text }}>{t("wallets.actions.limitBenefitUnlimited")}</Text>
+                <Text variant="bodySmall" style={{ color: tokens.colors.muted }}>{t("news.quota.proPlan")}</Text>
+              </View>
+            </View>
+            <PrimaryPillButton label={t("settings.balancePro.viewPlans")} color={tokens.colors.accent} onPress={() => {
+              setSettingsPaywallVisible(true);
+              if (!isStoreLoading && !availablePlans.some((plan) => plan.product)) void prepareStore();
+            }} />
+          </>
+        ) : null}
 
         {activeSection === "profile" ? <GlassCardContainer contentStyle={styles.cardContent}>
             <TextInput
@@ -777,6 +782,10 @@ export default function SettingsScreen(): JSX.Element {
                 void updatePreference("profile_name", next.trim());
               }}
             />
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.showGreeting", { defaultValue: "Mostra il saluto nella dashboard" })}</Text>
+              <Switch accessibilityLabel={t("settings.preferences.showGreeting", { defaultValue: "Mostra il saluto nella dashboard" })} value={showGreeting} onValueChange={(value) => { void setShowGreeting(value); }} color={tokens.colors.accent} />
+            </View>
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>
                 {t("settings.profile.languageLabel", {
@@ -820,6 +829,7 @@ export default function SettingsScreen(): JSX.Element {
                 </Text>
               </View>
               <Switch
+                accessibilityLabel={t("settings.preferences.snapshotReminder.label")}
                 value={snapshotReminderEnabled}
                 onValueChange={(value) => {
                   void handleSnapshotReminderToggle(value);
@@ -845,16 +855,15 @@ export default function SettingsScreen(): JSX.Element {
             ) : null}
         </GlassCardContainer> : null}
 
-        {activeSection === "general" ? <GlassCardContainer style={styles.preferencesCard} contentStyle={styles.cardContent}>
-            <View style={styles.row}>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.showGreeting", { defaultValue: "Mostra il saluto nella dashboard" })}</Text>
-              <Switch accessibilityLabel={t("settings.preferences.showGreeting", { defaultValue: "Mostra il saluto nella dashboard" })} value={showGreeting} onValueChange={(value) => { void setShowGreeting(value); }} color={tokens.colors.accent} />
-            </View>
+        {activeSection === "general" ? <>
+          <GlassCardContainer contentStyle={styles.cardContent}>
+            <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.colors.accent }]}>{t("settings.preferences.appearanceGroup")}</Text>
             <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>
                 {t("settings.preferences.darkTheme")}
               </Text>
               <Switch
+                accessibilityLabel={t("settings.preferences.darkTheme")}
                 value={mode === "dark"}
                 onValueChange={(value) => {
                   const next = value ? "dark" : "light";
@@ -865,70 +874,27 @@ export default function SettingsScreen(): JSX.Element {
               />
             </View>
             <View style={styles.row}>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.scrollBounce")}</Text>
+              <Switch
+                accessibilityLabel={t("settings.preferences.scrollBounce")}
+                value={scrollBounceEnabled}
+                onValueChange={(value) => {
+                  void setScrollBounceEnabled(value);
+                }}
+                color={tokens.colors.accent}
+              />
+            </View>
+          </GlassCardContainer>
+          <GlassCardContainer contentStyle={styles.cardContent}>
+            <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.colors.accent }]}>{t("settings.preferences.trackingGroup")}</Text>
+            <View style={styles.row}>
               <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.prefillSnapshot")}</Text>
               <Switch
+                accessibilityLabel={t("settings.preferences.prefillSnapshot")}
                 value={prefillSnapshot}
                 onValueChange={(value) => {
                   setPrefillSnapshot(value);
                   updatePreference("prefill_snapshot", String(value));
-                }}
-                color={tokens.colors.accent}
-              />
-            </View>
-            <View style={styles.row}>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.showInvestments")}</Text>
-              <Switch
-                value={showInvestments}
-                onValueChange={(value) => {
-                  void setShowInvestments(value);
-                }}
-                color={tokens.colors.accent}
-              />
-            </View>
-            {showInvestments ? (
-              <View style={styles.row}>
-                <View style={styles.preferenceTextBlock}>
-                  <Text style={[styles.label, { color: tokens.colors.text }]}>
-                    {t("settings.preferences.showInvestmentAvailability")}
-                  </Text>
-                  <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
-                    {t("settings.preferences.showInvestmentAvailabilityHint")}
-                  </Text>
-                </View>
-                <Switch
-                  value={showInvestmentAvailability}
-                  onValueChange={(value) => {
-                    void setShowInvestmentAvailability(value);
-                  }}
-                  color={tokens.colors.accent}
-                />
-              </View>
-            ) : null}
-            {showInvestments ? (
-              <View style={styles.row}>
-                <View style={styles.preferenceTextBlock}>
-                  <Text style={[styles.label, { color: tokens.colors.text }]}>
-                    {t("settings.preferences.trackPension")}
-                  </Text>
-                  <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
-                    {t("settings.preferences.trackPensionHint")}
-                  </Text>
-                </View>
-                <Switch
-                  value={trackPension}
-                  onValueChange={(value) => {
-                    void setTrackPension(value);
-                  }}
-                  color={tokens.colors.accent}
-                />
-              </View>
-            ) : null}
-            <View style={styles.row}>
-              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.scrollBounce")}</Text>
-              <Switch
-                value={scrollBounceEnabled}
-                onValueChange={(value) => {
-                  void setScrollBounceEnabled(value);
                 }}
                 color={tokens.colors.accent}
               />
@@ -959,7 +925,62 @@ export default function SettingsScreen(): JSX.Element {
                 />
               </View>
             </View>
-        </GlassCardContainer> : null}
+          </GlassCardContainer>
+          <GlassCardContainer contentStyle={styles.cardContent}>
+            <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.colors.accent }]}>{t("settings.preferences.investmentsGroup")}</Text>
+            <View style={styles.row}>
+              <Text style={[styles.label, { color: tokens.colors.text }]}>{t("settings.preferences.showInvestments")}</Text>
+              <Switch
+                accessibilityLabel={t("settings.preferences.showInvestments")}
+                value={showInvestments}
+                onValueChange={(value) => {
+                  void setShowInvestments(value);
+                }}
+                color={tokens.colors.accent}
+              />
+            </View>
+            {showInvestments ? (
+              <View style={styles.row}>
+                <View style={styles.preferenceTextBlock}>
+                  <Text style={[styles.label, { color: tokens.colors.text }]}>
+                    {t("settings.preferences.showInvestmentAvailability")}
+                  </Text>
+                  <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
+                    {t("settings.preferences.showInvestmentAvailabilityHint")}
+                  </Text>
+                </View>
+                <Switch
+                  accessibilityLabel={t("settings.preferences.showInvestmentAvailability")}
+                value={showInvestmentAvailability}
+                  onValueChange={(value) => {
+                    void setShowInvestmentAvailability(value);
+                  }}
+                  color={tokens.colors.accent}
+                />
+              </View>
+            ) : null}
+            {showInvestments ? (
+              <View style={styles.row}>
+                <View style={styles.preferenceTextBlock}>
+                  <Text style={[styles.label, { color: tokens.colors.text }]}>
+                    {t("settings.preferences.trackPension")}
+                  </Text>
+                  <Text style={[styles.helperText, { color: tokens.colors.muted }]}>
+                    {t("settings.preferences.trackPensionHint")}
+                  </Text>
+                </View>
+                <Switch
+                  accessibilityLabel={t("settings.preferences.trackPension")}
+                value={trackPension}
+                  onValueChange={(value) => {
+                    void setTrackPension(value);
+                  }}
+                  color={tokens.colors.accent}
+                />
+              </View>
+            ) : null}
+          </GlassCardContainer>
+        </> : null}
 
         {activeSection === "security" ? <SecuritySettingsSection hideHeader
           securityEnabled={securityEnabled}
@@ -987,19 +1008,15 @@ export default function SettingsScreen(): JSX.Element {
           plans={availablePlans}
           selectedPlanId={selectedPlanId}
           onSelectPlan={setSelectedPlanId}
-          title={t("wallets.actions.paywallHeadlineSettings", {
-            defaultValue: "Passa a Balance Pro",
-          })}
-          subtitle={t("wallets.actions.paywallSubtitleSettings", {
-            defaultValue: "Wallet illimitati, insight avanzati e controllo completo delle tue finanze.",
-          })}
+          title={t("settings.balancePro.viewPlans")}
+          subtitle={t("settings.balancePro.billingOptions")}
           primaryDisabled={!canPurchaseSelectedPlan || !isReady || isStoreLoading}
           onSecondaryAction={handleRestorePurchases}
           secondaryActionLabel={t("wallets.actions.restorePurchases")}
           onTertiaryAction={shouldShowRetryStore ? handleRetryStore : undefined}
           tertiaryActionLabel={shouldShowRetryStore ? t("wallets.actions.retryStoreLoad", { defaultValue: "Riprova" }) : undefined}
           secondaryLabel={t("common.close", { defaultValue: "Chiudi" })}
-          benefits={balanceProBenefits}
+          benefits={[]}
           primaryLoading={isPurchasePending}
           secondaryActionLoading={isRestorePending}
           tertiaryActionLoading={isStoreLoading}
@@ -1039,7 +1056,13 @@ const styles = StyleSheet.create({
   cardContent: {
     gap: 12,
   },
-  preferencesCard: {},
+  groupTitle: { fontSize: 14, fontWeight: "700" },
+  offerHero: { borderWidth: 1, borderRadius: 24, padding: 22, gap: 8 },
+  offerArt: { width: "100%", height: 165, marginBottom: 8 },
+  planComparison: { flexDirection: "row", borderWidth: 1, borderRadius: 18, overflow: "hidden" },
+  offerColumn: { flex: 1, padding: 16, gap: 4 },
+  planName: { fontSize: 28, fontWeight: "800", letterSpacing: -0.7 },
+  planCard: { minHeight: 102, padding: 20, borderWidth: 1, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 12 },
 
   row: {
     flexDirection: "row",

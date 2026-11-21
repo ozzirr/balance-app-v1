@@ -77,6 +77,20 @@ describe("buildKpiDeltaForRange", () => {
     expect(result.deltas.total.deltaAbs).toBe(70);
   });
 
+  test("weekly, four-week and monthly comparisons choose their own baseline", () => {
+    const snapshots = [
+      { id: 4, date: "2026-03-31" },
+      { id: 3, date: "2026-03-24" },
+      { id: 2, date: "2026-03-03" },
+      { id: 1, date: "2026-02-28" },
+    ];
+    const lines = Object.fromEntries(snapshots.map(({ id }) => [id, [makeLine(id, "LIQUIDITY", id * 100)]]));
+    const series = [{ date: "2026-03-31", total: 400, liquidity: 400, investments: 0 }];
+    expect(buildKpiDeltaForRange("7D", snapshots, series, lines).deltas.total.deltaAbs).toBe(100);
+    expect(buildKpiDeltaForRange("28D", snapshots, series, lines).deltas.total.deltaAbs).toBe(200);
+    expect(buildKpiDeltaForRange("1M", snapshots, series, lines).deltas.total.deltaAbs).toBe(300);
+  });
+
   test("28D: returns NO_DATA when start snapshot is missing", () => {
     const snapshots: Snapshot[] = [{ id: 1, date: "2026-01-29" }];
     const snapshotLinesById: Record<number, SnapshotLineDetail[]> = {

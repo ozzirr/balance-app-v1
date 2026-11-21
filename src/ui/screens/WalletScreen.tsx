@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Modal, PanResponder, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Animated, PanResponder, Platform, ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Snackbar, Text, TextInput } from "react-native-paper";
 import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { createWallet, deleteWallet, listWallets, updateWallet, updateWalletSortOrders, DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 import type { AssetAvailability, Wallet, Currency, WalletType } from "@/repositories/types";
-import { DarkTheme, useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "@/settings/useSettings";
 import LimitReachedModal from "@/ui/components/LimitReachedModal";
@@ -16,7 +16,6 @@ import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import ProWelcomeModal from "@/ui/components/ProWelcomeModal";
 import AppBackground from "@/ui/components/AppBackground";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import GlassBlur from "@/ui/components/GlassBlur";
 import { emitDataChanged, onDataChanged, onDataReset } from "@/app/dataEvents";
 import {
   GlassCardContainer,
@@ -325,8 +324,6 @@ export default function WalletScreen(): React.ReactElement {
     INVEST: [],
     PENSION: [],
   });
-  const [reorderVisible, setReorderVisible] = useState(false);
-  const reorderAnim = useRef(new Animated.Value(0)).current;
   const reorderDropY = useRef(new Animated.Value(0)).current;
   const reorderDropOpacity = useRef(new Animated.Value(0)).current;
   const { showInvestments, showInvestmentAvailability, trackPension, scrollBounceEnabled } = useSettings();
@@ -1068,50 +1065,6 @@ export default function WalletScreen(): React.ReactElement {
     setPaywallSource("wallet-limit");
   }, []);
   const closeReorderModal = useCallback(() => setReorderMode(false), []);
-  const reorderSheetBackground =
-    Platform.OS === "android"
-      ? tokens.colors.surface2
-      : isDark
-      ? "rgba(15, 18, 30, 0.78)"
-      : "rgba(169, 124, 255, 0.5)";
-  const reorderSheetBorder =
-    Platform.OS === "android" ? tokens.colors.border : isDark ? DarkTheme.colors.border : "rgba(169, 124, 255, 0.5)";
-  const reorderBlurIntensity = 35;
-  const reorderOverlayTint = isDark ? "rgba(0,0,0,0.92)" : "rgba(0,0,0,0.8)";
-  const openReorderSheet = useCallback(() => {
-    setReorderVisible(true);
-    requestAnimationFrame(() => {
-      Animated.timing(reorderAnim, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }).start();
-    });
-  }, [reorderAnim]);
-  const closeReorderSheet = useCallback(() => {
-    Animated.timing(reorderAnim, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) {
-        setReorderVisible(false);
-      }
-    });
-  }, [reorderAnim]);
-  useEffect(() => {
-    if (reorderMode && canReorder) {
-      openReorderSheet();
-      return;
-    }
-    if (!reorderMode && reorderVisible) {
-      closeReorderSheet();
-    }
-  }, [reorderMode, canReorder, reorderVisible, openReorderSheet, closeReorderSheet]);
-  const reorderTranslateY = reorderAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [64, 0],
-  });
   const orderToggle = canReorder ? (
     <View style={styles.orderToggleRow}>
       <PressScale onPress={() => setReorderMode((prev) => !prev)} style={styles.orderToggleLink}>
@@ -1522,82 +1475,41 @@ export default function WalletScreen(): React.ReactElement {
         </Snackbar>
         </ScrollView>
         <TutorialSpotlight id="wallets" requestToken={routeParams?.tutorialRequest} eligible={walletsLoaded && (wallets.length === 0 || (shouldShowWalletGuide && !wallets.some((wallet) => !isSeededDefaultWallet(wallet))))} canShow={walletsLoaded && !showAddWallet[tab]} target={walletTutorialTarget} title={t("tutorial.wallet.title")} description={t("tutorial.wallet.body")} targetLabel={t("wallets.list.addWallet")} onTargetPress={() => handleRequestAddWallet(tab)} />
-      <Modal
-        visible={reorderVisible && canReorder}
-        transparent
-        animationType="none"
-        presentationStyle="overFullScreen"
-        onRequestClose={closeReorderModal}
+      <BottomSheet
+        visible={reorderMode && canReorder}
+        title={t("wallets.list.reorderTitle")}
+        subtitle={t("wallets.list.reorderHint")}
+        onClose={closeReorderModal}
+        actionLabel={t("wallets.list.doneOrder")}
+        onAction={closeReorderModal}
+        scrollable={false}
       >
-        <View style={styles.reorderOverlay} pointerEvents="box-none">
-          <Pressable style={StyleSheet.absoluteFill} onPress={closeReorderModal}>
+        <ScrollView
+          style={styles.reorderScroll}
+          contentContainerStyle={styles.reorderGroups}
+          showsVerticalScrollIndicator={false}
+          bounces={scrollBounceEnabled}
+          alwaysBounceVertical={scrollBounceEnabled}
+          overScrollMode={scrollBounceEnabled ? "always" : "never"}
+        >
+          <View style={styles.reorderList}>
             <Animated.View
               pointerEvents="none"
-              style={[styles.reorderOverlayDim, { backgroundColor: reorderOverlayTint, opacity: reorderAnim }]}
+              style={[
+                styles.reorderDropIndicator,
+                {
+                  backgroundColor: tokens.colors.accent,
+                  opacity: reorderDropOpacity,
+                  transform: [{ translateY: reorderDropY }],
+                },
+              ]}
             />
-          </Pressable>
-          <Animated.View
-            pointerEvents="auto"
-            style={[
-              styles.reorderSheet,
-              {
-                backgroundColor: reorderSheetBackground,
-                borderColor: reorderSheetBorder,
-                paddingBottom: insets.bottom + 12,
-                transform: [{ translateY: reorderTranslateY }],
-                opacity: reorderAnim,
-              },
-            ]}
-          >
-            <GlassBlur
-              intensity={reorderBlurIntensity}
-              tint={isDark ? "dark" : "light"}
-              fallbackColor="transparent"
-            />
-            <View style={styles.reorderSheetHeader}>
-              <Text style={[styles.reorderSheetTitle, { color: tokens.colors.text }]}>
-                {t("wallets.list.reorderTitle")}
-              </Text>
-              <SmallOutlinePillButton
-                label={t("wallets.list.doneOrder")}
-                onPress={closeReorderModal}
-                color={tokens.colors.accent}
-              />
-            </View>
-            <Text style={[styles.orderHint, { color: tokens.colors.muted }]}>{t("wallets.list.reorderHint")}</Text>
-            <ScrollView
-              style={styles.reorderScroll}
-              contentContainerStyle={styles.reorderGroups}
-              showsVerticalScrollIndicator={false}
-              bounces={scrollBounceEnabled}
-              alwaysBounceVertical={scrollBounceEnabled}
-              overScrollMode={scrollBounceEnabled ? "always" : "never"}
-            >
-              <View style={styles.reorderList}>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.reorderDropIndicator,
-                    {
-                      backgroundColor: tokens.colors.accent,
-                      opacity: reorderDropOpacity,
-                      transform: [{ translateY: reorderDropY }],
-                    },
-                  ]}
-                />
-                {reorderLists[tab].map((wallet, index) => (
-                  <ReorderableRow
-                    key={wallet.id}
-                    wallet={wallet}
-                    group={tab}
-                    index={index}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-          </Animated.View>
-        </View>
-      </Modal>
+            {reorderLists[tab].map((wallet, index) => (
+              <ReorderableRow key={wallet.id} wallet={wallet} group={tab} index={index} />
+            ))}
+          </View>
+        </ScrollView>
+      </BottomSheet>
     </AppBackground>
   </View>
   );
@@ -1704,42 +1616,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-  reorderOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  reorderOverlayDim: {
-    ...StyleSheet.absoluteFill,
-  },
-  reorderSheet: {
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    borderWidth: 1,
-    padding: 18,
-    overflow: "hidden",
-    elevation: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -6 },
-    gap: 12,
-  },
-  reorderSheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  reorderSheetTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    flex: 1,
-  },
   reorderScroll: {
-    maxHeight: 420,
-  },
-  orderHint: {
-    fontSize: 12,
+    flex: 1,
   },
   reorderGroups: {
     gap: 12,

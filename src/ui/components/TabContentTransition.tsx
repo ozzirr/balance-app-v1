@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, Animated, Easing, PanResponder, StyleSheet, View } from "react-native";
+import { useIsFocused, useNavigation, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import { getAdjacentTabRoute, type TabRoute } from "@/ui/navigation/tabSwipe";
 
 const PreviousTabContext = createContext<React.MutableRefObject<number | null> | null>(null);
 
@@ -10,8 +11,17 @@ export function TabTransitionProvider({ children }: { children: React.ReactNode 
   return <PreviousTabContext.Provider value={previousTab}>{children}</PreviousTabContext.Provider>;
 }
 
-export default function TabContentTransition({ children, index }: { children: React.ReactNode; index: number }): JSX.Element {
+export default function TabContentTransition({
+  children,
+  index,
+  routeName,
+}: {
+  children: React.ReactNode;
+  index: number;
+  routeName: TabRoute;
+}): JSX.Element {
   const focused = useIsFocused();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const previousTab = useContext(PreviousTabContext);
   const { tokens } = useDashboardTheme();
   const progress = useRef(new Animated.Value(1)).current;
@@ -52,8 +62,62 @@ export default function TabContentTransition({ children, index }: { children: Re
     return () => animation.stop();
   }, [focused, hasLayout, index, previousTab, progress, reduceMotion, translateX]);
 
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, gesture) => {
+          const horizontalDistance = Math.abs(gesture.dx);
+          const verticalDistance = Math.abs(gesture.dy);
+          return routeName !== "News" && focused && horizontalDistance > 18 && horizontalDistance > verticalDistance * 1.35;
+        },
+        onPanResponderGrant: () => {
+          translateX.stopAnimation();
+          translateX.setValue(0);
+        },
+        onPanResponderMove: (_, gesture) => {
+          if (reduceMotion) return;
+          const direction = gesture.dx < 0 ? "left" : "right";
+          const hasDestination = getAdjacentTabRoute(routeName, direction) !== null;
+          translateX.setValue(gesture.dx * (hasDestination ? 0.28 : 0.06));
+        },
+        onPanResponderRelease: (_, gesture) => {
+          const direction = gesture.dx < 0 ? "left" : "right";
+          const destination = getAdjacentTabRoute(routeName, direction);
+          const horizontalDistance = Math.abs(gesture.dx);
+          const deliberateFlick = horizontalDistance > 36 && Math.abs(gesture.vx) > 0.65;
+          const shouldNavigate = destination !== null && (horizontalDistance > 72 || deliberateFlick);
+
+          if (shouldNavigate && destination) {
+            translateX.setValue(0);
+            navigation.navigate(destination);
+            return;
+          }
+
+          Animated.spring(translateX, {
+            toValue: 0,
+            speed: 24,
+            bounciness: 2,
+            useNativeDriver: true,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(translateX, {
+            toValue: 0,
+            speed: 24,
+            bounciness: 2,
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    [focused, navigation, reduceMotion, routeName, translateX]
+  );
+
   return (
-    <View onLayout={() => setHasLayout(true)} style={[styles.screen, { backgroundColor: tokens.colors.bg }]}>
+    <View
+      {...panResponder.panHandlers}
+      onLayout={() => setHasLayout(true)}
+      style={[styles.screen, { backgroundColor: tokens.colors.bg }]}
+    >
       <Animated.View style={[styles.screen, { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }), transform: [{ translateX }] }]}>{children}</Animated.View>
     </View>
   );

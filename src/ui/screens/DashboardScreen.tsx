@@ -4,7 +4,6 @@ import {
   Animated,
   LayoutAnimation,
   Linking,
-  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -44,9 +43,8 @@ import Skeleton from "@/ui/dashboard/components/Skeleton";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import AppBackground from "@/ui/components/AppBackground";
 import LimitReachedModal from "@/ui/components/LimitReachedModal";
-import { GlassCardContainer, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
+import { GlassCardContainer } from "@/ui/components/EntriesUI";
 import CoachTipCard from "@/ui/components/CoachTipCard";
-import GlassBlur from "@/ui/components/GlassBlur";
 import BottomSheet from "@/ui/components/BottomSheet";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -142,7 +140,7 @@ const SectionAccordion = ({
 
 export default function DashboardScreen(): JSX.Element {
   const navigation = useNavigation<Nav>();
-  const { tokens, isDark } = useDashboardTheme();
+  const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -162,7 +160,6 @@ export default function DashboardScreen(): JSX.Element {
   const [orderLoaded, setOrderLoaded] = useState(false);
   const [reorderVisible, setReorderVisible] = useState(false);
   const reorderScrollRef = useRef<ScrollView>(null);
-  const reorderAnim = useRef(new Animated.Value(0)).current;
   const reorderDropY = useRef(new Animated.Value(0)).current;
   const reorderDropOpacity = useRef(new Animated.Value(0)).current;
   const [showPrivacyCard, setShowPrivacyCard] = useState(false);
@@ -191,6 +188,8 @@ export default function DashboardScreen(): JSX.Element {
   const { showInvestments, trackPension, scrollBounceEnabled, showGreeting } = useSettings();
   const kpiRangeOptions = useMemo(() => {
     const labels: Record<KpiDeltaRange, string> = {
+      "7D": t("dashboard.range.options.lastWeek"),
+      "1M": t("dashboard.range.options.lastMonth"),
       "28D": t("dashboard.range.options.last28Days"),
       "3M": t("dashboard.range.options.last3Months"),
       "6M": t("dashboard.range.options.last6Months"),
@@ -271,7 +270,7 @@ export default function DashboardScreen(): JSX.Element {
         kpiDeltaRange
       );
       setDashboard(data);
-      const rangeCandidates: KpiDeltaRange[] = ["28D", "3M", "6M", "12M"];
+      const rangeCandidates: KpiDeltaRange[] = ["7D", "28D", "1M", "3M", "6M", "12M"];
       const rangesWithData = rangeCandidates.filter((range) => {
         const result = buildKpiDeltaForRange(range, snapshots, data.portfolioSeries, snapshotLines);
         return result.status === "OK";
@@ -428,32 +427,12 @@ export default function DashboardScreen(): JSX.Element {
 
   const openReorderSheet = useCallback(() => {
     setReorderVisible(true);
-    requestAnimationFrame(() => {
-      Animated.timing(reorderAnim, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }).start();
-    });
-  }, [reorderAnim]);
+  }, []);
 
   const closeReorderSheet = useCallback(() => {
     reorderScrollRef.current?.setNativeProps({ scrollEnabled: true });
-    Animated.timing(reorderAnim, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) {
-        setReorderVisible(false);
-      }
-    });
-  }, [reorderAnim]);
-
-  const reorderTranslateY = reorderAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [64, 0],
-  });
+    setReorderVisible(false);
+  }, []);
 
   const moveSection = useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -483,16 +462,6 @@ export default function DashboardScreen(): JSX.Element {
   );
 
   const canReorderSections = sectionOrder.length > 1;
-  const reorderSheetBackground =
-    Platform.OS === "android"
-      ? tokens.colors.surface2
-      : isDark
-      ? "rgba(15, 18, 30, 0.78)"
-      : "rgba(169, 124, 255, 0.5)";
-  const reorderSheetBorder =
-    Platform.OS === "android" ? tokens.colors.border : isDark ? tokens.colors.border : "rgba(169, 124, 255, 0.5)";
-  const reorderBlurIntensity = 35;
-  const reorderOverlayTint = isDark ? "rgba(0,0,0,0.92)" : "rgba(0,0,0,0.8)";
 
   const ReorderableSectionRow = ({ sectionId, index }: { sectionId: SectionId; index: number }) => {
     const translateY = useRef(new Animated.Value(0)).current;
@@ -690,25 +659,11 @@ export default function DashboardScreen(): JSX.Element {
           {dashboard ? (
             <>
               <View style={styles.greetingBlock}>
-                {(showGreeting || (!isFirstRunDashboard && kpiRangeOptions.length > 1)) ? <View style={styles.greetingRow}>
-                  {showGreeting ? (
+                {showGreeting ? (
                   <Text style={[styles.greetingText, { color: tokens.colors.text }]}>
-                    {profileName
-                      ? t("dashboard.greetingWithName", { name: profileName })
-                      : t("dashboard.greeting")}
+                    {profileName ? t("dashboard.greetingWithName", { name: profileName }) : t("dashboard.greeting")}
                   </Text>
-                  ) : null}
-                  {!isFirstRunDashboard && kpiRangeOptions.length > 1 ? (
-                    <View style={styles.rangeRow}>
-                      <RangeSelector
-                        selectedRange={kpiDeltaRange}
-                        onChangeRange={(range) => setKpiDeltaRange(range)}
-                        options={kpiRangeOptions}
-                        showLabel={false}
-                      />
-                    </View>
-                  ) : null}
-                </View> : null}
+                ) : null}
                 {showSetup ? <View style={[styles.setupCard, { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg }]}>
                   <View style={styles.setupHeader}><View style={styles.setupHeaderText}><Text style={[styles.setupEyebrow, { color: tokens.colors.accent }]}>{t("dashboard.setup.eyebrow")}</Text><Text style={[styles.setupTitle, { color: tokens.colors.text }]}>{t("dashboard.setup.title")}</Text><Text style={[styles.setupSubtitle, { color: tokens.colors.muted }]}>{t("dashboard.setup.progress", { count: completedSetupSteps, total: setupSteps.length })}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={t("dashboard.setup.dismiss")} onPress={() => { setSetupDismissed(true); void setPreference("dashboard.setup.dismissed", "true").catch(() => {}); }} hitSlop={10}><MaterialCommunityIcons name="close" size={22} color={tokens.colors.muted} /></Pressable></View>
                   <View style={[styles.setupTrack, { backgroundColor: tokens.colors.surface2 }]}><View style={{ width: `${(completedSetupSteps / setupSteps.length) * 100}%`, height: "100%", backgroundColor: tokens.colors.accent, borderRadius: 9 }} /></View>
@@ -719,6 +674,9 @@ export default function DashboardScreen(): JSX.Element {
                 </View> : null}
                 {!isFirstRunDashboard ? (
                   <View style={styles.summaryBlock}>
+                    {kpiRangeOptions.length > 0 && (
+                      <RangeSelector selectedRange={kpiDeltaRange} onChangeRange={setKpiDeltaRange} options={kpiRangeOptions} />
+                    )}
                     <PortfolioSummaryCard
                       items={dashboard.kpis}
                       availability={dashboard.availability}
@@ -922,75 +880,37 @@ export default function DashboardScreen(): JSX.Element {
             </>
           ) : null}
         </ScrollView>
-        <Modal
+        <BottomSheet
           visible={reorderVisible && canReorderSections}
-          transparent
-          animationType="none"
-          presentationStyle="overFullScreen"
-          onRequestClose={closeReorderSheet}
+          title={t("dashboard.reorder.title", { defaultValue: "Modifica ordine" })}
+          subtitle={t("dashboard.reorder.hintControls", { defaultValue: "Trascina la maniglia oppure usa le frecce per cambiare ordine." })}
+          onClose={closeReorderSheet}
+          actionLabel={t("dashboard.reorder.done", { defaultValue: "Fatto" })}
+          onAction={closeReorderSheet}
+          scrollable={false}
         >
-          <View style={styles.reorderOverlay} pointerEvents="box-none">
-            <Pressable style={StyleSheet.absoluteFill} onPress={closeReorderSheet}>
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.reorderOverlayDim, { backgroundColor: reorderOverlayTint, opacity: reorderAnim }]}
-              />
-            </Pressable>
+          <ScrollView
+            ref={reorderScrollRef}
+            style={styles.reorderScroll}
+            contentContainerStyle={styles.reorderList}
+            showsVerticalScrollIndicator={false}
+          >
             <Animated.View
-              pointerEvents="auto"
+              pointerEvents="none"
               style={[
-                styles.reorderSheet,
+                styles.reorderDropIndicator,
                 {
-                  backgroundColor: reorderSheetBackground,
-                  borderColor: reorderSheetBorder,
-                  paddingBottom: insets.bottom + 12,
-                  transform: [{ translateY: reorderTranslateY }],
-                  opacity: reorderAnim,
+                  backgroundColor: tokens.colors.accent,
+                  opacity: reorderDropOpacity,
+                  transform: [{ translateY: reorderDropY }],
                 },
               ]}
-            >
-              <GlassBlur intensity={reorderBlurIntensity} tint={isDark ? "dark" : "light"} fallbackColor="transparent" />
-              <View style={styles.reorderSheetHeader}>
-                <Text style={[styles.reorderSheetTitle, { color: tokens.colors.text }]}>
-                  {t("dashboard.reorder.title", { defaultValue: "Modifica ordine" })}
-                </Text>
-                <SmallOutlinePillButton
-                  label={t("dashboard.reorder.done", { defaultValue: "Fatto" })}
-                  onPress={closeReorderSheet}
-                  color={tokens.colors.accent}
-                />
-              </View>
-              <Text style={[styles.orderHint, { color: tokens.colors.muted }]}>
-                {t("dashboard.reorder.hintControls", { defaultValue: "Trascina la maniglia oppure usa le frecce per cambiare ordine." })}
-              </Text>
-              <ScrollView
-                ref={reorderScrollRef}
-                style={styles.reorderScroll}
-                contentContainerStyle={styles.reorderList}
-                showsVerticalScrollIndicator={false}
-              >
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.reorderDropIndicator,
-                    {
-                      backgroundColor: tokens.colors.accent,
-                      opacity: reorderDropOpacity,
-                      transform: [{ translateY: reorderDropY }],
-                    },
-                  ]}
-                />
-                {normalizeSectionOrder(sectionOrder).map((sectionId, index) => (
-                  <ReorderableSectionRow
-                    key={sectionId}
-                    sectionId={sectionId}
-                    index={index}
-                  />
-                ))}
-              </ScrollView>
-            </Animated.View>
-          </View>
-        </Modal>
+            />
+            {normalizeSectionOrder(sectionOrder).map((sectionId, index) => (
+              <ReorderableSectionRow key={sectionId} sectionId={sectionId} index={index} />
+            ))}
+          </ScrollView>
+        </BottomSheet>
         <LimitReachedModal
           visible={lockedModal.visible}
           onClose={closeLockedModal}
@@ -1071,16 +991,6 @@ const styles = StyleSheet.create({
   reportSubtitle: { fontSize: 12, marginTop: 2 },
   chartChoice: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, padding: 16 },
   chartChoiceLabel: { flex: 1, fontSize: 15, fontWeight: "700" },
-  greetingRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  rangeRow: {
-    alignItems: "center",
-    alignSelf: "flex-end",
-  },
   onboardingActions: {
     flexDirection: "column",
     gap: 8,
@@ -1163,42 +1073,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  reorderOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  reorderOverlayDim: {
-    ...StyleSheet.absoluteFill,
-  },
-  reorderSheet: {
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    padding: 20,
-    borderWidth: 1,
-    overflow: "hidden",
-    elevation: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -6 },
-    gap: 12,
-  },
-  reorderSheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  reorderSheetTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    flex: 1,
-  },
-  orderHint: {
-    fontSize: 12,
-  },
   reorderScroll: {
-    maxHeight: 420,
+    flex: 1,
   },
   reorderList: {
     paddingVertical: 4,

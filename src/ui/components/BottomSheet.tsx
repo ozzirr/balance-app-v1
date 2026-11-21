@@ -1,18 +1,18 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import {
-  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   View,
+  ViewStyle,
 } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import GlassBlur from "@/ui/components/GlassBlur";
+import { useTranslation } from "react-i18next";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 
 type Props = {
@@ -22,6 +22,11 @@ type Props = {
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
+  scrollable?: boolean;
+  contentStyle?: StyleProp<ViewStyle>;
 };
 
 export default function BottomSheet({
@@ -31,123 +36,109 @@ export default function BottomSheet({
   onClose,
   children,
   footer,
-}: Props): JSX.Element | null {
-  const paperTheme = useTheme();
-  const { tokens, isDark } = useDashboardTheme();
+  actionLabel,
+  onAction,
+  actionDisabled = false,
+  scrollable = true,
+  contentStyle,
+}: Props): JSX.Element {
+  const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
-  const [mounted, setMounted] = useState(visible);
-  const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const { t } = useTranslation();
+  const isNativeSheet = Platform.OS === "ios";
 
-  useEffect(() => {
-    if (visible) {
-      setMounted(true);
-    }
-    Animated.timing(progress, {
-      toValue: visible ? 1 : 0,
-      duration: visible ? 240 : 180,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && !visible) {
-        setMounted(false);
-      }
-    });
-  }, [progress, visible]);
-
-  if (!mounted) {
-    return null;
-  }
-
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [80, 0],
-  });
-  const backdropOpacity = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-  const sheetBg = Platform.OS === "android"
-    ? tokens.colors.surface
-    : isDark
-    ? "rgba(22,27,38,0.86)"
-    : "rgba(255,255,255,0.9)";
+  const content = scrollable ? (
+    <ScrollView
+      style={styles.scroll}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[styles.content, contentStyle]}
+    >
+      {children}
+    </ScrollView>
+  ) : (
+    <View style={[styles.staticContent, contentStyle]}>{children}</View>
+  );
 
   return (
     <Modal
-      visible={mounted}
-      transparent
-      animationType="none"
-      presentationStyle="overFullScreen"
+      visible={visible}
+      transparent={!isNativeSheet}
+      animationType="slide"
+      presentationStyle={isNativeSheet ? "pageSheet" : "overFullScreen"}
       onRequestClose={onClose}
+      allowSwipeDismissal
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.overlay}
+        behavior={isNativeSheet ? "padding" : undefined}
+        style={[
+          styles.overlay,
+          isNativeSheet
+            ? { backgroundColor: tokens.colors.bg }
+            : { backgroundColor: "rgba(0,0,0,0.58)" },
+        ]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                backgroundColor: isDark ? "rgba(0,0,0,0.72)" : "rgba(15,23,42,0.34)",
-                opacity: backdropOpacity,
-              },
-            ]}
-          />
-        </Pressable>
-        <Animated.View
+        {!isNativeSheet ? <Pressable style={StyleSheet.absoluteFill} onPress={onClose} /> : null}
+        <View
           style={[
             styles.sheet,
+            isNativeSheet ? styles.nativeSheet : styles.androidSheet,
             {
-              backgroundColor: sheetBg,
-              borderColor: tokens.colors.modalBorder,
-              paddingBottom: insets.bottom + 12,
-              transform: [{ translateY }],
-              opacity: progress,
+              backgroundColor: tokens.colors.bg,
+              borderColor: tokens.colors.glassBorder,
+              paddingBottom: Math.max(12, insets.bottom),
             },
           ]}
+          accessibilityViewIsModal
         >
-          {Platform.OS === "ios" ? (
-            <GlassBlur
-              intensity={36}
-              tint={paperTheme.dark ? "dark" : "light"}
-              fallbackColor="transparent"
-            />
+          {!isNativeSheet ? (
+            <View style={styles.handleWrap}>
+              <View style={[styles.handle, { backgroundColor: tokens.colors.glassBorder }]} />
+            </View>
           ) : null}
-          <View style={styles.handleWrap}>
-            <View style={[styles.handle, { backgroundColor: tokens.colors.glassBorder }]} />
-          </View>
-          <View style={styles.header}>
-            <View style={styles.titleBlock}>
-              <Text style={[styles.title, { color: tokens.colors.text }]} numberOfLines={1}>
-                {title}
+
+          <View style={[styles.header, { borderBottomColor: tokens.colors.glassBorder }]}>
+            <Pressable onPress={onClose} hitSlop={10} style={styles.headerSide}>
+              <Text style={[styles.headerAction, { color: tokens.colors.muted }]}>
+                {t("common.cancel", { defaultValue: "Annulla" })}
               </Text>
-              {subtitle ? (
-                <Text style={[styles.subtitle, { color: tokens.colors.muted }]} numberOfLines={2}>
-                  {subtitle}
-                </Text>
+            </Pressable>
+            <Text style={[styles.title, { color: tokens.colors.text }]} numberOfLines={1}>
+              {title}
+            </Text>
+            <View style={[styles.headerSide, styles.headerSideRight]}>
+              {actionLabel && onAction ? (
+                <Pressable onPress={onAction} disabled={actionDisabled} hitSlop={10}>
+                  <Text
+                    style={[
+                      styles.headerAction,
+                      { color: tokens.colors.accent, opacity: actionDisabled ? 0.4 : 1 },
+                    ]}
+                  >
+                    {actionLabel}
+                  </Text>
+                </Pressable>
               ) : null}
             </View>
-            <Pressable
-              onPress={onClose}
-              hitSlop={10}
+          </View>
+
+          {subtitle ? (
+            <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>{subtitle}</Text>
+          ) : null}
+
+          {content}
+
+          {footer ? (
+            <View
               style={[
-                styles.closeButton,
-                { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg },
+                styles.footer,
+                { borderTopColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.bg },
               ]}
             >
-              <MaterialCommunityIcons name="close" size={20} color={tokens.colors.text} />
-            </Pressable>
-          </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
-          >
-            {children}
-          </ScrollView>
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </Animated.View>
+              {footer}
+            </View>
+          ) : null}
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -159,58 +150,72 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   sheet: {
-    maxHeight: "88%",
+    overflow: "hidden",
+  },
+  nativeSheet: {
+    flex: 1,
+  },
+  androidSheet: {
+    maxHeight: "92%",
+    minHeight: "42%",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    overflow: "hidden",
   },
   handleWrap: {
     alignItems: "center",
     paddingTop: 10,
-    paddingBottom: 8,
+    paddingBottom: 3,
   },
   handle: {
-    width: 44,
+    width: 40,
     height: 5,
     borderRadius: 999,
   },
   header: {
+    minHeight: 58,
+    paddingHorizontal: 18,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 18,
-    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  titleBlock: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
+  headerSide: {
+    width: 76,
+    justifyContent: "center",
+  },
+  headerSideRight: {
+    alignItems: "flex-end",
+  },
+  headerAction: {
+    fontSize: 15,
+    fontWeight: "700",
   },
   title: {
-    fontSize: 20,
+    flex: 1,
+    textAlign: "center",
+    fontSize: 17,
     fontWeight: "800",
   },
   subtitle: {
     fontSize: 13,
-    fontWeight: "600",
+    lineHeight: 18,
+    paddingHorizontal: 18,
+    paddingTop: 14,
   },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  scroll: {
+    flex: 1,
   },
   content: {
-    paddingHorizontal: 18,
-    paddingBottom: 18,
+    padding: 18,
     gap: 12,
+  },
+  staticContent: {
+    flex: 1,
+    padding: 18,
   },
   footer: {
     paddingHorizontal: 18,
-    paddingTop: 10,
-    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

@@ -309,14 +309,14 @@ export function buildKpiDeltaForRange(
     );
     return { ...result, meta: { startDate: startSnapshot.date, endDate: endSnapshot.date } };
   }
-  if (range === "28D") {
+  if (range === "7D" || range === "28D") {
     const endSnapshot = snapshots[0];
     if (!endSnapshot) {
       return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
     }
     const endTotals = totalsFromSnapshotLines(snapshotLinesById[endSnapshot.id]);
     const startSnapshot =
-      findSnapshotOnOrBefore(snapshots, addDays(endSnapshot.date, -28));
+      findSnapshotOnOrBefore(snapshots, addDays(endSnapshot.date, range === "7D" ? -7 : -28));
     if (!startSnapshot) {
       return { status: "NO_DATA", deltas: { liquidity: EMPTY_DELTA, investments: EMPTY_DELTA, pension: EMPTY_DELTA, total: EMPTY_DELTA } };
     }
@@ -333,7 +333,7 @@ export function buildKpiDeltaForRange(
   }
   const endPoint = portfolioSeries[portfolioSeries.length - 1];
   const endKey = monthKeyFromIso(endPoint.date);
-  const monthsBack = range === "3M" ? -3 : range === "6M" ? -6 : -12;
+  const monthsBack = range === "1M" ? -1 : range === "3M" ? -3 : range === "6M" ? -6 : -12;
   const targetMonth = shiftMonthKey(endKey, monthsBack);
   const startSnapshot = snapshots.find((snapshot) => monthKeyFromIso(snapshot.date) <= targetMonth);
   const startTotals = startSnapshot ? totalsFromSnapshotLines(snapshotLinesById[startSnapshot.id]) : null;

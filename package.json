@@ -13,6 +13,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "news:proxy": "node server/news-proxy.mjs",
     "ios:build:preview": "eas build --platform ios --profile preview",
     "ios:build:store": "eas build --platform ios --profile production",
     "ios:submit:store": "eas submit --platform ios --profile production"
@@ -42,6 +43,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-sqlite": "~57.0.4",
     "expo-status-bar": "~57.0.1",
+    "fast-xml-parser": "^5.12.1",
     "i18next": "^26.3.6",
     "punycode": "^2.3.1",
     "qrcode-generator": "^2.0.4",

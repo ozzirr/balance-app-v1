@@ -9,9 +9,11 @@ export type KPIItem = {
   breakdown?: { label: string; value: number }[];
 };
 
-export type KpiDeltaRange = "28D" | "3M" | "6M" | "12M";
+export type KpiDeltaRange = "7D" | "1M" | "28D" | "3M" | "6M" | "12M";
 
 export const KPI_DELTA_RANGE_LABELS: Record<KpiDeltaRange, string> = {
+  "7D": "Ultimi 7 giorni",
+  "1M": "Ultimo mese",
   "28D": "Ultimi 28 giorni",
   "3M": "Ultimi 3 mesi",
   "6M": "Ultimi 6 mesi",

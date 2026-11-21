@@ -121,6 +121,9 @@ export function PrimaryPillButton({
 }): JSX.Element {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       style={({ pressed }) => [

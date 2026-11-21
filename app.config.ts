@@ -5,7 +5,25 @@ const APP_NAME = "Balance";
 const APP_SCHEME = "balance";
 const IOS_BUNDLE_IDENTIFIER = "com.andrearizzo.balance";
 const ANDROID_PACKAGE = "com.andrearizzo.balance";
-const IS_STORE_PROFILE = process.env.EAS_BUILD_PROFILE === "production";
+const IS_LAN_TESTFLIGHT = process.env.BALANCE_TESTFLIGHT_LAN === "1";
+const IS_STORE_PROFILE = process.env.EAS_BUILD_PROFILE === "production" || IS_LAN_TESTFLIGHT;
+
+function testFlightLocalNetworkPlist() {
+  const address = process.env.EXPO_PUBLIC_NEWS_API_URL;
+  if (!IS_LAN_TESTFLIGHT || !address) return {};
+  const url = new URL(address);
+  const privateAddress = /^(?:10\.\d+|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+$/.test(url.hostname);
+  if (url.protocol !== "http:" || !privateAddress) {
+    throw new Error("TestFlight LAN requires a private IPv4 HTTP news endpoint");
+  }
+  return {
+    NSLocalNetworkUsageDescription: "Balance usa la rete locale per caricare notizie e quotazioni dal proxy di prova sul Mac.",
+    NSAppTransportSecurity: {
+      NSAllowsLocalNetworking: true,
+      NSExceptionDomains: { [url.hostname]: { NSExceptionAllowsInsecureHTTPLoads: true } },
+    },
+  };
+}
 
 // Added "expo-font" to satisfy @expo/vector-icons peer dependency for standalone builds.
 const BASE_PLUGINS = [
@@ -62,6 +80,7 @@ export default function ({ config }: ConfigContext): ExpoConfig {
       ...(IS_STORE_PROFILE ? {} : { buildNumber: "1" }),
       infoPlist: {
         ...iosInfoPlistRest,
+        ...testFlightLocalNetworkPlist(),
         NSFaceIDUsageDescription: FACE_ID_USAGE_DESCRIPTION,
         ITSAppUsesNonExemptEncryption: false,
       },

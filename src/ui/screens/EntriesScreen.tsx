@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Alert, Keyboard, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Button, Switch, Text, TextInput } from "react-native-paper";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -525,6 +525,7 @@ export default function EntriesScreen(): JSX.Element {
       }
     }
 
+    Keyboard.dismiss();
     resetToCreateMode();
     setShowNewEntry(false);
     await load();
@@ -1000,6 +1001,7 @@ export default function EntriesScreen(): JSX.Element {
       <AppBackground>
         <ScrollView
           ref={scrollRef}
+          keyboardShouldPersistTaps="handled"
           bounces={scrollBounceEnabled}
           alwaysBounceVertical={scrollBounceEnabled}
           overScrollMode={scrollBounceEnabled ? "always" : "never"}

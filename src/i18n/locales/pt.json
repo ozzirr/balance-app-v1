@@ -16,7 +16,8 @@
     "update": "Atualizar",
     "reset": "Repor",
     "all": "Todos",
-    "openSettings": "Abrir definições"
+    "openSettings": "Abrir definições",
+    "retry": "Tentar novamente"
   },
   "onboardingV2": {
     "common": {
@@ -99,8 +100,8 @@
   },
   "tutorial": { "gotIt": "Entendi", "skip": "Pular", "close": "Fechar dica", "wallet": { "title": "Adicione um wallet", "body": "Use este botão para adicionar uma conta ou outro wallet. Para editar um wallet existente, toque no nome dele." }, "snapshot": { "title": "Salve seu primeiro snapshot", "body": "Toque aqui e informe os saldos dos seus wallets para registrar seu patrimônio." }, "cashflow": { "income": { "title": "Adicione uma entrada", "body": "Toque aqui para incluir uma entrada única ou recorrente na previsão." }, "expense": { "title": "Adicione uma saída", "body": "Toque aqui para incluir uma despesa única ou recorrente na previsão." } } },
   "settings": {
-    "menu": { "profile": "Apelido e idioma", "general": "Tema, painel e investimentos", "notifications": "Lembretes de snapshot", "securityTitle": "Segurança", "security": "Código, biometria e bloqueio", "data": "Exportar, importar ou apagar dados", "plan": "Plano atual e Balance Pro", "back": "Voltar às configurações" },
-    "title": "Definições",
+    "menu": { "profile": "Apelido, saudação e idioma", "general": "Aparência, snapshots e investimentos", "notifications": "Lembretes de snapshot", "securityTitle": "Segurança", "security": "Código, biometria e bloqueio", "data": "Exportar, importar ou apagar dados", "plan": "Plano atual e Balance Pro", "back": "Voltar à conta" },
+    "title": "Conta",
     "profile": {
       "title": "Perfil",
       "nameLabel": "Nome",
@@ -110,6 +111,9 @@
       "title": "Notificações"
     },
     "preferences": {
+      "appearanceGroup": "Aparência e interação",
+      "trackingGroup": "Snapshots e gráficos",
+      "investmentsGroup": "Investimentos",
       "showGreeting": "Mostrar saudação no painel",
       "title": "Geral",
       "darkTheme": "Tema escuro",
@@ -147,6 +151,11 @@
       "loadTestData": "Carregar dados de teste"
     },
     "balancePro": {
+      "viewPlans": "Ver planos",
+      "billingOptions": "Escolhe a frequência de renovação do Balance Pro.",
+      "offerTitle": "Uma carteira para cada conta",
+      "offerBody": "Separa a conta do dia a dia, as poupanças e os investimentos. Consulta todos os saldos no mesmo painel.",
+      "walletLimit": "Até {{count}} carteiras",
       "title": "O teu plano",
       "statusFree": "Balance Free",
       "statusActive": "Balance Pro",
@@ -263,8 +272,10 @@
     "range": {
       "label": "Período",
       "title": "Alterar intervalo",
-      "subtitle": "Escolhe um período para comparar os KPI: últimos 28 dias, últimos 3 ou 6 meses, ou o último ano.",
+      "subtitle": "Compara as variações do património com os snapshots disponíveis.",
       "options": {
+        "lastWeek": "Últimos 7 dias",
+        "lastMonth": "Último mês",
         "last28Days": "Últimos 28 dias",
         "last3Months": "Últimos 3 meses",
         "last6Months": "Últimos 6 meses",
@@ -316,6 +327,157 @@
         "rent": "Renda",
         "expense": "Despesa"
       }
+    }
+  },
+  "news": {
+    "quota": {"resumes": "Nova alteração disponível em {{date}}. Com Balance Pro podes alterar a seleção a qualquer momento.", "stocks": "Até 3 ações. Alterações disponíveis por período de 7 dias: {{left}} de 2.", "topics": "Até 2 temas. Alterações disponíveis por período de 7 dias: {{left}} de 1.", "locked": "Atingiste o limite do Balance Free. Aguarda a reposição ou muda para Balance Pro na Conta.", "freePlan": "Radar: 3 ações e 2 temas", "proPlan": "Todas as ações e temas do catálogo, com alterações ilimitadas"},
+    "article": {
+      "previewHint": "Expande o resumo na lista",
+      "collapseHint": "Recolhe o resumo",
+      "noSummary": "A fonte não disponibilizou um resumo."
+    },
+    "instruments": {
+      "following": "Os seus títulos",
+      "manage": "Gerir",
+      "title": "Ações a acompanhar",
+      "selection": "{{selected}} de {{count}} seguidas",
+      "groups": {
+        "all": "Todas",
+        "usa": "EUA",
+        "italy": "Itália"
+      },
+      "filter": "Notícias sobre {{instrument}}",
+      "topics": "Temas gerais",
+      "saveError": "Não foi possível guardar os interesses",
+      "emptyTitle": "Sem notícias",
+      "emptyBody": "Volte mais tarde ou regresse às notícias gerais.",
+      "searchError": "Pesquisa indisponível",
+      "searchErrorBody": "Tente novamente dentro de instantes.",
+      "searchPlaceholder": "Pesquisar empresa ou código",
+      "clearSearch": "Limpar pesquisa",
+      "featured": "Empresas em destaque",
+      "resultCount_one": "{{count}} resultado",
+      "resultCount_other": "{{count}} resultados",
+      "noMatches": "Nenhuma empresa encontrada",
+      "moreMatches": "Mostrar mais resultados"
+    },
+    "briefing": "Radar financeiro",
+    "launch": {
+      "title": "A preparar o teu Radar",
+      "status": "A procurar as notícias mais relevantes para ti",
+      "sources": "Notícias de fontes oficiais e publicações",
+      "interests": "Os temas que escolheste, em destaque",
+      "market": "Cotações e gráficos das ações que segues"
+    },
+    "market": {
+      "stories": "Notícias do instrumento",
+      "latest": "Último preço disponível",
+      "dailyChange": "Variação diária {{value}}",
+      "graph": "De {{first}} a {{last}}",
+      "quoteUnavailable": "Cotação indisponível",
+      "chartUnavailable": "Gráfico indisponível para este período",
+      "unavailable": "Dados de mercado indisponíveis",
+      "loading": "A carregar dados de mercado",
+      "periods": {
+        "1d": {
+          "short": "1D",
+          "label": "Última sessão"
+        },
+        "1m": {
+          "short": "1M",
+          "label": "Um mês"
+        },
+        "1y": {
+          "short": "1A",
+          "label": "Um ano"
+        }
+      }
+    },
+    "impact": {
+      "title": "O que pode mudar para si",
+      "moreStories": "Mais notícias",
+      "toggle": "Mostrar ou ocultar contexto",
+      "watch": "A acompanhar",
+      "loaded_one": "{{count}} notícia carregada",
+      "loaded_other": "{{count}} notícias carregadas",
+      "context": {
+        "markets": "As notícias dos mercados podem interessar a quem acompanha ações, obrigações ou moedas.",
+        "rates": "As taxas e a inflação podem afetar prestações variáveis, rendimentos e poder de compra.",
+        "investing": "Estes eventos podem afetar os custos, riscos ou condições dos instrumentos referidos.",
+        "personal-finance": "As alterações nas finanças familiares podem afetar as despesas recorrentes e a liquidez.",
+        "pensions": "As novidades sobre pensões podem afetar quem desconta ou se aproxima da reforma.",
+        "crypto": "As novidades sobre criptoativos podem afetar quem usa plataformas ou detém ativos digitais.",
+        "real-estate": "Os preços, as condições de crédito e as rendas podem afetar compradores e arrendatários.",
+        "taxes": "As alterações fiscais podem afetar deduções, prazos e rendimentos a declarar."
+      },
+      "watchFor": {
+        "markets": "Os próximos dados económicos e comunicados oficiais.",
+        "rates": "As próximas decisões do banco central e os dados de preços.",
+        "investing": "Os documentos oficiais e as datas de entrada em vigor.",
+        "personal-finance": "As datas de aplicação e as condições anunciadas.",
+        "pensions": "Os requisitos, os prazos e os comunicados das entidades.",
+        "crypto": "Os avisos dos reguladores e os comunicados das plataformas referidas.",
+        "real-estate": "Os próximos indicadores e as condições de financiamento.",
+        "taxes": "O texto oficial e os prazos aplicáveis."
+      }
+    },
+    "feedTab": "Feed",
+    "refresh": "Atualizar notícias",
+    "openError": "Não foi possível abrir a fonte",
+    "pilot": "Fonte piloto",
+    "saved": {
+      "tab": "Guardadas",
+      "title": "Para ler",
+      "emptyTitle": "Sem notícias guardadas",
+      "emptyBody": "Toque no marcador de uma notícia para a encontrar aqui.",
+      "add": "Guardar: {{title}}",
+      "remove": "Remover das guardadas: {{title}}",
+      "error": "Não foi possível atualizar os marcadores",
+      "unavailable": "Não foi possível carregar as notícias guardadas"
+    },
+    "title": "Informação relevante para si",
+    "subtitle": "Mercados, poupança e investimentos com base nos temas escolhidos.",
+    "forYou": "Últimas notícias",
+    "openSource": "Abrir fonte",
+    "officialSource": "FONTE OFICIAL",
+    "loadMore": "Carregar mais notícias",
+    "loadingMore": "A carregar…",
+    "loadMoreErrorTitle": "Não foi possível carregar mais notícias",
+    "loadMoreErrorBody": "Verifique a ligação e tente novamente.",
+    "staleNote": "O serviço está temporariamente indisponível. Está a ver as últimas notícias disponíveis.",
+    "unavailableNote": "O feed em direto está indisponível. As fontes piloto são mostradas temporariamente.",
+    "previewNote": "Pré-visualização do feed. Configure o serviço News para mostrar notícias reais.",
+    "topics": {
+      "markets": "Mercados",
+      "rates": "Taxas e inflação",
+      "investing": "Investimentos",
+      "personal-finance": "Finanças pessoais",
+      "pensions": "Reforma",
+      "crypto": "Cripto",
+      "real-estate": "Imobiliário",
+      "taxes": "Impostos"
+    },
+    "filters": {
+      "updating": "A atualizar o filtro",
+      "all": "Todas",
+      "storyCount_one": "{{count}} notícia",
+      "storyCount_other": "{{count}} notícias",
+      "emptyBody": "Ainda não há notícias deste tema no feed carregado.",
+      "reset": "Mostrar todas"
+    },
+    "config": {
+      "action": "Configurar interesses",
+      "title": "O que pretende seguir?",
+      "subtitle": "Pode alterar os seus interesses a qualquer momento.",
+      "firstTitle": "Personaliza o teu Radar",
+      "firstSubtitle": "Escolhe os temas e, se quiseres, as ações a acompanhar. Podes alterar as tuas escolhas mais tarde.",
+      "firstAction": "Guardar e abrir o Radar",
+      "minimumTitle": "Escolha pelo menos um tema",
+      "minimumBody": "Selecione o que pretende seguir para criar o seu feed."
+    },
+    "empty": {
+      "title": "Sem notícias relevantes",
+      "body": "Tente adicionar outro tema ou atualize o feed mais tarde."
     }
   },
   "navigation": {
@@ -614,6 +776,9 @@
     }
   },
   "navigation": {
-    "tabEntries": "Cashflow"
+    "closeSettings": "Fechar conta",
+    "closeRadar": "Fechar radar financeiro",
+    "tabEntries": "Cashflow",
+    "tabNews": "Notícias"
   }
 }
