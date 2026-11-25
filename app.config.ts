@@ -30,6 +30,7 @@ const BASE_PLUGINS = [
   "expo-sqlite",
   "@react-native-community/datetimepicker",
   "expo-font",
+  "expo-video",
   "expo-iap",
   "expo-notifications",
   "expo-localization",

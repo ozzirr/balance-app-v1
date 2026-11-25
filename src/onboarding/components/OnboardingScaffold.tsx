@@ -3,6 +3,7 @@ import { Animated, Easing, ScrollView, StyleSheet, View } from "react-native";
 import AppBackground from "@/ui/components/AppBackground";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSettings } from "@/settings/useSettings";
+import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Props = {
@@ -14,6 +15,7 @@ type Props = {
 export const ONBOARDING_CARD_MIN_HEIGHT = 520;
 
 export default function OnboardingScaffold({ children, step, totalSteps }: Props): JSX.Element {
+  const { t } = useTranslation();
   const { tokens } = useDashboardTheme();
   const { scrollBounceEnabled } = useSettings();
   const animatedValue = useRef(new Animated.Value(0)).current;
@@ -39,6 +41,7 @@ export default function OnboardingScaffold({ children, step, totalSteps }: Props
     <AppBackground>
       <SafeAreaView edges={["top", "bottom"]} style={styles.safe}>
         <ScrollView
+          keyboardShouldPersistTaps="handled"
           bounces={scrollBounceEnabled}
           alwaysBounceVertical={scrollBounceEnabled}
           overScrollMode={scrollBounceEnabled ? "always" : "never"}
@@ -68,7 +71,7 @@ export default function OnboardingScaffold({ children, step, totalSteps }: Props
                   ]}
                 />
                 <Animated.Text style={[styles.stepLabel, { color: tokens.colors.text }]}>
-                  {`Passo ${step} di ${totalSteps}`}
+                  {t("onboardingV2.common.step", { step, total: totalSteps })}
                 </Animated.Text>
               </View>
               <View style={[styles.progressTrack, { backgroundColor: tokens.colors.surface2 }]}>

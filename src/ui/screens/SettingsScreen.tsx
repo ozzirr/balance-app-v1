@@ -14,7 +14,6 @@ import { emitDataReset } from "@/app/dataEvents";
 import { getPreference, setPreference } from "@/repositories/preferencesRepo";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { ThemeContext } from "@/ui/theme";
 import SecuritySettingsSection from "@/security/SecuritySettingsSection";
 import {
@@ -46,6 +45,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import type { BalanceProPlanId } from "@/config/entitlements";
 import { FREE_WALLET_LIMIT } from "@/config/entitlements";
+import TutorialCatalog from "@/features/tutorials/TutorialCatalog";
+import { FREE_RADAR } from "@/features/news/newsPreferences";
 import { openPrivacyPolicyLink, openTermsOfUseLink } from "@/config/storeLinks";
 import {
   cancelSnapshotReminderSchedule,
@@ -68,7 +69,7 @@ type StorageAccessFrameworkLike = {
   writeAsStringAsync?: (fileUri: string, contents: string) => Promise<void>;
 };
 
-type SettingsSection = "plan" | "profile" | "general" | "notifications" | "security" | "data";
+type SettingsSection = "plan" | "profile" | "tutorials" | "general" | "notifications" | "security" | "data";
 
 function findSecurityModalNavigation(
   navigation: NavigationProp<ParamListBase>
@@ -87,7 +88,6 @@ function findSecurityModalNavigation(
 export default function SettingsScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const [activeSection, setActiveSection] = useState<SettingsSection | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const [profileName, setProfileName] = useState("");
@@ -117,7 +117,10 @@ export default function SettingsScreen(): JSX.Element {
   const { t, i18n } = useTranslation();
   useFocusEffect(useCallback(() => {
     if (!activeSection) return undefined;
-    const listener = BackHandler.addEventListener("hardwareBackPress", () => { setActiveSection(null); return true; });
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      setActiveSection(null);
+      return true;
+    });
     return () => listener.remove();
   }, [activeSection]));
   const {
@@ -681,6 +684,7 @@ export default function SettingsScreen(): JSX.Element {
     ? t("wallets.actions.storeUnavailable", { defaultValue: "Store non disponibile. Riprova più tardi." })
     : undefined;
   const sections: { id: SettingsSection; title: string; subtitle: string; icon: keyof typeof MaterialCommunityIcons.glyphMap; color: string }[] = [
+    { id: "tutorials", title: t("tutorials.title"), subtitle: t("tutorials.entry"), icon: "play-box-outline", color: "#A885FF" },
     { id: "profile", title: t("settings.profile.title"), subtitle: t("settings.menu.profile", { defaultValue: "Nickname e lingua" }), icon: "account-outline", color: "#A885FF" },
     { id: "general", title: t("settings.preferences.title"), subtitle: t("settings.menu.general", { defaultValue: "Aspetto, dashboard e preferenze" }), icon: "tune-variant", color: "#69A9FF" },
     { id: "notifications", title: t("settings.notifications.title"), subtitle: t("settings.menu.notifications", { defaultValue: "Promemoria e frequenza" }), icon: "bell-outline", color: "#F0B771" },
@@ -688,6 +692,7 @@ export default function SettingsScreen(): JSX.Element {
     { id: "data", title: t("settings.data.title"), subtitle: t("settings.menu.data", { defaultValue: "Esporta, importa o cancella i dati" }), icon: "database-outline", color: "#F48F95" },
   ];
   const selectedSection = sections.find((section) => section.id === activeSection);
+  const sectionTitle = activeSection === "plan" ? t("settings.balancePro.title") : selectedSection?.title;
   const openSection = (section: SettingsSection | null) => {
     Keyboard.dismiss();
     setActiveSection(section);
@@ -704,7 +709,7 @@ export default function SettingsScreen(): JSX.Element {
           overScrollMode={scrollBounceEnabled ? "always" : "never"}
           contentContainerStyle={[
             styles.container,
-            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
+            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: 12 },
           ]}
         >
           {!activeSection ? <>
@@ -712,7 +717,10 @@ export default function SettingsScreen(): JSX.Element {
               accessibilityRole="button"
               accessibilityLabel={t("settings.balancePro.title") + ", " + balanceProStatusTitle}
               disabled={!isReady}
-              onPress={() => openSection("plan")}
+              onPress={() => {
+                openSection("plan");
+                if (!isPro && !isStoreLoading && !availablePlans.some((plan) => plan.product)) void prepareStore();
+              }}
               style={({ pressed }) => [styles.planCard, { backgroundColor: tokens.colors.accent + "16", borderColor: tokens.colors.accent + "45", opacity: pressed ? 0.75 : 1 }]}
             >
               <View style={styles.menuText}>
@@ -728,9 +736,14 @@ export default function SettingsScreen(): JSX.Element {
                 <MaterialCommunityIcons name="chevron-right" size={22} color={tokens.colors.muted} />
               </Pressable>)}
             </View>
-          </> : <Pressable accessibilityRole="button" accessibilityLabel={t("settings.menu.back", { defaultValue: "Torna ad Account" })} onPress={() => openSection(null)} style={styles.backRow}>
+          </> : <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.menu.back")}
+            onPress={() => openSection(null)}
+            style={styles.backRow}
+          >
             <View style={[styles.backIcon, { backgroundColor: `${tokens.colors.accent}20` }]}><MaterialCommunityIcons name="arrow-left" size={20} color={tokens.colors.accent} /></View>
-            <View style={styles.menuText}><Text style={[styles.detailTitle, { color: tokens.colors.text }]}>{activeSection === "plan" ? t("settings.balancePro.title") : selectedSection?.title}</Text></View>
+            <View style={styles.menuText}><Text style={[styles.detailTitle, { color: tokens.colors.text }]}>{sectionTitle}</Text></View>
           </Pressable>}
 
           {activeSection === "plan" && isPro ? <GlassCardContainer contentStyle={styles.cardContent}>
@@ -745,27 +758,95 @@ export default function SettingsScreen(): JSX.Element {
         {activeSection === "plan" && !isPro ? (
           <>
             <View style={[styles.offerHero, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.glassBorder }]}>
-              <Image source={require("../../../assets/onboarding/onboarding-3.png")} resizeMode="contain" accessible={false} style={styles.offerArt} />
-              <Text accessibilityRole="header" style={[styles.planName, { color: tokens.colors.text }]}>Balance Pro</Text>
-              <Text variant="titleMedium" style={{ color: tokens.colors.text }}>{t("settings.balancePro.offerTitle")}</Text>
+              <View style={styles.offerArt}>
+                <Image source={require("../../../assets/pro/balance-pro-hero.png")} resizeMode="contain" accessible={false} style={styles.offerArtImage} />
+              </View>
+              <Text variant="labelLarge" style={{ color: tokens.colors.muted }}>
+                {t("settings.balancePro.currentPlan", { plan: balanceProStatusTitle })}
+              </Text>
+              <Text accessibilityRole="header" style={[styles.planName, { color: tokens.colors.text }]}>
+                {t("settings.balancePro.goPro")}
+              </Text>
+            </View>
+            <View style={[styles.offerFeature, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.glassBorder }]}>
+              <View style={styles.offerFeatureHeader}>
+                <View style={[styles.offerFeatureIcon, { backgroundColor: tokens.colors.accent + "1C" }]}>
+                  <MaterialCommunityIcons name="wallet-bifold-outline" size={22} color={tokens.colors.accent} />
+                </View>
+                <Text accessibilityRole="header" variant="titleLarge" style={[styles.offerFeatureTitle, { color: tokens.colors.text }]}>
+                  {t("wallets.actions.limitBenefitUnlimited")}
+                </Text>
+              </View>
               <Text variant="bodyMedium" style={{ color: tokens.colors.muted }}>{t("settings.balancePro.offerBody")}</Text>
-            </View>
-            <View style={[styles.planComparison, { borderColor: tokens.colors.glassBorder }]}>
-              <View style={styles.offerColumn}>
-                <Text variant="labelMedium" style={{ color: tokens.colors.muted }}>Balance Free</Text>
-                <Text variant="titleMedium" style={{ color: tokens.colors.text }}>{t("settings.balancePro.walletLimit", { count: FREE_WALLET_LIMIT })}</Text>
-                <Text variant="bodySmall" style={{ color: tokens.colors.muted }}>{t("news.quota.freePlan")}</Text>
+              <View style={[styles.planComparison, { borderColor: tokens.colors.glassBorder }]}>
+                <View style={styles.offerColumn}>
+                  <Text variant="labelMedium" style={{ color: tokens.colors.muted }}>Balance Free</Text>
+                  <Text variant="titleSmall" style={{ color: tokens.colors.text }}>
+                    {t("settings.balancePro.walletLimit", { count: FREE_WALLET_LIMIT })}
+                  </Text>
+                </View>
+                <View style={[styles.offerColumn, { backgroundColor: tokens.colors.accent + "14" }]}>
+                  <Text variant="labelMedium" style={{ color: tokens.colors.accent }}>Balance Pro</Text>
+                  <Text variant="titleSmall" style={{ color: tokens.colors.text }}>{t("settings.balancePro.walletPro")}</Text>
+                </View>
               </View>
-              <View style={[styles.offerColumn, { backgroundColor: tokens.colors.accent + "14" }]}>
-                <Text variant="labelMedium" style={{ color: tokens.colors.accent }}>Balance Pro</Text>
-                <Text variant="titleMedium" style={{ color: tokens.colors.text }}>{t("wallets.actions.limitBenefitUnlimited")}</Text>
-                <Text variant="bodySmall" style={{ color: tokens.colors.muted }}>{t("news.quota.proPlan")}</Text>
+            </View>
+            <View style={[styles.offerFeature, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.glassBorder }]}>
+              <View style={styles.offerFeatureHeader}>
+                <View style={[styles.offerFeatureIcon, { backgroundColor: tokens.colors.accent + "1C" }]}>
+                  <MaterialCommunityIcons name="newspaper-variant-outline" size={22} color={tokens.colors.accent} />
+                </View>
+                <Text accessibilityRole="header" variant="titleLarge" style={[styles.offerFeatureTitle, { color: tokens.colors.text }]}>
+                  {t("news.briefing")}
+                </Text>
+              </View>
+              <Text variant="bodyMedium" style={{ color: tokens.colors.muted }}>{t("settings.balancePro.radarBody")}</Text>
+              <View style={[styles.planComparison, { borderColor: tokens.colors.glassBorder }]}>
+                <View style={styles.offerColumn}>
+                  <Text variant="labelMedium" style={{ color: tokens.colors.muted }}>Balance Free</Text>
+                  <Text variant="titleSmall" style={{ color: tokens.colors.text }}>
+                    {t("settings.balancePro.radarFree", FREE_RADAR)}
+                  </Text>
+                  <Text variant="bodySmall" style={{ color: tokens.colors.muted }}>
+                    {t("settings.balancePro.radarFreeChanges", FREE_RADAR)}
+                  </Text>
+                </View>
+                <View style={[styles.offerColumn, { backgroundColor: tokens.colors.accent + "14" }]}>
+                  <Text variant="labelMedium" style={{ color: tokens.colors.accent }}>Balance Pro</Text>
+                  <Text variant="titleSmall" style={{ color: tokens.colors.text }}>{t("settings.balancePro.radarPro")}</Text>
+                  <Text variant="bodySmall" style={{ color: tokens.colors.muted }}>{t("settings.balancePro.radarProChanges")}</Text>
+                </View>
               </View>
             </View>
-            <PrimaryPillButton label={t("settings.balancePro.viewPlans")} color={tokens.colors.accent} onPress={() => {
-              setSettingsPaywallVisible(true);
-              if (!isStoreLoading && !availablePlans.some((plan) => plan.product)) void prepareStore();
-            }} />
+            <View style={[styles.offerFeature, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.glassBorder }]}>
+              <Text accessibilityRole="header" variant="titleLarge" style={[styles.offerFeatureTitle, { color: tokens.colors.text }]}>
+                {t("settings.balancePro.subscription")}
+              </Text>
+              {availablePlans.map((plan) => {
+                const selected = plan.planId === selectedPlanId;
+                const name = t(plan.planId === "yearly" ? "wallets.actions.planYearly" : "wallets.actions.planMonthly");
+                const period = t(plan.planId === "yearly" ? "wallets.actions.planCycleYear" : "wallets.actions.planCycleMonth");
+                return (
+                  <Pressable key={plan.planId} accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: !plan.product }}
+                    disabled={!plan.product} onPress={() => setSelectedPlanId(plan.planId)}
+                    style={[styles.offerPlanOption, { borderColor: selected ? tokens.colors.accent : tokens.colors.glassBorder,
+                      backgroundColor: selected ? tokens.colors.accent + "14" : tokens.colors.bg }]}>
+                    <MaterialCommunityIcons name={selected ? "radiobox-marked" : "radiobox-blank"} size={22} color={selected ? tokens.colors.accent : tokens.colors.muted} />
+                    <Text variant="titleMedium" style={[styles.offerPlanLabel, { color: tokens.colors.text }]}>{name}</Text>
+                    <Text variant="bodyMedium" style={{ color: tokens.colors.text }}>
+                      {plan.displayPrice ? t("settings.balancePro.recurringPrice", { price: plan.displayPrice, period }) : "—"}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {paywallStatusMessage && <Text variant="bodySmall" style={{ color: tokens.colors.muted }}>{paywallStatusMessage}</Text>}
+              {shouldShowRetryStore && <SmallOutlinePillButton label={t("wallets.actions.retryStoreLoad")} color={tokens.colors.accent} onPress={handleRetryStore} />}
+              <PrimaryPillButton label={t("settings.balancePro.goPro")} color={tokens.colors.accent}
+                disabled={!canPurchaseSelectedPlan || isStoreLoading}
+                onPress={() => setSettingsPaywallVisible(true)} />
+              {!canPurchaseSelectedPlan && <SmallOutlinePillButton label={t("wallets.actions.restorePurchases")} color={tokens.colors.muted}
+                onPress={() => { if (!isRestorePending) void handleRestorePurchases(); }} />}
+            </View>
           </>
         ) : null}
 
@@ -812,6 +893,8 @@ export default function SettingsScreen(): JSX.Element {
               </View>
             </View>
         </GlassCardContainer> : null}
+
+        {activeSection === "tutorials" && <TutorialCatalog />}
 
         {activeSection === "notifications" ? <GlassCardContainer contentStyle={styles.cardContent}>
             <View style={[styles.row, styles.preferenceTopAlignedRow]}>
@@ -1008,7 +1091,7 @@ export default function SettingsScreen(): JSX.Element {
           plans={availablePlans}
           selectedPlanId={selectedPlanId}
           onSelectPlan={setSelectedPlanId}
-          title={t("settings.balancePro.viewPlans")}
+          title={t("settings.balancePro.goPro")}
           subtitle={t("settings.balancePro.billingOptions")}
           primaryDisabled={!canPurchaseSelectedPlan || !isReady || isStoreLoading}
           onSecondaryAction={handleRestorePurchases}
@@ -1058,7 +1141,14 @@ const styles = StyleSheet.create({
   },
   groupTitle: { fontSize: 14, fontWeight: "700" },
   offerHero: { borderWidth: 1, borderRadius: 24, padding: 22, gap: 8 },
-  offerArt: { width: "100%", height: 165, marginBottom: 8 },
+  offerFeature: { borderWidth: 1, borderRadius: 22, padding: 16, gap: 12 },
+  offerFeatureHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  offerPlanOption: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, padding: 12, minHeight: 48, borderWidth: 1, borderRadius: 14 },
+  offerPlanLabel: { flexGrow: 1 },
+  offerFeatureIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  offerFeatureTitle: { flex: 1, fontWeight: "700" },
+  offerArt: { height: 172, marginBottom: 8 },
+  offerArtImage: { width: "100%", height: "100%" },
   planComparison: { flexDirection: "row", borderWidth: 1, borderRadius: 18, overflow: "hidden" },
   offerColumn: { flex: 1, padding: 16, gap: 4 },
   planName: { fontSize: 28, fontWeight: "800", letterSpacing: -0.7 },

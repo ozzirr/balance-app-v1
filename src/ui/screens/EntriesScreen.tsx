@@ -20,7 +20,6 @@ import { useDashboardTheme } from "@/ui/dashboard/theme";
 import AppBackground from "@/ui/components/AppBackground";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { emitDataChanged, onDataChanged, onDataReset } from "@/app/dataEvents";
 import EntriesTable, { EntriesTableRow } from "@/ui/dashboard/components/EntriesTable";
 import {
@@ -207,7 +206,6 @@ export default function EntriesScreen(): JSX.Element {
   const { scrollBounceEnabled } = useSettings();
   const deleteIconColor = isDark ? tokens.colors.bg : tokens.colors.surface;
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const { t } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute();
@@ -1007,7 +1005,7 @@ export default function EntriesScreen(): JSX.Element {
           overScrollMode={scrollBounceEnabled ? "always" : "never"}
           contentContainerStyle={[
             styles.container,
-            { gap: tokens.spacing.lg, paddingBottom: 140 + insets.bottom, paddingTop: headerHeight + 12 },
+            { gap: tokens.spacing.lg, paddingBottom: 140 + insets.bottom, paddingTop: 12 },
           ]}
         >
         <BottomSheet

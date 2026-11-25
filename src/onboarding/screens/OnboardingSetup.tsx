@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { GlassCardContainer, PrimaryPillButton } from "@/ui/components/EntriesUI";
+import OnboardingIllustration from "@/onboarding/components/OnboardingIllustration";
 import OnboardingScaffold, { ONBOARDING_CARD_MIN_HEIGHT } from "@/onboarding/components/OnboardingScaffold";
 import { getDisplayName, setHasInvestments, setOnboardingCompleted } from "@/onboarding/onboardingStorage";
 import { seedInitialData } from "@/onboarding/onboardingSeed";
@@ -32,7 +33,6 @@ export default function OnboardingSetup({
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
 
   const setupSteps = useMemo(
     () => [
@@ -117,26 +117,6 @@ export default function OnboardingSetup({
     setError(null);
     setActiveStep(0);
     progress.setValue(0);
-    pulse.setValue(0);
-
-    const pulseAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 900,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    pulseAnimation.start();
     Animated.timing(progress, {
       toValue: 1,
       duration: 4600,
@@ -171,7 +151,7 @@ export default function OnboardingSetup({
                   defaultValue: "Non siamo riusciti a completare la configurazione.",
                 });
           setError(message);
-          Alert.alert("Errore", message);
+          Alert.alert(t("errors.genericTitle"), message);
         }
       }
     };
@@ -180,16 +160,12 @@ export default function OnboardingSetup({
 
     return () => {
       cancelled = true;
-      pulseAnimation.stop();
+      progress.stopAnimation();
     };
-  }, [hasInvestments, onComplete, progress, pulse, retryKey, setupSteps, shouldSeedOnComplete, t]);
+  }, [hasInvestments, onComplete, progress, retryKey, setupSteps, shouldSeedOnComplete, t]);
 
   const previewIndex = Math.min(Math.floor((activeStep / setupSteps.length) * previews.length), previews.length - 1);
   const preview = previews[previewIndex];
-  const pulseScale = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.08],
-  });
   const progressWidth = progress.interpolate({
     inputRange: [0, 1],
     outputRange: ["4%", "100%"],
@@ -200,18 +176,7 @@ export default function OnboardingSetup({
       <GlassCardContainer contentStyle={{ minHeight: ONBOARDING_CARD_MIN_HEIGHT }}>
         <View style={styles.cardContent}>
           <View style={styles.header}>
-            <Animated.View
-              style={[
-                styles.orbit,
-                {
-                  borderColor: tokens.colors.glassBorder,
-                  backgroundColor: tokens.colors.glassBg,
-                  transform: [{ scale: pulseScale }],
-                },
-              ]}
-            >
-              <MaterialCommunityIcons name="auto-fix" size={34} color={tokens.colors.accent} />
-            </Animated.View>
+            <OnboardingIllustration scene="setup" />
             <Text style={[styles.title, { color: tokens.colors.text }]}>
               {t("onboardingV2.setup.title", {
                 defaultValue: "Stiamo configurando Balance per te",
@@ -305,14 +270,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     gap: 10,
-  },
-  orbit: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   title: {
     fontSize: 26,

@@ -43,7 +43,6 @@ export default function OnboardingNavigator({
           <OnboardingWelcome
             variant={isProVariant ? "pro" : "free"}
             onNext={() => navigation.navigate("OnboardingName")}
-            onSkip={() => navigation.navigate("OnboardingName")}
             onImport={isProVariant ? () => navigation.navigate("OnboardingProImport") : undefined}
           />
         )}

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Image, StyleSheet, View, Pressable } from "react-native";
+import { StyleSheet, View, Pressable } from "react-native";
 import { Text } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { GlassCardContainer, PrimaryPillButton } from "@/ui/components/EntriesUI";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
+import OnboardingIllustration from "@/onboarding/components/OnboardingIllustration";
 import OnboardingScaffold, { ONBOARDING_CARD_MIN_HEIGHT } from "@/onboarding/components/OnboardingScaffold";
 
 type Props = {
@@ -28,6 +29,8 @@ export default function OnboardingInvestments({ onFinish }: Props): JSX.Element 
     const selected = choice === value;
     return (
       <Pressable
+        accessibilityRole="radio"
+        accessibilityState={{ checked: selected }}
         onPress={() => setChoice(value)}
         style={({ pressed }) => [
           styles.option,
@@ -48,13 +51,7 @@ export default function OnboardingInvestments({ onFinish }: Props): JSX.Element 
       <GlassCardContainer contentStyle={{ minHeight: ONBOARDING_CARD_MIN_HEIGHT }}>
         <View style={styles.cardContent}>
           <View>
-            <View style={styles.heroWrap}>
-              <Image
-                source={require("../../../assets/onboarding/onboarding-3.png")}
-                style={styles.heroImage}
-                resizeMode="contain"
-              />
-            </View>
+            <OnboardingIllustration scene="investments" />
             <View style={styles.header}>
               <Text style={[styles.title, { color: tokens.colors.text }]}>{t("onboardingV2.investments.title")}</Text>
               <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>
@@ -87,14 +84,6 @@ export default function OnboardingInvestments({ onFinish }: Props): JSX.Element 
 }
 
 const styles = StyleSheet.create({
-  heroWrap: {
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  heroImage: {
-    width: 180,
-    height: 140,
-  },
   cardContent: {
     flex: 1,
     minHeight: ONBOARDING_CARD_MIN_HEIGHT,

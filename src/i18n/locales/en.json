@@ -21,6 +21,7 @@
   },
   "onboardingV2": {
     "common": {
+      "step": "Step {{step}} of {{total}}",
       "continue": "Continue",
       "skip": "Skip"
     },
@@ -49,6 +50,24 @@
       "title": "What’s your name?",
       "subtitle": "We’ll use it to welcome you to Balance.",
       "placeholder": "Your name"
+    },
+    "setup": {
+      "stepPersonalize": "Personalizing Balance for you",
+      "stepWallets": "Preparing your first wallets",
+      "stepLiquidity": "Preparing the Cash wallet",
+      "stepInvestments": "Preparing the Investments wallet",
+      "stepWalletSection": "Preparing the Wallet section",
+      "stepHome": "Setting up your dashboard",
+      "stepTour": "Preparing Snapshot, Cashflow and Wallet",
+      "stepDetails": "Finishing setup",
+      "previewDashboard": "See your net worth and how it changes.",
+      "previewWallet": "Organize cash, investments and accounts.",
+      "previewSnapshot": "Record balances to compare your net worth over time.",
+      "previewCashflow": "Plan income, expenses and recurring transactions.",
+      "error": "We couldn’t complete setup.",
+      "title": "Setting up Balance",
+      "subtitle": "We’re preparing your dashboard and first wallets based on your answers.",
+      "retry": "Try again"
     },
     "investments": {
       "title": "Do you have investments?",
@@ -95,6 +114,59 @@
       "reset": {
         "title": "Confirm reset",
         "body": "This will delete all data. Continue?"
+      }
+    }
+  },
+  "tutorials": {
+    "title": "Tutorials",
+    "entry": "Videos and instructions for using Balance",
+    "demoLanguage": "Italian-language video recorded with sample data.",
+    "groups": {
+      "overview": "Overview",
+      "transactions": "Transactions and wallets",
+      "radar": "Market radar",
+      "account": "Account and privacy"
+    },
+    "lessons": {
+      "dashboard": {
+        "title": "Explore the dashboard",
+        "body": "Open Asset composition to see where your balances sit. Choose a chart to switch views."
+      },
+      "snapshot": {
+        "title": "Record a snapshot",
+        "body": "Open Snapshot, select New snapshot and enter your wallet balances for the selected date. Tap Save to record your net worth."
+      },
+      "income": {
+        "title": "Add income",
+        "body": "In Cashflow, select Income, then add an entry. Enter a name, amount and date. Choose a recurrence if needed, then save."
+      },
+      "expense": {
+        "title": "Add an expense",
+        "body": "In Cashflow, select Expenses, then add an entry. Enter a name and amount, pick a category, then save."
+      },
+      "wallet": {
+        "title": "Create a wallet",
+        "body": "Open Wallet, tap Add wallet, name the account, pick a currency and color, and confirm."
+      },
+      "radar": {
+        "title": "Set up the market radar",
+        "body": "Open the radar using the header icon. Tap Manage to choose which stocks and topics to follow, then save."
+      },
+      "general": {
+        "title": "Customize the app",
+        "body": "Under Account, General contains theme, scrolling, snapshot and chart settings, and investment visibility."
+      },
+      "notifications": {
+        "title": "Set reminders",
+        "body": "Under Account, Notifications lets you turn on snapshot reminders and select a frequency."
+      },
+      "security": {
+        "title": "Secure Balance",
+        "body": "Under Account, Security contains passcode, biometrics and automatic lock settings."
+      },
+      "data": {
+        "title": "Manage your data",
+        "body": "Under Account, Data lets you export or import a copy. Reset removes local data and starts setup again."
       }
     }
   },
@@ -151,10 +223,18 @@
       "loadTestData": "Load test data"
     },
     "balancePro": {
-      "viewPlans": "View plans",
-      "billingOptions": "Choose how often Balance Pro renews.",
-      "offerTitle": "A wallet for every account",
-      "offerBody": "Keep everyday spending, savings and investments separate. See all your balances on one dashboard.",
+      "goPro": "Upgrade to Balance Pro",
+      "currentPlan": "Current plan · {{plan}}",
+      "subscription": "Choose your subscription",
+      "recurringPrice": "{{price}} / {{period}}",
+      "billingOptions": "Choose the plan you prefer.",
+      "offerBody": "Organize your finances in dedicated wallets and see every balance on one dashboard.",
+      "walletPro": "A wallet for each account, savings goal or expense you want to track separately.",
+      "radarBody": "Follow the companies you care about and add the news topics that matter to you, such as markets, interest rates and personal finance.",
+      "radarFree": "Up to {{instruments}} stocks and {{topics}} topics",
+      "radarFreeChanges": "{{instrumentChanges}} stock changes and {{topicChanges}} topic change every 7 days.",
+      "radarPro": "All stocks and topics in the catalog",
+      "radarProChanges": "Update your selection whenever you like.",
       "walletLimit": "Up to {{count}} wallets",
       "title": "Your plan",
       "statusFree": "Balance Free",
@@ -178,15 +258,19 @@
     "chartChooser": { "title": "Choose a chart", "subtitle": "Go directly to the view you need.", "empty": "Add data to view charts." },
     "reportSettings": { "subtitle": "Choose what to include in the image.", "wealth": "Net worth", "wealthDetail": "Total and breakdown by wallet type", "flow": "Income and expenses", "flowDetail": "Planned summary for the current month", "qr": "Share Balance", "qrDetail": "Include the QR code to download the app", "privacy": "Only share what you want others to see. Review the preview before sending.", "preview": "Create preview", "back": "Edit contents", "requirement": "Select at least one section." },
     "reportDownloadPrompt": "Scan to get it on the App Store",
-    "pulse": { "eyebrow": "YOUR MONTH", "income": "Income", "expense": "Expenses", "net": "Planned balance", "note": "Planned movements this month, including recurring entries.", "edit": "Edit income and expenses" },
+    "pulse": { "eyebrow": "THIS MONTH", "income": "Income", "expense": "Expenses", "net": "Planned balance", "note": "Planned movements this month, including recurring entries.", "edit": "Edit income and expenses" },
     "report": { "title": "Your Balance report", "subtitle": "Net worth and cash flow in one view.", "action": "Your report", "actionSubtitle": "Share your net worth and cash flow", "snapshot": "YOUR NET WORTH", "flowTitle": "YOUR MONTH AT A GLANCE", "planned": "planned", "flowNote": "Planned movements, including recurring entries.", "footer": "YOUR FINANCES, WITH MORE CLARITY.", "share": "Share image", "sharing": "Preparing…", "hint": "The image contains your financial data.", "close": "Close", "error": "Could not prepare your report. Please try again." },
     "portfolioPrivate": "Your data stays on your device",
+    "portfolioTotal": "Total net worth",
+    "portfolioComposition": "Portfolio composition",
     "errorTitle": "Unable to load the dashboard",
     "emptyTitle": "No data available",
     "emptyBody": "Create at least one wallet to get started.",
     "emptyCta": "Set up Balance",
     "greeting": "Hi",
     "greetingWithName": "Hi {{name}}",
+    "greetingMorning": "Good morning, {{name}}",
+    "greetingEvening": "Good evening, {{name}}",
     "firstRun": {
       "title": "Your dashboard starts here",
       "bodyLine1": "1. Set up your wallets.",
@@ -273,6 +357,7 @@
       "label": "Period",
       "title": "Change interval",
       "subtitle": "Compare changes in your net worth using your available snapshots.",
+      "noData": "Delta unavailable",
       "options": {
         "lastWeek": "Last 7 days",
         "lastMonth": "Last month",
@@ -282,6 +367,8 @@
         "last12Months": "Last 12 months"
       }
     },
+    "monthSelector": { "open": "Change month", "title": "Choose a month", "subtitle": "Update the dashboard’s net worth, cash flow, and insights." },
+    "portfolioFlip": { "details": "Show the net worth breakdown", "total": "Return to total net worth" },
     "locked": {
       "title": "Some data is missing",
       "subtitle": "Tap to see what to add.",
@@ -330,7 +417,7 @@
     }
   },
   "news": {
-    "quota": {"resumes": "Next change available on {{date}}. With Balance Pro you can edit anytime.", "stocks": "Up to 3 stocks. Changes available per rolling 7 days: {{left}} of 2.", "topics": "Up to 2 topics. Changes available per rolling 7 days: {{left}} of 1.", "locked": "Balance Free limit reached. Wait for a change to expire or switch to Balance Pro in Account.", "freePlan": "Radar: 3 stocks and 2 topics", "proPlan": "All catalog stocks and topics, with unlimited changes"},
+    "quota": {"resumes": "Next change available on {{date}}. With Balance Pro you can edit anytime.", "stocks": "Up to 3 stocks. Changes available per rolling 7 days: {{left}} of 2.", "topics": "Up to 2 topics. Changes available per rolling 7 days: {{left}} of 1.", "locked": "Balance Free limit reached. Wait for a change to expire or switch to Balance Pro in Account."},
     "article": {
       "previewHint": "Expands the summary in the list",
       "collapseHint": "Collapses the summary",

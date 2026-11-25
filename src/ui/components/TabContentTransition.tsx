@@ -1,10 +1,19 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, PanResponder, StyleSheet, View } from "react-native";
 import { useIsFocused, useNavigation, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { getAdjacentTabRoute, type TabRoute } from "@/ui/navigation/tabSwipe";
 
 const PreviousTabContext = createContext<React.MutableRefObject<number | null> | null>(null);
+
+const TabSwipeExclusionContext = createContext<React.MutableRefObject<boolean> | null>(null);
+
+export function useExcludeTabSwipeOnTouchStart() {
+  const excluded = useContext(TabSwipeExclusionContext);
+  return useCallback(() => {
+    if (excluded) excluded.current = true;
+  }, [excluded]);
+}
 
 export function TabTransitionProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const previousTab = useRef<number | null>(null);
@@ -24,6 +33,7 @@ export default function TabContentTransition({
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const previousTab = useContext(PreviousTabContext);
   const { tokens } = useDashboardTheme();
+  const excludeTabSwipe = useRef(false);
   const progress = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const [reduceMotion, setReduceMotion] = useState(true);
@@ -65,10 +75,15 @@ export default function TabContentTransition({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
+        onStartShouldSetPanResponderCapture: (event) => {
+          // The child can opt out after this capture phase and before a drag is recognized.
+          if (event.nativeEvent.touches.length === 1) excludeTabSwipe.current = false;
+          return false;
+        },
         onMoveShouldSetPanResponderCapture: (_, gesture) => {
           const horizontalDistance = Math.abs(gesture.dx);
           const verticalDistance = Math.abs(gesture.dy);
-          return routeName !== "News" && focused && horizontalDistance > 18 && horizontalDistance > verticalDistance * 1.35;
+          return !excludeTabSwipe.current && routeName !== "News" && focused && horizontalDistance > 18 && horizontalDistance > verticalDistance * 1.35;
         },
         onPanResponderGrant: () => {
           translateX.stopAnimation();
@@ -118,7 +133,9 @@ export default function TabContentTransition({
       onLayout={() => setHasLayout(true)}
       style={[styles.screen, { backgroundColor: tokens.colors.bg }]}
     >
-      <Animated.View style={[styles.screen, { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }), transform: [{ translateX }] }]}>{children}</Animated.View>
+      <Animated.View style={[styles.screen, { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }), transform: [{ translateX }] }]}>
+        <TabSwipeExclusionContext.Provider value={excludeTabSwipe}>{children}</TabSwipeExclusionContext.Provider>
+      </Animated.View>
     </View>
   );
 }

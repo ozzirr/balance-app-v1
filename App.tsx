@@ -2,13 +2,12 @@
 // Copyright (c) 2026 Balance contributors
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Platform, StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MD3DarkTheme, MD3LightTheme, Provider as PaperProvider } from "react-native-paper";
 import { enableScreens } from "react-native-screens";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import GlassBlur from "@/ui/components/GlassBlur";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import AnimatedSplashOverlay from "@/ui/splash/AnimatedSplashOverlay";
@@ -25,7 +24,7 @@ import TabContentTransition, { TabTransitionProvider } from "@/ui/components/Tab
 import AppBackground from "@/ui/components/AppBackground";
 import AppBootScreen from "@/ui/components/AppBootScreen";
 import { DashboardThemeProvider } from "@/ui/dashboard/theme";
-import HeaderAction from "@/components/header/HeaderAction";
+import AppHeader from "@/ui/components/AppHeader";
 import OnboardingNavigator from "@/onboarding/OnboardingNavigator";
 import { OnboardingFlowProvider } from "@/onboarding/flowContext";
 import { getOnboardingCompleted, setOnboardingCompleted } from "@/onboarding/onboardingStorage";
@@ -205,10 +204,6 @@ export default function App(): React.JSX.Element | null {
           },
         };
   const navTheme = themeMode === "dark" ? DarkTheme : DefaultTheme;
-  const headerBlurTint = themeMode === "dark" ? "dark" : "light";
-  const headerOverlay =
-    themeMode === "dark" ? "rgba(15, 18, 30, 0.55)" : "rgba(169, 124, 255, 0.32)";
-  const headerBorder = themeMode === "dark" ? navTheme.colors.border : "rgba(169, 124, 255, 0.5)";
   const isFirstOnboarding = onboardingCompleted !== true && !manualOnboarding;
   const shouldSeedOnComplete = isFirstOnboarding || seedOnCompleteRequested;
 
@@ -249,62 +244,19 @@ export default function App(): React.JSX.Element | null {
                                       key={`main-tabs-${postOnboardingInitialTab}`}
                                       initialRouteName={postOnboardingInitialTab}
                                       screenOptions={({ route, navigation }) => ({
-                                        headerTitle: ({ tintColor }) => (
-                                          <View accessible accessibilityRole="header" accessibilityLabel="Balance" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                            <Image accessible={false} source={require("./assets/icon.png")} style={{ width: 32, height: 32, borderRadius: 8 }} />
-                                            <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={{ color: tintColor ?? navTheme.colors.text, fontSize: 22, fontWeight: "700", letterSpacing: -0.6 }}>Balance</Text>
-                                          </View>
-                                        ),
-                                        headerTitleAlign: "center",
-                                        headerTransparent: true,
-                                        headerBackground: () =>
-                                          Platform.OS === "android" ? (
-                                            <View
-                                              style={[
-                                                StyleSheet.absoluteFill,
-                                                {
-                                                  borderBottomWidth: StyleSheet.hairlineWidth,
-                                                  borderBottomColor: headerBorder,
-                                                  backgroundColor: paperTheme.dark ? "#141923" : "#FFFFFF",
-                                                },
-                                              ]}
-                                            />
-                                          ) : (
-                                            <GlassBlur
-                                              intensity={35}
-                                              tint={headerBlurTint}
-                                              fallbackColor="transparent"
-                                              style={[
-                                                StyleSheet.absoluteFill,
-                                                {
-                                                  borderBottomWidth: StyleSheet.hairlineWidth,
-                                                  borderBottomColor: headerBorder,
-                                                  backgroundColor: headerOverlay,
-                                                },
-                                              ]}
-                                            />
-                                          ),
-                                        headerLeftContainerStyle: { paddingLeft: 12 },
-                                        headerRightContainerStyle: { paddingRight: 12 },
-                                        headerLeft: () => (
-                                          <HeaderAction
-                                            icon={route.name === "Impostazioni" ? "close" : "account-outline"}
-                                            labelKey={route.name === "Impostazioni" ? "navigation.closeSettings" : "settings.title"}
-                                            onPress={() => navigation.navigate(route.name === "Impostazioni" ? "Dashboard" : "Impostazioni")}
-                                          />
-                                        ),
-                                        headerRight: () => (
-                                          <HeaderAction
-                                            icon={route.name === "News" ? "close" : "newspaper-variant-outline"}
-                                            labelKey={route.name === "News" ? "navigation.closeRadar" : "news.briefing"}
-                                            onPress={() => navigation.navigate(route.name === "News" ? "Dashboard" : "News")}
+                                        header: () => (
+                                          <AppHeader
+                                            routeName={route.name}
+                                            onOpenDashboard={() => navigation.navigate("Dashboard")}
+                                            onOpenNews={() => navigation.navigate("News")}
+                                            onOpenSettings={() => navigation.navigate("Impostazioni")}
                                           />
                                         ),
                                         tabBarStyle: { display: "none" },
                                       })}
                                       tabBar={(props) => <GlassTabBar {...props} />}
                                     >
-                                      <Tab.Screen name="Dashboard" component={DashboardTab} options={{ lazy: false }} />
+                                      <Tab.Screen name="Dashboard" component={DashboardTab} options={{ lazy: false, headerShown: false }} />
                                       <Tab.Screen name="Snapshot" component={SnapshotTab} options={{ lazy: false }} />
                                       <Tab.Screen
                                         name="Balance"

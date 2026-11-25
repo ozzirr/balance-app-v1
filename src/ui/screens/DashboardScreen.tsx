@@ -15,9 +15,8 @@ import {
 import { Text } from "react-native-paper";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { listWallets } from "@/repositories/walletsRepo";
-import { getLatestSnapshot, listSnapshotLines, listSnapshots } from "@/repositories/snapshotsRepo";
+import { listSnapshotLines, listSnapshots } from "@/repositories/snapshotsRepo";
 import { listIncomeEntries } from "@/repositories/incomeEntriesRepo";
 import { listExpenseEntries } from "@/repositories/expenseEntriesRepo";
 import { listExpenseCategories } from "@/repositories/expenseCategoriesRepo";
@@ -29,10 +28,9 @@ import type { DashboardData, KpiDeltaRange } from "@/ui/dashboard/types";
 import { buildDashboardData, buildKpiDeltaForRange, createMockDashboardData } from "@/ui/dashboard/adapter";
 import { formatEUR, formatPct, formatShortDate } from "@/ui/dashboard/formatters";
 import PortfolioSummaryCard from "@/ui/dashboard/components/PortfolioSummaryCard";
+import PortfolioCompositionCard from "@/ui/dashboard/components/PortfolioCompositionCard";
 import BalanceReport from "@/ui/dashboard/components/BalanceReport";
 import MonthlyPulse from "@/ui/dashboard/components/MonthlyPulse";
-import KPIStrip from "@/ui/dashboard/components/KPIStrip";
-import RangeSelector from "@/ui/dashboard/components/RangeSelector";
 import PortfolioLineChartCard from "@/ui/dashboard/components/PortfolioLineChartCard";
 import DonutDistributionCard from "@/ui/dashboard/components/DonutDistributionCard";
 import CashflowOverviewCard from "@/ui/dashboard/components/CashflowOverviewCard";
@@ -42,6 +40,7 @@ import PressScale from "@/ui/dashboard/components/PressScale";
 import Skeleton from "@/ui/dashboard/components/Skeleton";
 import PremiumCard from "@/ui/dashboard/components/PremiumCard";
 import AppBackground from "@/ui/components/AppBackground";
+import AppHeader from "@/ui/components/AppHeader";
 import LimitReachedModal from "@/ui/components/LimitReachedModal";
 import { GlassCardContainer } from "@/ui/components/EntriesUI";
 import CoachTipCard from "@/ui/components/CoachTipCard";
@@ -142,7 +141,6 @@ export default function DashboardScreen(): JSX.Element {
   const navigation = useNavigation<Nav>();
   const { tokens } = useDashboardTheme();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const dashboardScrollRef = useRef<ScrollView>(null);
   const sectionPositions = useRef<Partial<Record<SectionId, number>>>({});
@@ -166,6 +164,8 @@ export default function DashboardScreen(): JSX.Element {
   const [setupDismissed, setSetupDismissed] = useState(true);
   const [kpiDeltaRange, setKpiDeltaRange] = useState<KpiDeltaRange>("28D");
   const [availableRanges, setAvailableRanges] = useState<KpiDeltaRange[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(() => todayIso().slice(0, 7));
+  const [monthSelectorVisible, setMonthSelectorVisible] = useState(false);
   const [dashboardCounts, setDashboardCounts] = useState({
     snapshots: 0,
     incomeEntries: 0,
@@ -184,8 +184,23 @@ export default function DashboardScreen(): JSX.Element {
     sectionId: SectionId | null;
     message: string;
   }>({ visible: false, sectionId: null, message: "" });
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showInvestments, trackPension, scrollBounceEnabled, showGreeting } = useSettings();
+  const currentMonthLabel = useMemo(() => {
+    const [year, month] = selectedMonth.split("-").map(Number);
+    const date = year && month ? new Date(year, month - 1, 1) : new Date();
+    const formatted = date.toLocaleDateString(i18n.language, { month: "long", year: "numeric" });
+    return formatted.charAt(0).toLocaleUpperCase(i18n.language) + formatted.slice(1);
+  }, [i18n.language, selectedMonth]);
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 12 }, (_, index) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const label = date.toLocaleDateString(i18n.language, { month: "long", year: "numeric" });
+      return { value, label: label.charAt(0).toLocaleUpperCase(i18n.language) + label.slice(1) };
+    });
+  }, [i18n.language]);
   const kpiRangeOptions = useMemo(() => {
     const labels: Record<KpiDeltaRange, string> = {
       "7D": t("dashboard.range.options.lastWeek"),
@@ -197,6 +212,12 @@ export default function DashboardScreen(): JSX.Element {
     };
     return availableRanges.map((value) => ({ value, label: labels[value] }));
   }, [availableRanges, t]);
+  const dashboardGreeting = useMemo(() => {
+    const key = new Date().getHours() < 18 ? "dashboard.greetingMorning" : "dashboard.greetingEvening";
+    return profileName
+      ? t(key, { name: profileName, defaultValue: `Buongiorno, ${profileName}` })
+      : t("dashboard.greeting", { defaultValue: "Buongiorno" });
+  }, [profileName, t]);
 
   const normalizeSectionOrder = useCallback((value?: unknown): SectionId[] => {
     const base = Array.isArray(value)
@@ -232,14 +253,6 @@ export default function DashboardScreen(): JSX.Element {
         getPreference("dashboard.setup.dismissed"),
       ]);
 
-      const latestSnapshot = await getLatestSnapshot();
-      setReportSnapshotDate(latestSnapshot?.date ?? "");
-      let latestLines: SnapshotLineDetail[] = [];
-      if (latestSnapshot) {
-        latestLines = (await listSnapshotLines(latestSnapshot.id))
-          .filter((line) => visibleWalletIds.has(line.wallet_id));
-      }
-
       const snapshotLines: Record<number, SnapshotLineDetail[]> = {};
       await Promise.all(
         snapshots.map(async (snapshot) => {
@@ -247,6 +260,13 @@ export default function DashboardScreen(): JSX.Element {
             .filter((line) => visibleWalletIds.has(line.wallet_id));
         })
       );
+
+      const monthEnd = `${selectedMonth}-31`;
+      const eligibleSnapshots = snapshots.filter((snapshot) => snapshot.date <= monthEnd);
+      const selectedSnapshot = eligibleSnapshots[0] ?? null;
+      const latestSnapshot = snapshots[0] ?? null;
+      const latestLines: SnapshotLineDetail[] = selectedSnapshot ? snapshotLines[selectedSnapshot.id] ?? [] : [];
+      setReportSnapshotDate(selectedSnapshot?.date ?? "");
 
       const chartPointsRaw = pref ? Number(pref.value) : 6;
       const chartPoints = Number.isFinite(chartPointsRaw) ? Math.min(12, Math.max(3, chartPointsRaw)) : 6;
@@ -258,13 +278,14 @@ export default function DashboardScreen(): JSX.Element {
       const data = buildDashboardData(
         {
           latestLines,
-          snapshots,
+          snapshots: eligibleSnapshots,
           snapshotLines,
           incomeEntries,
           expenseEntries,
           expenseCategories,
           chartPoints,
           wallets,
+          referenceMonth: selectedMonth,
         },
         showInvestments,
         kpiDeltaRange
@@ -272,7 +293,7 @@ export default function DashboardScreen(): JSX.Element {
       setDashboard(data);
       const rangeCandidates: KpiDeltaRange[] = ["7D", "28D", "1M", "3M", "6M", "12M"];
       const rangesWithData = rangeCandidates.filter((range) => {
-        const result = buildKpiDeltaForRange(range, snapshots, data.portfolioSeries, snapshotLines);
+        const result = buildKpiDeltaForRange(range, eligibleSnapshots, data.portfolioSeries, snapshotLines);
         return result.status === "OK";
       });
       setAvailableRanges(rangesWithData);
@@ -308,7 +329,7 @@ export default function DashboardScreen(): JSX.Element {
       setDashboard(createMockDashboardData(showInvestments));
       setAvailableRanges([]);
     }
-  }, [kpiDeltaRange, navigation, prompted, showInvestments, trackPension]);
+  }, [kpiDeltaRange, navigation, prompted, selectedMonth, showInvestments, trackPension]);
 
   useEffect(() => {
     let canceled = false;
@@ -632,7 +653,7 @@ export default function DashboardScreen(): JSX.Element {
           contentContainerStyle={[
             styles.container,
             {
-              paddingTop: headerHeight + 12,
+              paddingTop: insets.top + 14,
               paddingBottom: 160 + insets.bottom,
             },
           ]}
@@ -659,11 +680,28 @@ export default function DashboardScreen(): JSX.Element {
           {dashboard ? (
             <>
               <View style={styles.greetingBlock}>
-                {showGreeting ? (
-                  <Text style={[styles.greetingText, { color: tokens.colors.text }]}>
-                    {profileName ? t("dashboard.greetingWithName", { name: profileName }) : t("dashboard.greeting")}
-                  </Text>
-                ) : null}
+                <View style={styles.dashboardHeader}>
+                  <AppHeader
+                    embedded
+                    routeName="Dashboard"
+                    onOpenDashboard={() => undefined}
+                    onOpenNews={() => navigation.navigate("News")}
+                    onOpenSettings={() => navigation.navigate("Impostazioni")}
+                  />
+                  {showGreeting ? (
+                    <Text style={[styles.dashboardWelcome, { color: tokens.colors.muted }]}>{dashboardGreeting}</Text>
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("dashboard.monthSelector.open", { defaultValue: "Cambia mese" })}
+                    accessibilityState={{ expanded: monthSelectorVisible }}
+                    onPress={() => setMonthSelectorVisible(true)}
+                    style={({ pressed }) => [styles.monthRow, pressed ? styles.monthRowPressed : null]}
+                  >
+                    <Text style={[styles.dashboardMonth, { color: tokens.colors.text }]}>{currentMonthLabel}</Text>
+                    <MaterialCommunityIcons name="chevron-down" size={24} color={tokens.colors.accent} />
+                  </Pressable>
+                </View>
                 {showSetup ? <View style={[styles.setupCard, { borderColor: tokens.colors.glassBorder, backgroundColor: tokens.colors.glassBg }]}>
                   <View style={styles.setupHeader}><View style={styles.setupHeaderText}><Text style={[styles.setupEyebrow, { color: tokens.colors.accent }]}>{t("dashboard.setup.eyebrow")}</Text><Text style={[styles.setupTitle, { color: tokens.colors.text }]}>{t("dashboard.setup.title")}</Text><Text style={[styles.setupSubtitle, { color: tokens.colors.muted }]}>{t("dashboard.setup.progress", { count: completedSetupSteps, total: setupSteps.length })}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={t("dashboard.setup.dismiss")} onPress={() => { setSetupDismissed(true); void setPreference("dashboard.setup.dismissed", "true").catch(() => {}); }} hitSlop={10}><MaterialCommunityIcons name="close" size={22} color={tokens.colors.muted} /></Pressable></View>
                   <View style={[styles.setupTrack, { backgroundColor: tokens.colors.surface2 }]}><View style={{ width: `${(completedSetupSteps / setupSteps.length) * 100}%`, height: "100%", backgroundColor: tokens.colors.accent, borderRadius: 9 }} /></View>
@@ -674,20 +712,25 @@ export default function DashboardScreen(): JSX.Element {
                 </View> : null}
                 {!isFirstRunDashboard ? (
                   <View style={styles.summaryBlock}>
-                    {kpiRangeOptions.length > 0 && (
-                      <RangeSelector selectedRange={kpiDeltaRange} onChangeRange={setKpiDeltaRange} options={kpiRangeOptions} />
-                    )}
                     <PortfolioSummaryCard
                       items={dashboard.kpis}
-                      availability={dashboard.availability}
-                      onOpenDistribution={() => setChartChooserVisible(true)}
+                      series={dashboard.portfolioSeries}
+                      selectedRange={kpiDeltaRange}
+                      rangeOptions={kpiRangeOptions}
+                      onChangeRange={setKpiDeltaRange}
                     />
-                    <KPIStrip items={dashboard.kpis.filter((item) => item.id !== "netWorth")} />
+                    <PortfolioCompositionCard
+                      items={dashboard.kpis.filter((item) => item.id !== "netWorth")}
+                      onPress={() => {
+                        setSectionStates((prev) => ({ ...prev, distribuzione: true }));
+                        requestAnimationFrame(() => dashboardScrollRef.current?.scrollTo({ y: Math.max(0, (sectionPositions.current.distribuzione ?? 0) - insets.top - 12), animated: true }));
+                      }}
+                    />
                     {dashboard.cashflow.months.length > 0 ? <MonthlyPulse month={dashboard.cashflow.months[dashboard.cashflow.months.length - 1]} onOpenCashflow={(entryType) => navigation.navigate("Balance", { formMode: "create", entryId: undefined, ...(entryType ? { entryType, navigationKey: Date.now() } : {}) })} /> : null}
                     {(dashboard.categories.length > 0 || dashboard.recurrences.length > 0) ? (
                       <View style={[styles.insightsCard, { backgroundColor: tokens.colors.glassBg, borderColor: tokens.colors.glassBorder }]}>
                         <View style={styles.insightsHeader}><Text style={[styles.insightsTitle, { color: tokens.colors.text }]}>{t("dashboard.insights.title", { defaultValue: "In evidenza" })}</Text><MaterialCommunityIcons name="auto-fix" size={19} color={tokens.colors.accent} /></View>
-                        {dashboard.categories[0] ? <Pressable accessibilityRole="button" style={styles.insightRow} onPress={() => navigation.navigate("Balance", { entryType: "expense", formMode: "create", entryId: undefined, tutorialRequest: undefined, navigationKey: Date.now(), categoryFilterRequest: { categoryId: dashboard.categories[0].categoryId, month: todayIso().slice(0, 7), key: Date.now() } })}>
+                        {dashboard.categories[0] ? <Pressable accessibilityRole="button" style={styles.insightRow} onPress={() => navigation.navigate("Balance", { entryType: "expense", formMode: "create", entryId: undefined, tutorialRequest: undefined, navigationKey: Date.now(), categoryFilterRequest: { categoryId: dashboard.categories[0].categoryId, month: selectedMonth, key: Date.now() } })}>
                           <View style={[styles.insightIcon, { backgroundColor: `${dashboard.categories[0].color}25` }]}><MaterialCommunityIcons name="chart-pie" size={19} color={dashboard.categories[0].color} /></View>
                           <View style={styles.insightText}><Text style={[styles.insightLabel, { color: tokens.colors.muted }]}>{t("dashboard.insights.topCategory", { defaultValue: "Categoria principale del mese" })}</Text><Text numberOfLines={1} style={[styles.insightValue, { color: tokens.colors.text }]}>{dashboard.categories[0].label} · {formatPct(dashboard.categories[0].pct)}</Text></View>
                           <Text style={[styles.insightAmount, { color: tokens.colors.text }]}>{formatEUR(dashboard.categories[0].value)}</Text><MaterialCommunityIcons name="chevron-right" size={20} color={tokens.colors.muted} />
@@ -881,6 +924,28 @@ export default function DashboardScreen(): JSX.Element {
           ) : null}
         </ScrollView>
         <BottomSheet
+          visible={monthSelectorVisible}
+          title={t("dashboard.monthSelector.title", { defaultValue: "Scegli il mese" })}
+          subtitle={t("dashboard.monthSelector.subtitle", { defaultValue: "Aggiorna patrimonio, cashflow e insight della dashboard." })}
+          onClose={() => setMonthSelectorVisible(false)}
+        >
+          {monthOptions.map((option) => (
+            <Pressable
+              key={option.value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: option.value === selectedMonth }}
+              onPress={() => {
+                setMonthSelectorVisible(false);
+                setSelectedMonth(option.value);
+              }}
+              style={styles.monthOption}
+            >
+              <Text style={[styles.monthOptionText, { color: tokens.colors.text }]}>{option.label}</Text>
+              {option.value === selectedMonth ? <MaterialCommunityIcons name="check" size={21} color={tokens.colors.accent} /> : null}
+            </Pressable>
+          ))}
+        </BottomSheet>
+        <BottomSheet
           visible={reorderVisible && canReorderSections}
           title={t("dashboard.reorder.title", { defaultValue: "Modifica ordine" })}
           subtitle={t("dashboard.reorder.hintControls", { defaultValue: "Trascina la maniglia oppure usa le frecce per cambiare ordine." })}
@@ -927,7 +992,7 @@ export default function DashboardScreen(): JSX.Element {
             <Pressable key={id} accessibilityRole="button" style={[styles.chartChoice, { backgroundColor: tokens.colors.glassBg, borderColor: tokens.colors.glassBorder }]} onPress={() => {
               setChartChooserVisible(false);
               setSectionStates((prev) => ({ ...prev, [id]: true }));
-              requestAnimationFrame(() => dashboardScrollRef.current?.scrollTo({ y: Math.max(0, (sectionPositions.current[id] ?? 0) - headerHeight - 12), animated: true }));
+              requestAnimationFrame(() => dashboardScrollRef.current?.scrollTo({ y: Math.max(0, (sectionPositions.current[id] ?? 0) - insets.top - 12), animated: true }));
             }}>
               <MaterialCommunityIcons name={id === "andamento" ? "chart-line" : id === "distribuzione" ? "chart-donut" : id === "cashflow" ? "chart-bar" : "chart-pie"} size={22} color={tokens.colors.accent} />
               <Text style={[styles.chartChoiceLabel, { color: tokens.colors.text }]}>{sectionLabels[id]}</Text>
@@ -968,6 +1033,13 @@ const styles = StyleSheet.create({
   greetingBlock: {
     gap: 10,
   },
+  dashboardHeader: { gap: 12, paddingHorizontal: 2, paddingBottom: 6 },
+  dashboardWelcome: { fontSize: 16, fontWeight: "500", marginTop: 4 },
+  monthRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  monthRowPressed: { opacity: 0.65 },
+  dashboardMonth: { fontSize: 25, fontWeight: "800", letterSpacing: -0.5, textTransform: "capitalize" },
+  monthOption: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8 },
+  monthOptionText: { fontSize: 15, fontWeight: "600" },
   summaryBlock: {
     gap: 12,
   },

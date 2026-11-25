@@ -3,12 +3,12 @@ import { AccessibilityInfo, ActivityIndicator, Alert, Keyboard, KeyboardAvoiding
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
 import { Text } from "react-native-paper";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_NEWS_TOPICS, NEWS_TOPICS } from "@/features/news/catalog";
 import { getNewsInterests, getSavedNews, FREE_RADAR, RADAR_WEEK_MS, RadarLimitError, remainingChanges, setNewsInterests, setSavedNews } from "@/features/news/newsPreferences";
+import { shouldShowRadarLaunch } from "@/features/news/radarLaunch";
 import { useBalancePro } from "@/features/pro/BalanceProProvider";
 import { getInstrument, INSTRUMENT_CATALOG, INSTRUMENT_GROUPS, marketLabel, searchInstruments, type InstrumentGroup, type NewsInstrument } from "@/features/news/instrumentCatalog";
 import { instrumentBrandPaths } from "@/features/news/instrumentBrandPaths";
@@ -47,7 +47,6 @@ export default function NewsScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const navigation = useNavigation();
   const [entryPhase, setEntryPhase] = useState<"checking" | "setup" | "launch" | "feed">("checking");
   const finishIntro = useCallback(() => setEntryPhase("feed"), []);
@@ -221,7 +220,9 @@ export default function NewsScreen(): JSX.Element {
       }
       setTopics(preferredTopics);
       setInstruments(preferences?.instruments ?? []);
-      setEntryPhase("launch");
+      const showLaunch = await shouldShowRadarLaunch(() => active);
+      if (!active) return;
+      setEntryPhase(showLaunch ? "launch" : "feed");
       await refresh(preferredTopics);
     }
 
@@ -379,13 +380,17 @@ export default function NewsScreen(): JSX.Element {
       setHistory(saved.history);
       if (!navigation.isFocused()) return;
       Keyboard.dismiss();
-      setTopics(draftTopics);
-      setInstruments(draftInstruments);
-      if (activeInstrument && !draftInstruments.includes(activeInstrument)) setActiveInstrument(undefined);
-      if (activeTopic !== "all" && !draftTopics.includes(activeTopic)) setActiveTopic("all");
+      setTopics(saved.topics);
+      setInstruments(saved.instruments);
+      if (activeInstrument && !saved.instruments.includes(activeInstrument)) setActiveInstrument(undefined);
+      if (activeTopic !== "all" && !saved.topics.includes(activeTopic)) setActiveTopic("all");
       setConfigVisible(false);
-      if (firstSetup) setEntryPhase("launch");
-      void refresh(draftTopics);
+      if (firstSetup) {
+        const showLaunch = await shouldShowRadarLaunch(() => navigation.isFocused());
+        if (!navigation.isFocused()) return;
+        setEntryPhase(showLaunch ? "launch" : "feed");
+      }
+      void refresh(saved.topics);
     } catch (error) {
       Alert.alert(t(error instanceof RadarLimitError ? "news.quota.locked" : "news.instruments.saveError"));
     } finally {
@@ -462,8 +467,9 @@ export default function NewsScreen(): JSX.Element {
   function quotaNote(section: "topics" | "instruments") {
     if (isPro) return null;
     const left = remaining[section];
-    const message = left === 0
-      ? t("news.quota.resumes", { date: new Date(history[section].find((time) => time + RADAR_WEEK_MS > Date.now())! + RADAR_WEEK_MS).toLocaleString(i18n.language) })
+    const earliest = history[section].find((time) => time + RADAR_WEEK_MS > Date.now());
+    const message = left === 0 && earliest !== undefined
+      ? t("news.quota.resumes", { date: new Date(earliest + RADAR_WEEK_MS).toLocaleString(i18n.language) })
       : t(section === "topics" ? "news.quota.topics" : "news.quota.stocks", { left });
     return <Text style={{ color: tokens.colors.muted }}>{message}</Text>;
   }
@@ -590,7 +596,7 @@ export default function NewsScreen(): JSX.Element {
 
   if (entryPhase === "checking") {
     return (
-      <View style={[styles.setupCheck, { marginTop: headerHeight }]}>
+      <View style={styles.setupCheck}>
         <ActivityIndicator color={tokens.colors.accent} accessibilityLabel={t("news.loadingMore")} />
       </View>
     );
@@ -598,7 +604,7 @@ export default function NewsScreen(): JSX.Element {
 
   if (firstSetup) {
     return (
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.setupRoot, { marginTop: headerHeight }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.setupRoot}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.setupContent}>
           <View style={styles.setupHero}>
             <View style={[styles.setupIcon, { backgroundColor: `${tokens.colors.accent}20` }]}>
@@ -644,7 +650,6 @@ export default function NewsScreen(): JSX.Element {
         importantForAccessibility={showingIntro ? "no-hide-descendants" : "auto"}
         onScroll={(event) => handleFeedScroll(event.nativeEvent.contentOffset.y)}
         scrollEventThrottle={16}
-        style={{ marginTop: headerHeight }}
         stickyHeaderIndices={showSaved ? undefined : [1]}
         contentContainerStyle={[
           styles.content,
@@ -681,114 +686,113 @@ export default function NewsScreen(): JSX.Element {
           />
         </View>
 
-        {!showSaved ? <View style={{ backgroundColor: tokens.colors.bg }}>
-          <View style={styles.filterBar}>
-          <Pressable
-            onPress={() => chooseTopic("all")}
-            accessibilityRole="button"
-            accessibilityState={{ selected: allSelected }}
-            style={[
-              styles.chip,
-              {
-                borderColor: allSelected ? tokens.colors.accent : tokens.colors.glassBorder,
-                backgroundColor: allSelected ? `${tokens.colors.accent}22` : tokens.colors.surface,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons name="view-grid-outline" size={15} color={allSelected ? tokens.colors.accent : tokens.colors.muted} />
-            <Text style={[styles.chipText, { color: allSelected ? tokens.colors.accent : tokens.colors.text }]}>
-              {t("news.filters.all", { defaultValue: "Tutte" })}
-            </Text>
-            <View style={[styles.chipCount, { backgroundColor: allSelected ? `${tokens.colors.accent}28` : `${tokens.colors.muted}14` }]}>
-              <Text style={[styles.chipCountText, { color: allSelected ? tokens.colors.accent : tokens.colors.muted }]}>{items.length}</Text>
-            </View>
-          </Pressable>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.topicScroll} contentContainerStyle={styles.chips}>
-          {visibleTopicIds.map((topic) => (
-            <Pressable
-              key={topic.id}
-              onPress={() => chooseTopic(topic.id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: activeTopic === topic.id }}
-              style={[
-                styles.chip,
-                {
-                  borderColor: activeTopic === topic.id ? tokens.colors.accent : tokens.colors.glassBorder,
-                  backgroundColor: activeTopic === topic.id ? `${tokens.colors.accent}22` : tokens.colors.surface,
-                },
-              ]}
-            >
-              <MaterialCommunityIcons name={topic.icon} size={15} color={activeTopic === topic.id ? tokens.colors.accent : tokens.colors.muted} />
-              <Text style={[styles.chipText, { color: activeTopic === topic.id ? tokens.colors.accent : tokens.colors.text }]}>{topicLabel(topic.id)}</Text>
-              <View style={[styles.chipCount, { backgroundColor: activeTopic === topic.id ? `${tokens.colors.accent}28` : `${tokens.colors.muted}14` }]}>
-                <Text style={[styles.chipCountText, { color: activeTopic === topic.id ? tokens.colors.accent : tokens.colors.muted }]}>{topicCounts[topic.id]}</Text>
-              </View>
-            </Pressable>
-          ))}
-          </ScrollView>
-          {filterChanging ? (
-            <View pointerEvents="none" style={[styles.filterFeedback, { backgroundColor: tokens.colors.surface }]}>
-              <ActivityIndicator
-                accessibilityLabel={t("news.filters.updating")}
-                accessibilityRole="progressbar"
-                size="small"
-                color={tokens.colors.accent}
-              />
-            </View>
-          ) : null}
-          </View>
-        </View> : null}
-
         {!showSaved ? (
-          <View style={styles.watchlist}>
-            <View style={styles.watchlistHeader}>
-              <Text accessibilityRole="header" style={[styles.watchlistTitle, { color: tokens.colors.text }]}>
-                {t("news.instruments.following")}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("news.config.action")}
-                onPress={() => {
-                  setDraftTopics(topics);
-                  setDraftInstruments(instruments);
-                  setInstrumentQuery("");
-                  setInstrumentGroup("all");
-                  setSearchLimit(CATALOG_PAGE_SIZE);
-                  setConfigVisible(true);
-                }}
-                style={styles.watchlistButton}
-              >
-                <Text style={[styles.chipText, { color: tokens.colors.accent }]}>{t("news.instruments.manage")}</Text>
-                <MaterialCommunityIcons name={instruments.length ? "chevron-right" : "plus"} size={16} color={tokens.colors.accent} />
-              </Pressable>
-            </View>
-            {instruments.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.watchlistRail}>
-                {instruments.map((id) => {
-                  const entry = getInstrument(id);
-                  if (!entry) return null;
-                  const selected = id === activeInstrument;
-                  return (
-                    <Pressable
-                      key={id}
-                      accessibilityRole="button"
-                      accessibilityLabel={t("news.instruments.filter", { instrument: entry.name })}
-                      accessibilityState={{ selected }}
-                      onPress={() => selectInstrument(id)}
-                      style={[styles.watchlistItem, {
-                        backgroundColor: selected ? `${tokens.colors.accent}22` : tokens.colors.surface,
-                        borderColor: selected ? tokens.colors.accent : tokens.colors.glassBorder,
-                      }]}
-                    >
-                      <View style={[styles.watchlistMark, { backgroundColor: entry.color ?? `${tokens.colors.accent}22` }]}>
-                        <Text style={[styles.brandText, { color: entry.color ? "#FFF" : tokens.colors.accent }]}>{entry.ticker}</Text>
-                      </View>
-                      <Text numberOfLines={1} style={[styles.chipText, styles.instrumentChip, { color: tokens.colors.text }]}>{entry.name}</Text>
-                    </Pressable>
-                  );
-                })}
+          <View style={[styles.pinnedFilters, { backgroundColor: tokens.colors.bg }]}>
+            <View style={styles.filterBar}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                <Pressable
+                  onPress={() => chooseTopic("all")}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: allSelected }}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: allSelected ? tokens.colors.accent : tokens.colors.glassBorder,
+                      backgroundColor: allSelected ? `${tokens.colors.accent}22` : tokens.colors.surface,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="view-grid-outline" size={15} color={allSelected ? tokens.colors.accent : tokens.colors.muted} />
+                  <Text style={[styles.chipText, { color: allSelected ? tokens.colors.accent : tokens.colors.text }]}>
+                    {t("news.filters.all", { defaultValue: "Tutte" })}
+                  </Text>
+                  <View style={[styles.chipCount, { backgroundColor: allSelected ? `${tokens.colors.accent}28` : `${tokens.colors.muted}14` }]}>
+                    <Text style={[styles.chipCountText, { color: allSelected ? tokens.colors.accent : tokens.colors.muted }]}>{items.length}</Text>
+                  </View>
+                </Pressable>
+                {visibleTopicIds.map((topic) => (
+                  <Pressable
+                    key={topic.id}
+                    onPress={() => chooseTopic(topic.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: activeTopic === topic.id }}
+                    style={[
+                      styles.chip,
+                      {
+                        borderColor: activeTopic === topic.id ? tokens.colors.accent : tokens.colors.glassBorder,
+                        backgroundColor: activeTopic === topic.id ? `${tokens.colors.accent}22` : tokens.colors.surface,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name={topic.icon} size={15} color={activeTopic === topic.id ? tokens.colors.accent : tokens.colors.muted} />
+                    <Text style={[styles.chipText, { color: activeTopic === topic.id ? tokens.colors.accent : tokens.colors.text }]}>{topicLabel(topic.id)}</Text>
+                    <View style={[styles.chipCount, { backgroundColor: activeTopic === topic.id ? `${tokens.colors.accent}28` : `${tokens.colors.muted}14` }]}>
+                      <Text style={[styles.chipCountText, { color: activeTopic === topic.id ? tokens.colors.accent : tokens.colors.muted }]}>{topicCounts[topic.id]}</Text>
+                    </View>
+                  </Pressable>
+                ))}
               </ScrollView>
-            ) : null}
+              {filterChanging ? (
+                <View pointerEvents="none" style={[styles.filterFeedback, { backgroundColor: tokens.colors.surface }]}>
+                  <ActivityIndicator
+                    accessibilityLabel={t("news.filters.updating")}
+                    accessibilityRole="progressbar"
+                    size="small"
+                    color={tokens.colors.accent}
+                  />
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.watchlist}>
+              <View style={styles.watchlistHeader}>
+                <Text accessibilityRole="header" style={[styles.watchlistTitle, { color: tokens.colors.text }]}>
+                  {t("news.instruments.following")}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("news.config.action")}
+                  onPress={() => {
+                    setDraftTopics(topics);
+                    setDraftInstruments(instruments);
+                    setInstrumentQuery("");
+                    setInstrumentGroup("all");
+                    setSearchLimit(CATALOG_PAGE_SIZE);
+                    setConfigVisible(true);
+                  }}
+                  style={styles.watchlistButton}
+                >
+                  <Text style={[styles.chipText, { color: tokens.colors.accent }]}>{t("news.instruments.manage")}</Text>
+                  <MaterialCommunityIcons name={instruments.length ? "chevron-right" : "plus"} size={16} color={tokens.colors.accent} />
+                </Pressable>
+              </View>
+              {instruments.length ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.watchlistRail}>
+                  {instruments.map((id) => {
+                    const entry = getInstrument(id);
+                    if (!entry) return null;
+                    const selected = id === activeInstrument;
+                    return (
+                      <Pressable
+                        key={id}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("news.instruments.filter", { instrument: entry.name })}
+                        accessibilityState={{ selected }}
+                        onPress={() => selectInstrument(id)}
+                        style={[styles.watchlistItem, {
+                          backgroundColor: selected ? `${tokens.colors.accent}22` : tokens.colors.surface,
+                          borderColor: selected ? tokens.colors.accent : tokens.colors.glassBorder,
+                        }]}
+                      >
+                        <View style={[styles.watchlistMark, { backgroundColor: entry.color ?? `${tokens.colors.accent}22` }]}>
+                          <Text style={[styles.brandText, { color: entry.color ? "#FFF" : tokens.colors.accent }]}>{entry.ticker}</Text>
+                        </View>
+                        <Text numberOfLines={1} style={[styles.chipText, styles.instrumentChip, { color: tokens.colors.text }]}>{entry.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              ) : null}
+            </View>
           </View>
         ) : null}
 
@@ -993,13 +997,12 @@ export default function NewsScreen(): JSX.Element {
       </ScrollView>
 
       {showingIntro ? (
-        <RadarLaunch busy={loading && !showSaved} reduceMotion={reduceMotion} headerHeight={headerHeight} onDone={finishIntro} />
+        <RadarLaunch busy={loading && !showSaved} reduceMotion={reduceMotion} headerHeight={0} onDone={finishIntro} />
       ) : null}
 
       <BottomSheet
         visible={configVisible}
         title={t("news.config.title", { defaultValue: "Cosa vuoi seguire?" })}
-        subtitle={t("news.config.subtitle", { defaultValue: "Potrai modificare gli interessi in qualsiasi momento." })}
         onClose={() => setConfigVisible(false)}
         actionLabel={t("common.save")}
         actionDisabled={savingChoices}
@@ -1018,9 +1021,9 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
   heroCopy: { flex: 1 },
   title: { fontSize: 27, lineHeight: 32, fontWeight: "800", letterSpacing: -0.6 },
-  filterBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5, marginBottom: 6 },
+  pinnedFilters: { paddingBottom: 8 },
+  filterBar: { paddingVertical: 5, marginBottom: 6 },
   filterFeedback: { position: "absolute", right: 0, top: 5, width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  topicScroll: { flex: 1 },
   chips: { gap: 8, paddingRight: 12, alignItems: "center" },
   chip: { height: 34, borderRadius: 17, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 11 },
   chipText: { fontSize: 12, fontWeight: "700" },

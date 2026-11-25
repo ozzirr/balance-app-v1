@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Text, TextInput, useTheme } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { getDisplayName, setDisplayName } from "@/onboarding/onboardingStorage";
+import OnboardingIllustration from "@/onboarding/components/OnboardingIllustration";
 import OnboardingScaffold, { ONBOARDING_CARD_MIN_HEIGHT } from "@/onboarding/components/OnboardingScaffold";
 
 type Props = {
@@ -46,13 +47,7 @@ export default function OnboardingName({ onNext, onSkip }: Props): JSX.Element {
       <GlassCardContainer contentStyle={{ minHeight: ONBOARDING_CARD_MIN_HEIGHT }}>
         <View style={styles.cardContent}>
           <View>
-            <View style={styles.heroWrap}>
-              <Image
-                source={require("../../../assets/onboarding/onboarding-2.png")}
-                style={styles.heroImage}
-                resizeMode="contain"
-              />
-            </View>
+            <OnboardingIllustration scene="profile" />
             <View style={styles.header}>
               <Text style={[styles.title, { color: tokens.colors.text }]}>{t("onboardingV2.name.title")}</Text>
               <Text style={[styles.subtitle, { color: tokens.colors.muted }]}>{t("onboardingV2.name.subtitle")}</Text>
@@ -62,6 +57,7 @@ export default function OnboardingName({ onNext, onSkip }: Props): JSX.Element {
                 mode="outlined"
                 value={name}
                 onChangeText={setName}
+                accessibilityLabel={t("onboardingV2.name.placeholder")}
                 placeholder={t("onboardingV2.name.placeholder")}
                 outlineColor={tokens.colors.glassBorder}
                 activeOutlineColor={tokens.colors.accent}
@@ -95,14 +91,6 @@ export default function OnboardingName({ onNext, onSkip }: Props): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  heroWrap: {
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  heroImage: {
-    width: 180,
-    height: 140,
-  },
   cardContent: {
     flex: 1,
     minHeight: ONBOARDING_CARD_MIN_HEIGHT,

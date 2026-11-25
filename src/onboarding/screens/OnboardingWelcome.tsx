@@ -1,22 +1,21 @@
 import React from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { GlassCardContainer, PrimaryPillButton, SmallOutlinePillButton } from "@/ui/components/EntriesUI";
+import OnboardingIllustration from "@/onboarding/components/OnboardingIllustration";
 import OnboardingScaffold, { ONBOARDING_CARD_MIN_HEIGHT } from "@/onboarding/components/OnboardingScaffold";
 
 type Props = {
   variant?: "free" | "pro";
   onNext: () => void;
-  onSkip?: () => void;
   onImport?: () => void;
 };
 
 export default function OnboardingWelcome({
   variant = "free",
   onNext,
-  onSkip,
   onImport,
 }: Props): JSX.Element {
   const { t } = useTranslation();
@@ -34,13 +33,7 @@ export default function OnboardingWelcome({
       <GlassCardContainer contentStyle={{ minHeight: ONBOARDING_CARD_MIN_HEIGHT }}>
         <View style={styles.cardContent}>
           <View>
-            <View style={styles.heroWrap}>
-              <Image
-                source={require("../../../assets/onboarding/onboarding-1.png")}
-                style={styles.heroImage}
-                resizeMode="contain"
-              />
-            </View>
+            <OnboardingIllustration scene="welcome" />
             <View style={styles.header}>
               <Text style={[styles.title, { color: tokens.colors.text }]}>
                 {isProVariant ? t("onboardingV2.proWelcome.title") : t("onboardingV2.welcome.title")}
@@ -75,12 +68,15 @@ export default function OnboardingWelcome({
               onPress={isProVariant ? onImport ?? onNext : onNext}
               color={tokens.colors.accent}
             />
-            <View style={{ height: 12 }} />
-            <SmallOutlinePillButton
-              label={isProVariant ? t("onboardingV2.proWelcome.ctaGuided") : t("onboardingV2.common.skip")}
-              onPress={isProVariant ? onNext : onSkip ?? onNext}
-              color={tokens.colors.accent}
-            />
+            {isProVariant && (
+              <View style={styles.secondaryAction}>
+                <SmallOutlinePillButton
+                  label={t("onboardingV2.proWelcome.ctaGuided")}
+                  onPress={onNext}
+                  color={tokens.colors.accent}
+                />
+              </View>
+            )}
           </View>
         </View>
       </GlassCardContainer>
@@ -89,14 +85,6 @@ export default function OnboardingWelcome({
 }
 
 const styles = StyleSheet.create({
-  heroWrap: {
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  heroImage: {
-    width: 160,
-    height: 140,
-  },
   cardContent: {
     flex: 1,
     minHeight: ONBOARDING_CARD_MIN_HEIGHT,
@@ -138,6 +126,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     flex: 1,
   },
+  secondaryAction: { marginTop: 12 },
   actions: {
     marginTop: 18,
   },

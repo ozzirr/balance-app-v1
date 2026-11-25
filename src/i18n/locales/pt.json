@@ -21,6 +21,7 @@
   },
   "onboardingV2": {
     "common": {
+      "step": "Passo {{step}} de {{total}}",
       "continue": "Continuar",
       "skip": "Saltar"
     },
@@ -49,6 +50,24 @@
       "title": "Como te chamas?",
       "subtitle": "Vamos usar o teu nome para te dar as boas-vindas ao Balance.",
       "placeholder": "O teu nome"
+    },
+    "setup": {
+      "stepPersonalize": "A personalizar o Balance",
+      "stepWallets": "A preparar as tuas primeiras carteiras",
+      "stepLiquidity": "A preparar a carteira de liquidez",
+      "stepInvestments": "A preparar a carteira de investimentos",
+      "stepWalletSection": "A preparar a secção de carteiras",
+      "stepHome": "A configurar o teu painel",
+      "stepTour": "A preparar Snapshot, Cashflow e Wallet",
+      "stepDetails": "A concluir a configuração",
+      "previewDashboard": "Consulta o teu património e a sua evolução.",
+      "previewWallet": "Organiza a liquidez, os investimentos e as contas.",
+      "previewSnapshot": "Regista saldos para comparar o património ao longo do tempo.",
+      "previewCashflow": "Planeia rendimentos, despesas e movimentos recorrentes.",
+      "error": "Não foi possível concluir a configuração.",
+      "title": "A configurar o Balance",
+      "subtitle": "Estamos a preparar o teu painel e as primeiras carteiras com base nas tuas respostas.",
+      "retry": "Tentar novamente"
     },
     "investments": {
       "title": "Tens investimentos?",
@@ -95,6 +114,59 @@
       "reset": {
         "title": "Confirmar reposição",
         "body": "Isto irá apagar todos os dados. Continuar?"
+      }
+    }
+  },
+  "tutorials": {
+    "title": "Tutoriais",
+    "entry": "Vídeos e instruções para usar o Balance",
+    "demoLanguage": "Vídeo em italiano, gravado com dados de demonstração.",
+    "groups": {
+      "overview": "Visão geral",
+      "transactions": "Movimentos e carteiras",
+      "radar": "Radar financeiro",
+      "account": "Conta e privacidade"
+    },
+    "lessons": {
+      "dashboard": {
+        "title": "Explora o painel",
+        "body": "Abre a composição do património para ver como se distribuem os saldos. Usa o seletor de gráficos para mudar de vista."
+      },
+      "snapshot": {
+        "title": "Regista um snapshot",
+        "body": "Abre Snapshot, seleciona Novo snapshot e introduz os saldos das carteiras na data escolhida. Guarda para registar o património."
+      },
+      "income": {
+        "title": "Adiciona um rendimento",
+        "body": "Em Cashflow, seleciona Rendimentos e adiciona um movimento. Indica o nome, montante e data, escolhe a recorrência, se aplicável, e guarda."
+      },
+      "expense": {
+        "title": "Adiciona uma despesa",
+        "body": "Em Cashflow, seleciona Despesas e adiciona um movimento. Indica o nome e montante, escolhe uma categoria e guarda."
+      },
+      "wallet": {
+        "title": "Cria uma carteira",
+        "body": "Abre Wallet, adiciona uma carteira e escolhe o nome, a moeda e a cor. Depois confirma."
+      },
+      "radar": {
+        "title": "Configura o radar financeiro",
+        "body": "Abre o radar pelo ícone na barra superior. Toca em Gerir para escolher ações e temas e guarda as preferências."
+      },
+      "general": {
+        "title": "Personaliza a aplicação",
+        "body": "Em Conta, as preferências gerais incluem tema, deslocamento, opções de snapshots e gráficos e visibilidade dos investimentos."
+      },
+      "notifications": {
+        "title": "Configura lembretes",
+        "body": "Em Conta, Notificações permite ativar lembretes de snapshots e selecionar a frequência."
+      },
+      "security": {
+        "title": "Protege o Balance",
+        "body": "Em Conta, Segurança permite gerir o código, a biometria e o bloqueio automático."
+      },
+      "data": {
+        "title": "Gere os teus dados",
+        "body": "Em Conta, Dados permite exportar ou importar uma cópia. A reposição elimina os dados locais e reinicia a configuração."
       }
     }
   },
@@ -151,10 +223,18 @@
       "loadTestData": "Carregar dados de teste"
     },
     "balancePro": {
-      "viewPlans": "Ver planos",
-      "billingOptions": "Escolhe a frequência de renovação do Balance Pro.",
-      "offerTitle": "Uma carteira para cada conta",
-      "offerBody": "Separa a conta do dia a dia, as poupanças e os investimentos. Consulta todos os saldos no mesmo painel.",
+      "goPro": "Muda para Balance Pro",
+      "currentPlan": "Plano atual · {{plan}}",
+      "subscription": "Escolhe a tua subscrição",
+      "recurringPrice": "{{price}} / {{period}}",
+      "billingOptions": "Escolhe o plano que preferes.",
+      "offerBody": "Organiza as tuas finanças em carteiras dedicadas e consulta todos os saldos no mesmo painel.",
+      "walletPro": "Uma carteira para cada conta, objetivo de poupança ou despesa que queiras acompanhar à parte.",
+      "radarBody": "Acompanha as empresas que te interessam e junta temas como mercados, taxas de juro e finanças pessoais às notícias sobre essas empresas.",
+      "radarFree": "Até {{instruments}} ações e {{topics}} temas",
+      "radarFreeChanges": "{{instrumentChanges}} alterações às ações e {{topicChanges}} alteração aos temas a cada 7 dias.",
+      "radarPro": "Todas as ações e temas do catálogo",
+      "radarProChanges": "Atualiza a tua seleção sempre que quiseres.",
       "walletLimit": "Até {{count}} carteiras",
       "title": "O teu plano",
       "statusFree": "Balance Free",
@@ -178,15 +258,19 @@
     "chartChooser": { "title": "Escolhe um gráfico", "subtitle": "Vai diretamente à visualização que te interessa.", "empty": "Adiciona dados para veres os gráficos." },
     "reportSettings": { "subtitle": "Escolhe o que incluir na imagem.", "wealth": "Património", "wealthDetail": "Total e distribuição por tipo de carteira", "flow": "Entradas e despesas", "flowDetail": "Resumo previsto do mês atual", "qr": "Divulga o Balance", "qrDetail": "Adiciona o QR para descarregar a aplicação", "privacy": "Partilha apenas o que desejas mostrar. Revê a imagem antes de enviar.", "preview": "Criar pré-visualização", "back": "Editar conteúdos", "requirement": "Seleciona pelo menos uma secção." },
     "reportDownloadPrompt": "Digitaliza e obtém na App Store",
-    "pulse": { "eyebrow": "O TEU MÊS", "income": "Entradas", "expense": "Despesas", "net": "Saldo previsto", "note": "Movimentos previstos no mês, incluindo recorrências.", "edit": "Editar entradas e despesas" },
+    "pulse": { "eyebrow": "ESTE MÊS", "income": "Entradas", "expense": "Despesas", "net": "Saldo previsto", "note": "Movimentos previstos no mês, incluindo recorrências.", "edit": "Editar entradas e despesas" },
     "report": { "title": "O teu relatório Balance", "subtitle": "Património e movimentos numa página.", "action": "O teu relatório", "actionSubtitle": "Partilha o património e o fluxo de caixa", "snapshot": "O TEU PATRIMÓNIO", "flowTitle": "O MÊS EM RESUMO", "planned": "previstos", "flowNote": "Movimentos previstos, incluindo recorrências.", "footer": "AS TUAS FINANÇAS, COM MAIS CLAREZA.", "share": "Partilhar imagem", "sharing": "A preparar…", "hint": "A imagem contém os teus dados financeiros.", "close": "Fechar", "error": "Não foi possível preparar o relatório. Tenta novamente." },
     "portfolioPrivate": "Os teus dados permanecem no dispositivo",
+    "portfolioTotal": "Património total",
+    "portfolioComposition": "Composição do património",
     "errorTitle": "Não foi possível carregar a dashboard",
     "emptyTitle": "Sem dados disponíveis",
     "emptyBody": "Cria pelo menos uma carteira para começar.",
     "emptyCta": "Configurar Balance",
     "greeting": "Olá",
     "greetingWithName": "Olá {{name}}",
+    "greetingMorning": "Bom dia, {{name}}",
+    "greetingEvening": "Boa noite, {{name}}",
     "firstRun": {
       "title": "A tua dashboard começa aqui",
       "bodyLine1": "1. Configura as tuas carteiras.",
@@ -273,6 +357,7 @@
       "label": "Período",
       "title": "Alterar intervalo",
       "subtitle": "Compara as variações do património com os snapshots disponíveis.",
+      "noData": "Variação indisponível",
       "options": {
         "lastWeek": "Últimos 7 dias",
         "lastMonth": "Último mês",
@@ -282,6 +367,8 @@
         "last12Months": "Últimos 12 meses"
       }
     },
+    "monthSelector": { "open": "Alterar mês", "title": "Escolher o mês", "subtitle": "Atualiza o património, o fluxo de caixa e os insights do painel." },
+    "portfolioFlip": { "details": "Mostrar o detalhe do património", "total": "Voltar ao património total" },
     "locked": {
       "title": "Faltam alguns dados",
       "subtitle": "Toca para ver o que adicionar.",
@@ -330,7 +417,7 @@
     }
   },
   "news": {
-    "quota": {"resumes": "Nova alteração disponível em {{date}}. Com Balance Pro podes alterar a seleção a qualquer momento.", "stocks": "Até 3 ações. Alterações disponíveis por período de 7 dias: {{left}} de 2.", "topics": "Até 2 temas. Alterações disponíveis por período de 7 dias: {{left}} de 1.", "locked": "Atingiste o limite do Balance Free. Aguarda a reposição ou muda para Balance Pro na Conta.", "freePlan": "Radar: 3 ações e 2 temas", "proPlan": "Todas as ações e temas do catálogo, com alterações ilimitadas"},
+    "quota": {"resumes": "Nova alteração disponível em {{date}}. Com Balance Pro podes alterar a seleção a qualquer momento.", "stocks": "Até 3 ações. Alterações disponíveis por período de 7 dias: {{left}} de 2.", "topics": "Até 2 temas. Alterações disponíveis por período de 7 dias: {{left}} de 1.", "locked": "Atingiste o limite do Balance Free. Aguarda a reposição ou muda para Balance Pro na Conta."},
     "article": {
       "previewHint": "Expande o resumo na lista",
       "collapseHint": "Recolhe o resumo",

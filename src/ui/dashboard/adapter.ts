@@ -27,9 +27,15 @@ type DashboardInput = {
   expenseCategories: ExpenseCategory[];
   chartPoints: number;
   wallets: Wallet[];
+  referenceMonth?: string;
 };
 
 const palette = ["#9B7BFF", "#5C9DFF", "#F6C177", "#66D19E", "#C084FC", "#FF8FAB", "#6EE7B7", "#94A3B8"];
+
+function monthAnchor(monthKey?: string): Date {
+  const [year, month] = monthKey?.split("-").map(Number) ?? [];
+  return year && month ? new Date(year, month - 1, 1) : new Date();
+}
 
 function toMonthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
@@ -39,7 +45,8 @@ function buildPortfolioSeries(
   snapshots: Snapshot[],
   snapshotLines: Record<number, SnapshotLineDetail[]>,
   latestLines: SnapshotLineDetail[],
-  limit: number
+  limit: number,
+  referenceMonth?: string
 ): PortfolioPoint[] {
   const snapshotByMonth = new Map<string, Snapshot>();
   snapshots.forEach((snapshot) => {
@@ -50,7 +57,7 @@ function buildPortfolioSeries(
     }
   });
 
-  const now = new Date();
+  const now = monthAnchor(referenceMonth);
   const safeLimit = Math.max(1, Math.min(12, limit));
   const monthKeys: string[] = Array.from({ length: safeLimit }, (_, index) => {
     const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
@@ -93,7 +100,8 @@ function buildWalletSeries(
   snapshots: Snapshot[],
   snapshotLines: Record<number, SnapshotLineDetail[]>,
   latestLines: SnapshotLineDetail[],
-  wallets: Wallet[]
+  wallets: Wallet[],
+  referenceMonth?: string
 ): WalletSeries[] {
   const activeWallets = wallets.filter((wallet) => wallet.active !== 0);
   if (activeWallets.length === 0 || portfolio.length === 0) return [];
@@ -107,7 +115,7 @@ function buildWalletSeries(
     }
   });
 
-  const now = new Date();
+  const now = monthAnchor(referenceMonth);
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const linesByMonth = new Map<string, SnapshotLineDetail[]>();
   const getLinesForMonth = (monthKey: string): SnapshotLineDetail[] => {
@@ -381,9 +389,10 @@ function buildDistribution(latestLines: SnapshotLineDetail[], wallets: Wallet[])
 function buildCashflow(
   income: IncomeEntry[],
   expense: ExpenseEntry[],
-  monthsToShow: number
+  monthsToShow: number,
+  referenceMonth?: string
 ): CashflowMonth[] {
-  const now = new Date();
+  const now = monthAnchor(referenceMonth);
   const months: CashflowMonth[] = [];
   const totalMonths = Math.min(12, Math.max(3, Math.floor(monthsToShow)));
   let year = now.getFullYear();
@@ -404,8 +413,8 @@ function buildCashflow(
   return months;
 }
 
-function buildCategories(expense: ExpenseEntry[], categories: ExpenseCategory[]): CategoryRow[] {
-  const now = new Date();
+function buildCategories(expense: ExpenseEntry[], categories: ExpenseCategory[], referenceMonth?: string): CategoryRow[] {
+  const now = monthAnchor(referenceMonth);
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -486,14 +495,16 @@ export function buildDashboardData(
     input.snapshots,
     input.snapshotLines,
     input.latestLines,
-    input.chartPoints
+    input.chartPoints,
+    input.referenceMonth
   );
   const walletSeries = buildWalletSeries(
     portfolio,
     input.snapshots,
     input.snapshotLines,
     input.latestLines,
-    input.wallets
+    input.wallets,
+    input.referenceMonth
   );
   const kpis = buildKpis(
     input.latestLines,
@@ -518,12 +529,13 @@ export function buildDashboardData(
     restrictionNote: line.wallet_restriction_note ?? null,
     investmentKind: line.wallet_investment_kind === "PENSION" ? "PENSION" as const : "STANDARD" as const,
   }));
-  const cashflowMonths = buildCashflow(input.incomeEntries, input.expenseEntries, input.chartPoints);
+  const cashflowMonths = buildCashflow(input.incomeEntries, input.expenseEntries, input.chartPoints, input.referenceMonth);
+  const referenceDate = monthAnchor(input.referenceMonth);
   const averages = averageMonthlyTotals(
     input.incomeEntries,
     input.expenseEntries,
-    new Date().getFullYear(),
-    new Date().getMonth() + 1,
+    referenceDate.getFullYear(),
+    referenceDate.getMonth() + 1,
     cashflowMonths.length
   );
   return {
@@ -538,7 +550,7 @@ export function buildDashboardData(
       avgSavings: averages.net,
       months: cashflowMonths,
     },
-    categories: buildCategories(input.expenseEntries, input.expenseCategories),
+    categories: buildCategories(input.expenseEntries, input.expenseCategories, input.referenceMonth),
     recurrences: buildRecurrences(input.incomeEntries, input.expenseEntries, input.expenseCategories),
   };
 }

@@ -1,5 +1,5 @@
 import { buildDashboardData, buildKpiDeltaForRange } from "@/ui/dashboard/adapter";
-import type { ExpenseEntry, Snapshot, SnapshotLineDetail } from "@/repositories/types";
+import type { ExpenseEntry, IncomeEntry, Snapshot, SnapshotLineDetail } from "@/repositories/types";
 import type { PortfolioPoint } from "@/ui/dashboard/types";
 
 const makeLine = (
@@ -34,6 +34,30 @@ describe("dashboard expense categories", () => {
     expect(data.categories.map(({ categoryId, value }) => ({ categoryId, value }))).toEqual([
       { categoryId: 11, value: 100 }, { categoryId: 22, value: 50 }, { categoryId: null, value: 25 },
     ]);
+  });
+
+  test("uses the selected dashboard month for cashflow and categories", () => {
+    const income = (id: number, date: string, amount: number): IncomeEntry => ({
+      id, name: `Income ${id}`, amount, start_date: date, end_date: null,
+      recurrence_frequency: null, recurrence_interval: null, one_shot: 1,
+      note: null, active: 1, wallet_id: null,
+    });
+    const expense = (id: number, date: string, amount: number): ExpenseEntry => ({
+      id, name: `Expense ${id}`, amount, start_date: date, end_date: null,
+      recurrence_frequency: null, recurrence_interval: null, one_shot: 1,
+      note: null, active: 1, wallet_id: null, expense_category_id: 11,
+    });
+    const data = buildDashboardData({
+      latestLines: [], snapshots: [], snapshotLines: {},
+      incomeEntries: [income(1, "2026-09-10", 1000), income(2, "2026-10-10", 2000)],
+      expenseEntries: [expense(1, "2026-09-12", 100), expense(2, "2026-10-12", 300)],
+      expenseCategories: [{ id: 11, name: "Casa", color: "#123456", active: 1 }],
+      chartPoints: 3, wallets: [], referenceMonth: "2026-09",
+    });
+
+    expect(data.cashflow.months.at(-1)).toEqual({ month: "2026-09", income: 1000, expense: 100 });
+    expect(data.categories).toHaveLength(1);
+    expect(data.categories[0].value).toBe(100);
   });
 });
 

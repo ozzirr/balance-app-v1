@@ -21,7 +21,6 @@ import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import Skeleton from "@/ui/dashboard/components/Skeleton";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useSettings } from "@/settings/useSettings";
 import AppBackground from "@/ui/components/AppBackground";
 import { createStandardTextInputProps } from "@/ui/components/standardInputProps";
@@ -38,6 +37,7 @@ import ConfirmDialog from "@/ui/components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { syncSnapshotReminderSchedule } from "@/notifications/snapshotReminder";
 import BottomSheet from "@/ui/components/BottomSheet";
+import { useExcludeTabSwipeOnTouchStart } from "@/ui/components/TabContentTransition";
 
 type DraftLine = {
   walletId: number;
@@ -144,10 +144,10 @@ const lastDayIsoFromMonthKey = (key: string): string => {
 
 export default function SnapshotScreen(): JSX.Element {
   const { tokens } = useDashboardTheme();
+  const excludeTabSwipe = useExcludeTabSwipeOnTouchStart();
   const baseInputProps = createStandardTextInputProps(tokens);
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const { showInvestments, trackPension, scrollBounceEnabled } = useSettings();
   const { t } = useTranslation();
   const route = useRoute();
@@ -671,7 +671,7 @@ export default function SnapshotScreen(): JSX.Element {
           overScrollMode={scrollBounceEnabled ? "always" : "never"}
           contentContainerStyle={[
             styles.container,
-            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
+            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: 12 },
           ]}
         >
         {/* Header title/subtitle removed per request */}
@@ -741,6 +741,7 @@ export default function SnapshotScreen(): JSX.Element {
             {visibleMonthGroups.length > 0 ? (
               <ScrollView
                 ref={monthsScrollRef}
+                onTouchStart={excludeTabSwipe}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.recentRow}

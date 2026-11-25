@@ -21,6 +21,7 @@
   },
   "onboardingV2": {
     "common": {
+      "step": "Passo {{step}} di {{total}}",
       "continue": "Continua",
       "skip": "Salta"
     },
@@ -49,6 +50,24 @@
       "title": "Come ti chiami?",
       "subtitle": "Useremo il tuo nome per darti il benvenuto in Balance.",
       "placeholder": "Il tuo nome"
+    },
+    "setup": {
+      "stepPersonalize": "Personalizziamo la tua esperienza",
+      "stepWallets": "Prepariamo i tuoi primi wallet",
+      "stepLiquidity": "Prepariamo il wallet Liquidità",
+      "stepInvestments": "Prepariamo il wallet Investimenti",
+      "stepWalletSection": "Prepariamo la sezione Wallet",
+      "stepHome": "Configuriamo la dashboard",
+      "stepTour": "Prepariamo Snapshot, Cashflow e Wallet",
+      "stepDetails": "Ultimi dettagli",
+      "previewDashboard": "Consulta il patrimonio e il suo andamento.",
+      "previewWallet": "Organizza liquidità, investimenti e conti.",
+      "previewSnapshot": "Registra i saldi per confrontare il patrimonio nel tempo.",
+      "previewCashflow": "Pianifica entrate, uscite e ricorrenze.",
+      "error": "Non siamo riusciti a completare la configurazione.",
+      "title": "Stiamo configurando Balance",
+      "subtitle": "Prepariamo la dashboard e i primi wallet in base alle tue risposte.",
+      "retry": "Riprova"
     },
     "investments": {
       "title": "Hai investimenti?",
@@ -95,6 +114,59 @@
       "reset": {
         "title": "Conferma reset",
         "body": "Questa azione cancellerà tutti i dati. Vuoi continuare?"
+      }
+    }
+  },
+  "tutorials": {
+    "title": "Tutorial",
+    "entry": "Video e istruzioni per usare Balance",
+    "demoLanguage": "Video in italiano, registrato con dati dimostrativi.",
+    "groups": {
+      "overview": "Panoramica",
+      "transactions": "Movimenti e wallet",
+      "radar": "Radar finanziario",
+      "account": "Account e privacy"
+    },
+    "lessons": {
+      "dashboard": {
+        "title": "Esplora la Dashboard",
+        "body": "Tocca Composizione patrimonio per vedere come sono distribuiti i saldi. Usa Scegli un grafico per passare a un’altra vista."
+      },
+      "snapshot": {
+        "title": "Registra uno snapshot",
+        "body": "Apri Snapshot, tocca Nuovo snapshot e inserisci i saldi dei wallet per la data selezionata. Tocca Salva per registrare la fotografia del patrimonio."
+      },
+      "income": {
+        "title": "Aggiungi un’entrata",
+        "body": "In Cashflow seleziona Entrate, poi Aggiungi voce. Inserisci nome, importo e data. Scegli la ricorrenza, se prevista, e salva."
+      },
+      "expense": {
+        "title": "Aggiungi un’uscita",
+        "body": "In Cashflow seleziona Uscite, poi Aggiungi voce. Inserisci nome e importo, scegli una categoria e salva."
+      },
+      "wallet": {
+        "title": "Crea un wallet",
+        "body": "Apri Wallet e tocca Aggiungi wallet. Dai un nome al conto, scegli valuta e colore, poi conferma."
+      },
+      "radar": {
+        "title": "Configura il Radar finanziario",
+        "body": "Apri il Radar dall’icona nell’header. Tocca Gestisci per scegliere titoli e temi, quindi salva le preferenze."
+      },
+      "general": {
+        "title": "Personalizza l’app",
+        "body": "In Account, Generali raccoglie tema, scorrimento, impostazioni per snapshot e grafici e visibilità degli investimenti."
+      },
+      "notifications": {
+        "title": "Imposta i promemoria",
+        "body": "In Account, Notifiche ti permette di attivare il promemoria per gli snapshot e di cambiarne la frequenza."
+      },
+      "security": {
+        "title": "Proteggi Balance",
+        "body": "In Account, Sicurezza gestisce il codice di accesso, l’autenticazione biometrica e il blocco automatico."
+      },
+      "data": {
+        "title": "Gestisci i tuoi dati",
+        "body": "In Account, Dati consente di esportare o importare una copia. Il reset rimuove i dati locali e riapre la configurazione iniziale."
       }
     }
   },
@@ -151,10 +223,18 @@
       "loadTestData": "Carica dati di test"
     },
     "balancePro": {
-      "viewPlans": "Vedi i piani",
-      "billingOptions": "Scegli la frequenza di rinnovo di Balance Pro.",
-      "offerTitle": "Un wallet per ogni conto",
-      "offerBody": "Separa il conto di tutti i giorni, i risparmi e gli investimenti. Ritrovi tutti i saldi nella stessa dashboard.",
+      "goPro": "Passa a Balance Pro",
+      "currentPlan": "Piano attuale · {{plan}}",
+      "subscription": "Scegli il tuo abbonamento",
+      "recurringPrice": "{{price}} / {{period}}",
+      "billingOptions": "Scegli il piano che preferisci.",
+      "offerBody": "Organizza le tue finanze in wallet dedicati e ritrova tutti i saldi nella stessa dashboard.",
+      "walletPro": "Un wallet per ogni conto, obiettivo di risparmio o spesa da tenere separata.",
+      "radarBody": "Segui le aziende che ti interessano e affianca alle loro notizie i temi che contano per te, come mercati, tassi e finanza personale.",
+      "radarFree": "Fino a {{instruments}} titoli e {{topics}} temi",
+      "radarFreeChanges": "{{instrumentChanges}} modifiche ai titoli e {{topicChanges}} modifica ai temi ogni 7 giorni.",
+      "radarPro": "Tutti i titoli e i temi del catalogo",
+      "radarProChanges": "Aggiorna la tua selezione quando vuoi.",
       "walletLimit": "Fino a {{count}} wallet",
       "title": "Il tuo piano",
       "statusFree": "Balance Free",
@@ -178,15 +258,19 @@
     "chartChooser": { "title": "Scegli un grafico", "subtitle": "Vai direttamente alla visualizzazione che ti interessa.", "empty": "Aggiungi dati per visualizzare i grafici." },
     "reportSettings": { "subtitle": "Scegli cosa includere nell’immagine.", "wealth": "Patrimonio", "wealthDetail": "Totale e suddivisione dei wallet per tipologia", "flow": "Entrate e uscite", "flowDetail": "Riepilogo pianificato del mese corrente", "qr": "Fai conoscere Balance", "qrDetail": "Aggiungi il QR per scaricare l’app", "privacy": "Condividi solo i dati che desideri mostrare. Controlla l’anteprima prima di inviarla.", "preview": "Crea anteprima", "back": "Modifica contenuti", "requirement": "Seleziona almeno una sezione." },
     "reportDownloadPrompt": "Scansiona e scarica su App Store",
-    "pulse": { "eyebrow": "IL TUO MESE", "income": "Entrate", "expense": "Uscite", "net": "Saldo pianificato", "note": "Movimenti previsti nel mese, incluse le ricorrenze.", "edit": "Modifica entrate e uscite" },
+    "pulse": { "eyebrow": "QUESTO MESE", "income": "Entrate", "expense": "Uscite", "net": "Saldo pianificato", "note": "Movimenti previsti nel mese, incluse le ricorrenze.", "edit": "Modifica entrate e uscite" },
     "report": { "title": "Il tuo Balance report", "subtitle": "Patrimonio e movimenti in una pagina.", "action": "Il tuo report", "actionSubtitle": "Patrimonio e cashflow da condividere", "snapshot": "IL TUO PATRIMONIO", "flowTitle": "IL MESE IN SINTESI", "planned": "previsti", "flowNote": "Movimenti pianificati, incluse le ricorrenze.", "footer": "LA TUA FINANZA, CON PIÙ CHIAREZZA.", "share": "Condividi immagine", "sharing": "Preparazione…", "hint": "L’immagine contiene i tuoi dati finanziari.", "close": "Chiudi", "error": "Impossibile preparare il report. Riprova." },
     "portfolioPrivate": "I tuoi dati restano sul dispositivo",
+    "portfolioTotal": "Patrimonio totale",
+    "portfolioComposition": "Composizione patrimonio",
     "errorTitle": "Impossibile caricare la dashboard",
     "emptyTitle": "Configura subito Balance",
     "emptyBody": "Crea il tuo primo wallet per iniziare.",
     "emptyCta": "Configura Balance",
     "greeting": "Ciao",
     "greetingWithName": "Ciao {{name}}",
+    "greetingMorning": "Buongiorno, {{name}}",
+    "greetingEvening": "Buonasera, {{name}}",
     "firstRun": {
       "title": "La tua dashboard si costruisce da qui",
       "bodyLine1": "1. Configura i tuoi wallet.",
@@ -273,6 +357,7 @@
       "label": "Periodo",
       "title": "Cambia intervallo",
       "subtitle": "Confronta le variazioni del patrimonio usando gli snapshot disponibili.",
+      "noData": "Delta non disponibile",
       "options": {
         "lastWeek": "Ultimi 7 giorni",
         "lastMonth": "Ultimo mese",
@@ -282,6 +367,8 @@
         "last12Months": "Ultimi 12 mesi"
       }
     },
+    "monthSelector": { "open": "Cambia mese", "title": "Scegli il mese", "subtitle": "Aggiorna patrimonio, cashflow e insight della dashboard." },
+    "portfolioFlip": { "details": "Mostra il dettaglio del patrimonio", "total": "Torna al patrimonio totale" },
     "locked": {
       "title": "Mancano alcuni dati",
       "subtitle": "Tocca per capire cosa aggiungere.",
@@ -330,7 +417,7 @@
     }
   },
   "news": {
-    "quota": {"resumes": "Nuova modifica dal {{date}}. Con Balance Pro puoi cambiare selezione in qualsiasi momento.", "stocks": "Fino a 3 titoli. Modifiche disponibili negli ultimi 7 giorni: {{left}} su 2.", "topics": "Fino a 2 temi. Modifiche disponibili negli ultimi 7 giorni: {{left}} su 1.", "locked": "Limite Balance Free raggiunto. Riprova quando scade una modifica oppure passa a Balance Pro da Account.", "freePlan": "Radar: 3 titoli e 2 temi", "proPlan": "Tutti i titoli e i temi del catalogo, con modifiche illimitate"},
+    "quota": {"resumes": "Nuova modifica dal {{date}}. Con Balance Pro puoi cambiare selezione in qualsiasi momento.", "stocks": "Fino a 3 titoli. Modifiche residue su 7 giorni: {{left}} su 2.", "topics": "Fino a 2 temi. Modifiche residue su 7 giorni: {{left}} su 1.", "locked": "Limite Balance Free raggiunto. Riprova quando scade una modifica oppure passa a Balance Pro da Account."},
     "article": {
       "previewHint": "Espande il riassunto nella lista",
       "collapseHint": "Richiude il riassunto",
@@ -470,7 +557,7 @@
       "title": "Cosa vuoi seguire?",
       "subtitle": "Potrai modificare gli interessi in qualsiasi momento.",
       "firstTitle": "Personalizza il tuo Radar",
-      "firstSubtitle": "Scegli i temi e, se vuoi, le azioni da seguire. Puoi cambiare idea in qualsiasi momento.",
+      "firstSubtitle": "Scegli i temi e, se vuoi, le azioni da seguire.",
       "firstAction": "Salva e apri il Radar",
       "minimumTitle": "Scegli almeno un tema",
       "minimumBody": "Seleziona ciò che vuoi seguire per costruire il tuo feed."

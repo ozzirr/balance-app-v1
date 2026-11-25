@@ -5,7 +5,6 @@ import SectionHeader from "@/ui/dashboard/components/SectionHeader";
 import PressScale from "@/ui/dashboard/components/PressScale";
 import { useDashboardTheme } from "@/ui/dashboard/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { createWallet, deleteWallet, listWallets, updateWallet, updateWalletSortOrders, DEFAULT_WALLET_COLOR } from "@/repositories/walletsRepo";
 import type { AssetAvailability, Wallet, Currency, WalletType } from "@/repositories/types";
 import { useFocusEffect, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
@@ -314,7 +313,6 @@ export default function WalletScreen(): React.ReactElement {
   const startSetup = routeParams?.startSetup;
   const requestedPaywallSource = routeParams?.paywallSource;
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [walletsLoaded, setWalletsLoaded] = useState(false);
   const { t } = useTranslation();
@@ -1084,7 +1082,7 @@ export default function WalletScreen(): React.ReactElement {
           overScrollMode={scrollBounceEnabled ? "always" : "never"}
           contentContainerStyle={[
             styles.container,
-            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: headerHeight + 12 },
+            { gap: tokens.spacing.md, paddingBottom: 160 + insets.bottom, paddingTop: 12 },
           ]}
         >
         <GlassCardContainer>
