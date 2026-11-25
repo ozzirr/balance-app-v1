@@ -38,6 +38,7 @@ const BASE_PLUGINS = [
   "expo-sharing",
   "expo-splash-screen",
   "expo-status-bar",
+  "./scripts/with-ios-scene-lifecycle.cjs",
 ];
 
 const FACE_ID_USAGE_DESCRIPTION = "Usiamo Face ID per proteggere l'accesso a Balance.";
@@ -48,8 +49,6 @@ export default function ({ config }: ConfigContext): ExpoConfig {
 
   const iosInfoPlistRest = { ...iosInfoPlist };
   delete iosInfoPlistRest.NSFaceIDUsageDescription;
-  // The generated Expo AppDelegate owns the window; it has no SceneDelegate.
-  delete iosInfoPlistRest.UIApplicationSceneManifest;
 
   const androidConfig = config.android ?? {};
   const { versionCode: _ignoredVersionCode, ...androidRest } = androidConfig;
